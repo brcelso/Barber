@@ -1182,19 +1182,40 @@ function App() {
                               <select
                                 value={u.plan || ''}
                                 onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: e.target.value })}
-                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '0.65rem', padding: '2px', borderRadius: '4px' }}
+                                style={{
+                                  background: '#1a1a1a',
+                                  border: '1px solid var(--border)',
+                                  color: 'white',
+                                  fontSize: '0.7rem',
+                                  padding: '4px',
+                                  borderRadius: '6px',
+                                  width: '100%',
+                                  cursor: 'pointer'
+                                }}
                               >
-                                <option value="">Sem Plano</option>
-                                <option value="pro">Pro AI</option>
-                                <option value="business">Barber Shop</option>
+                                <option value="" style={{ color: '#000', background: '#fff' }}>Sem Plano</option>
+                                <option value="pro" style={{ color: '#000', background: '#fff' }}>Pro AI</option>
+                                <option value="business" style={{ color: '#000', background: '#fff' }}>Barber Shop</option>
+                                {u.plan && u.plan !== 'pro' && u.plan !== 'business' && (
+                                  <option value={u.plan} style={{ color: '#000', background: '#fff' }}>{u.plan} (Antigo)</option>
+                                )}
                               </select>
                             </td>
                             <td style={{ padding: '10px' }}>
                               <input
                                 type="date"
-                                defaultValue={u.subscription_expires ? u.subscription_expires.split('T')[0] : ''}
+                                value={u.subscription_expires ? u.subscription_expires.split('T')[0] : ''}
                                 onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: e.target.value ? new Date(e.target.value).toISOString() : null, plan: u.plan })}
-                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '0.65rem', padding: '2px', borderRadius: '4px', width: '90px' }}
+                                style={{
+                                  background: '#1a1a1a',
+                                  border: '1px solid #444',
+                                  color: 'white',
+                                  fontSize: '0.75rem',
+                                  padding: '5px',
+                                  borderRadius: '6px',
+                                  width: '100%',
+                                  outline: 'none'
+                                }}
                               />
                             </td>
                             <td style={{ padding: '10px' }}>
