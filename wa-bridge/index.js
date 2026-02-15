@@ -9,12 +9,14 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const pino = require('pino');
 const { Boom } = require('@hapi/boom');
+const axios = require('axios');
 
 const app = express();
 app.use(bodyParser.json());
 
 const PORT = 3000;
 const API_KEY = 'barber-secret-key';
+const WORKER_URL = 'https://barber-server.celsosilvajunior90.workers.dev/api/whatsapp/webhook';
 
 let sock;
 
@@ -31,6 +33,31 @@ async function connectToWhatsApp() {
         browser: ['Barber Bridge', 'Chrome', '1.0.0'],
         printQRInTerminal: false,
         markOnlineOnConnect: true
+    });
+
+    sock.ev.on('messages.upsert', async m => {
+        if (m.type !== 'notify') return;
+        const msg = m.messages[0];
+        if (msg.key.fromMe) return;
+
+        const sender = msg.key.remoteJid;
+        const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
+
+        if (text) {
+            console.log(`[Recebido] De: ${sender} - Msg: ${text}`);
+            // Encaminha para a IA no Worker
+            axios.post(WORKER_URL, {
+                phone: sender,
+                message: text
+            }).catch(e => {
+                if (e.response && e.response.data) {
+                    console.error('❌ ERRO NO WORKER:', e.response.data.error || e.message);
+                    if (e.response.data.stack) console.error(e.response.data.stack);
+                } else {
+                    console.error('❌ ERRO AO CHAMAR WEBHOOK:', e.message);
+                }
+            });
+        }
     });
 
     sock.ev.on('connection.update', async (update) => {

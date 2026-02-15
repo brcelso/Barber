@@ -1,4 +1,4 @@
-const { exec, spawn } = require('child_process');
+const { exec } = require('child_process');
 const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
@@ -24,8 +24,16 @@ async function checkLicense() {
 function startNgrok() {
     return new Promise((resolve) => {
         console.log('🌐 Iniciando Túnel Ngrok...');
-        ngrokProcess = spawn('ngrok', ['http', '3000']);
 
+        // Usar exec para evitar problemas de PATH e avisos de shell no Windows
+        ngrokProcess = exec('ngrok http 3000');
+
+        ngrokProcess.on('error', (err) => {
+            console.error(`❌ Falha ao iniciar Ngrok:`, err.message);
+            resolve(null);
+        });
+
+        // Aguarda o ngrok subir e obter a URL
         setTimeout(async () => {
             try {
                 const res = await axios.get('http://127.0.0.1:4040/api/tunnels');
@@ -33,16 +41,19 @@ function startNgrok() {
                 console.log(`✅ Túnel Ativo: ${url}`);
                 resolve(url);
             } catch (e) {
-                console.error('❌ Erro ao pegar URL do Ngrok. Verifique se ele está no PATH.');
+                console.error('❌ Erro ao capturar URL do Ngrok. Verifique se ele já está rodando.');
                 resolve(null);
             }
-        }, 3000);
+        }, 5000);
     });
 }
 
 async function startWhatsApp() {
     console.log('📱 Iniciando Ponte WhatsApp...');
-    whatsappProcess = spawn('node', ['index.js'], { stdio: 'inherit' });
+    whatsappProcess = exec('node index.js');
+
+    whatsappProcess.stdout.on('data', (data) => process.stdout.write(data));
+    whatsappProcess.stderr.on('data', (data) => process.stderr.write(data));
 
     whatsappProcess.on('close', (code) => {
         console.log(`Ponte fechada (Código: ${code})`);
