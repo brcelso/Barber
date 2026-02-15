@@ -15,6 +15,8 @@ import {
   RefreshCw,
   X,
   Check,
+  Trash2,
+  Edit2,
   Shield
 } from 'lucide-react';
 import { format, addDays, startOfToday, isSameDay, parseISO } from 'date-fns';
@@ -195,6 +197,44 @@ function App() {
     }
   };
 
+  const handleDelete = async (appointmentId) => {
+    if (!confirm('Deseja excluir permanentemente este registro do histórico?')) return;
+    setLoading(true);
+    try {
+      await fetch(`${API_URL}/appointments/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId, userEmail: user.email })
+      });
+      handleRefresh();
+    } catch (e) {
+      alert('Erro ao excluir');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (appointmentId) => {
+    const statuses = ['pending', 'confirmed', 'cancelled'];
+    const currentAppt = adminAppointments.find(a => a.id === appointmentId) || appointments.find(a => a.id === appointmentId);
+    const currentIndex = statuses.indexOf(currentAppt.status);
+    const nextStatus = statuses[(currentIndex + 1) % statuses.length];
+
+    setLoading(true);
+    try {
+      await fetch(`${API_URL}/appointments/update-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId, status: nextStatus, userEmail: user.email })
+      });
+      handleRefresh();
+    } catch (e) {
+      alert('Erro ao atualizar status');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleBooking = async () => {
     if (!selectedService || !selectedTime || !user) return;
     setLoading(true);
@@ -321,12 +361,13 @@ function App() {
                     <div className={`status-tag status-${a.status}`} style={{ fontSize: '0.7rem' }}>
                       {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
                     </div>
-                    {a.status === 'pending' && (
-                      <div style={{ display: 'flex', gap: '5px' }}>
+                    <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
+                      {a.status === 'pending' && (
                         <button className="btn-icon" style={{ padding: '4px', background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71' }} onClick={() => handleAdminConfirm(a.id)} title="Confirmar"><Check size={14} /></button>
-                        <button className="btn-icon" style={{ padding: '4px', background: 'rgba(231, 76, 60, 0.2)', color: '#e74c3c' }} onClick={() => handleCancel(a.id)} title="Cancelar"><X size={14} /></button>
-                      </div>
-                    )}
+                      )}
+                      <button className="btn-icon" style={{ padding: '4px', background: 'rgba(52, 152, 219, 0.1)', color: '#3498db' }} onClick={() => handleUpdateStatus(a.id)} title="Mudar Status"><Edit2 size={14} /></button>
+                      <button className="btn-icon" style={{ padding: '4px', background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c' }} onClick={() => handleDelete(a.id)} title="Excluir"><Trash2 size={14} /></button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -436,18 +477,24 @@ function App() {
             appointments.map(a => (
               <div key={a.id} className="glass-card appointment-item" style={{ flexDirection: 'column', gap: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                     <div style={{ background: 'var(--accent)', padding: '0.8rem', borderRadius: '12px', textAlign: 'center', minWidth: '60px' }}>
                       <div style={{ fontSize: '0.7rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
                       <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
                     </div>
                     <div>
-                      <h3 style={{ color: 'var(--primary)' }}>{a.service_name}</h3>
+                      <h3 style={{ color: 'var(--primary)', fontSize: '1.1rem' }}>{a.service_name}</h3>
                       <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{a.appointment_time} - Barber Central</p>
                     </div>
                   </div>
-                  <div className={`status-tag status-${a.status}`}>
-                    {a.status === 'confirmed' ? 'Confirmado' : 'Pendente'}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div className={`status-tag status-${a.status}`}>
+                      {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
+                    </div>
+                    <div style={{ display: 'flex', gap: '5px' }}>
+                      {user.isAdmin && <button className="btn-icon" style={{ padding: '4px', opacity: 0.6 }} onClick={() => handleUpdateStatus(a.id)} title="Alterar Status"><Edit2 size={14} /></button>}
+                      <button className="btn-icon" style={{ padding: '4px', opacity: 0.6, color: 'var(--danger)' }} onClick={() => handleDelete(a.id)} title="Excluir do Histórico"><Trash2 size={14} /></button>
+                    </div>
                   </div>
                 </div>
 

@@ -196,6 +196,34 @@ export default {
                 return json({ success: true });
             }
 
+            // Delete Appointment
+            if (url.pathname === '/api/appointments/delete' && request.method === 'POST') {
+                const { appointmentId, userEmail } = await request.json();
+                const appointment = await env.DB.prepare('SELECT user_email FROM appointments WHERE id = ?').bind(appointmentId).first();
+                const user = await env.DB.prepare('SELECT is_admin FROM users WHERE email = ?').bind(userEmail).first();
+
+                if (!appointment) return json({ error: 'Not found' }, 404);
+                if (appointment.user_email !== userEmail && (!user || user.is_admin !== 1)) {
+                    return json({ error: 'Unauthorized' }, 401);
+                }
+
+                await env.DB.prepare('DELETE FROM appointments WHERE id = ?').bind(appointmentId).run();
+                return json({ success: true });
+            }
+
+            // Update Appointment Status (General)
+            if (url.pathname === '/api/appointments/update-status' && request.method === 'POST') {
+                const { appointmentId, status, userEmail } = await request.json();
+                const user = await env.DB.prepare('SELECT is_admin FROM users WHERE email = ?').bind(userEmail).first();
+
+                if (!user || user.is_admin !== 1) {
+                    return json({ error: 'Admin only' }, 403);
+                }
+
+                await env.DB.prepare('UPDATE appointments SET status = ? WHERE id = ?').bind(status, appointmentId).run();
+                return json({ success: true });
+            }
+
             // Webhook for Mercado Pago
             if (url.pathname === '/api/webhook/mp' && request.method === 'POST') {
                 const data = await request.json();
