@@ -377,7 +377,7 @@ REGRAS DE RESPOSTA:
 
                 await env.DB.prepare(`
                     UPDATE users 
-                    SET is_barber = 1, is_admin = 1, subscription_expires = ? 
+                    SET is_barber = 1, is_admin = 1, subscription_expires = ?, trial_used = 1
                     WHERE email = ?
                 `).bind(expires, email).run();
 

@@ -1110,13 +1110,21 @@ function App() {
                       <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>ROBÔS ATIVOS</div>
                     </div>
                     {/* New Plan Stats */}
-                    {masterStats?.planCounts?.results?.map(p => (
-                      <div key={p.plan} className="glass-card" style={{ padding: '1rem', textAlign: 'center', border: '1px solid rgba(212, 175, 55, 0.2)' }}>
-                        <Shield size={20} className="text-primary" />
-                        <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{p.count}</div>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>PLANO {p.plan === 'business' ? 'SHOP' : p.plan}</div>
+                    {masterStats?.planCounts?.results?.length > 0 ? (
+                      masterStats.planCounts.results.map(p => (
+                        <div key={p.plan} className="glass-card" style={{ padding: '1rem', textAlign: 'center', border: '1px solid rgba(212, 175, 55, 0.2)' }}>
+                          <Shield size={20} className="text-primary" />
+                          <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{p.count}</div>
+                          <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>PLANO {p.plan === 'business' ? 'SHOP' : p.plan}</div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="glass-card" style={{ padding: '1rem', textAlign: 'center', opacity: 0.5 }}>
+                        <Shield size={20} className="text-muted" />
+                        <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>0</div>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>PLANOS ATIVOS</div>
                       </div>
-                    ))}
+                    )}
                     <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
                       <Calendar size={20} className="text-primary" />
                       <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats?.totalAppointments?.count || 0}</div>
@@ -1172,7 +1180,7 @@ function App() {
                             </td>
                             <td style={{ padding: '10px' }}>
                               <select
-                                defaultValue={u.plan || ''}
+                                value={u.plan || ''}
                                 onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: e.target.value })}
                                 style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '0.65rem', padding: '2px', borderRadius: '4px' }}
                               >
