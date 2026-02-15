@@ -51,7 +51,9 @@ function startNgrok() {
 
 async function startWhatsApp() {
     console.log('📱 Iniciando Ponte WhatsApp...');
-    whatsappProcess = exec('node index.js');
+    whatsappProcess = exec('node index.js', {
+        env: { ...process.env, ADMIN_EMAIL: ADMIN_EMAIL }
+    });
 
     whatsappProcess.stdout.on('data', (data) => process.stdout.write(data));
     whatsappProcess.stderr.on('data', (data) => process.stderr.write(data));

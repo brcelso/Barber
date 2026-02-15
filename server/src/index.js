@@ -121,6 +121,27 @@ export default {
                 });
             }
 
+            // WhatsApp Bridge Status Update
+            if (url.pathname === '/api/whatsapp/status' && request.method === 'POST') {
+                const { email, status, qr } = await request.json();
+                if (status === 'qr') {
+                    await env.DB.prepare('UPDATE users SET wa_status = "awaiting_qr", wa_qr = ? WHERE email = ?').bind(qr, email).run();
+                } else if (status === 'connected') {
+                    await env.DB.prepare('UPDATE users SET wa_status = "connected", wa_qr = NULL WHERE email = ?').bind(email).run();
+                } else {
+                    await env.DB.prepare('UPDATE users SET wa_status = "disconnected", wa_qr = NULL WHERE email = ?').bind(email).run();
+                }
+                return json({ success: true });
+            }
+
+            // Get WhatsApp Bridge Status (for Frontend)
+            if (url.pathname === '/api/whatsapp/status' && request.method === 'GET') {
+                const email = request.headers.get('X-User-Email');
+                const user = await env.DB.prepare('SELECT wa_status, wa_qr FROM users WHERE email = ?').bind(email).first();
+                if (!user) return json({ error: 'User not found' }, 404);
+                return json({ status: user.wa_status || 'disconnected', qr: user.wa_qr });
+            }
+
             // Mock Payment (3-day trial)
             if (url.pathname === '/api/admin/subscription/pay' && request.method === 'POST') {
                 const { email } = await request.json();

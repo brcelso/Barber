@@ -49,6 +49,7 @@ function App() {
   const [paymentSelectionAppt, setPaymentSelectionAppt] = useState(null);
   const [selectedActionAppt, setSelectedActionAppt] = useState(null);
   const [showPlanSelection, setShowPlanSelection] = useState(false);
+  const [waStatus, setWaStatus] = useState({ status: 'disconnected', qr: null });
 
   // Set default view on login/load
   useEffect(() => {
@@ -60,6 +61,27 @@ function App() {
       setView('book');
     }
   }, [user]);
+
+  useEffect(() => {
+    let interval;
+    if (view === 'admin' && user?.isAdmin) {
+      interval = setInterval(fetchWaStatus, 5000);
+      fetchWaStatus();
+    }
+    return () => clearInterval(interval);
+  }, [view, user]);
+
+  const fetchWaStatus = async () => {
+    try {
+      const res = await fetch(`${API_URL}/whatsapp/status`, {
+        headers: { 'X-User-Email': user.email }
+      });
+      const data = await res.json();
+      setWaStatus(data);
+    } catch (e) {
+      console.error('Erro ao buscar status WhatsApp:', e);
+    }
+  };
 
   // Handle Manual Login Submission
   const handleManualLogin = async (e) => {
@@ -986,6 +1008,52 @@ function App() {
               ))}
             </div>
           )}
+
+          <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem', border: waStatus.status === 'connected' ? '1px solid #2ecc71' : '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <MessageSquare className="text-primary" size={24} /> Robô de WhatsApp
+              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: waStatus.status === 'connected' ? '#2ecc71' : (waStatus.status === 'awaiting_qr' ? '#f1c40f' : '#e74c3c') }} />
+                <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                  {waStatus.status === 'connected' ? 'Conectado' : (waStatus.status === 'awaiting_qr' ? 'Aguardando Escaneamento' : 'Desconectado')}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              {waStatus.status === 'awaiting_qr' && waStatus.qr ? (
+                <div style={{ textAlign: 'center', background: 'white', padding: '1rem', borderRadius: '12px' }}>
+                  <img src={waStatus.qr} alt="WhatsApp QR Code" style={{ width: '200px', height: '200px' }} />
+                  <p style={{ color: 'black', fontSize: '0.7rem', marginTop: '0.5rem', fontWeight: 800 }}>ESCANEIE COM SEU WHATSAPP</p>
+                </div>
+              ) : (
+                <div style={{ flex: 1, minWidth: '250px' }}>
+                  {waStatus.status === 'connected' ? (
+                    <p style={{ color: 'var(--text-muted)' }}>
+                      ✅ Seu robô está ativo e respondendo aos clientes automaticamente através da IA do Mestre Leo.
+                    </p>
+                  ) : (
+                    <p style={{ color: 'var(--text-muted)' }}>
+                      O robô está desligado. Para ativar, certifique-se que o servidor ponte está rodando em sua máquina. O QR Code aparecerá aqui automaticamente.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div style={{ flex: 1, minWidth: '250px' }}>
+                <div className="glass-card" style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)' }}>
+                  <h4 style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Dicas:</h4>
+                  <ul style={{ fontSize: '0.8rem', color: 'var(--text-muted)', paddingLeft: '1.2rem' }}>
+                    <li>Use o WhatsApp Business para melhores resultados.</li>
+                    <li>A IA responde dúvidas sobre preços e horários.</li>
+                    <li>Clientes podem agendar digitando "1".</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>

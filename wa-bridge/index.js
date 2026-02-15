@@ -10,6 +10,10 @@ const bodyParser = require('body-parser');
 const pino = require('pino');
 const { Boom } = require('@hapi/boom');
 const axios = require('axios');
+const QRCode = require('qrcode');
+
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const STATUS_URL = 'https://barber-server.celsosilvajunior90.workers.dev/api/whatsapp/status';
 
 const app = express();
 app.use(bodyParser.json());
@@ -67,11 +71,30 @@ async function connectToWhatsApp() {
         if (qr) {
             console.log('\n--- NOVO QR CODE GERADO. ESCANEIE ABAIXO ---');
             qrcode.generate(qr, { small: true });
+
+            // Enviar QR para o Worker para o Barbeiro ler no App
+            try {
+                const qrImage = await QRCode.toDataURL(qr);
+                await axios.post(STATUS_URL, {
+                    email: ADMIN_EMAIL,
+                    status: 'qr',
+                    qr: qrImage
+                });
+            } catch (e) {
+                console.error('Erro ao enviar QR para Worker:', e.message);
+            }
         }
 
         if (connection === 'close') {
             const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
             console.log('Conexão fechada. Razão:', reason);
+
+            // Notificar Worker
+            axios.post(STATUS_URL, {
+                email: ADMIN_EMAIL,
+                status: 'disconnected',
+                reason: reason
+            }).catch(() => { });
 
             if (reason === DisconnectReason.loggedOut) {
                 console.log('Sessão encerrada pelo celular. Delete a pasta auth_info_baileys e escaneie de novo.');
@@ -84,6 +107,11 @@ async function connectToWhatsApp() {
             }
         } else if (connection === 'open') {
             console.log('\n✅ WhatsApp Conectado e Pronto para Enviar!');
+            // Notificar Worker
+            axios.post(STATUS_URL, {
+                email: ADMIN_EMAIL,
+                status: 'connected'
+            }).catch(() => { });
         }
     });
 
