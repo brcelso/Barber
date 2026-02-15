@@ -84,17 +84,56 @@ function App() {
     }
   };
 
-  const handleLogin = (mock = true) => {
-    // Simple mock login for demo, similar to what Leca does but with a button
-    const mockUser = {
-      name: 'Celso Junior',
-      email: 'celsosilvajunior90@gmail.com',
-      picture: 'https://lh3.googleusercontent.com/a/ACg8ocL8vXG_JqXnZwGZz_X_lY9vjWJzJ0_X_lY9vjWJzJ0_X_lY9vjWJzJ0_X_lY9vjWJzJ0_X_lY9vjWZ=s96-c',
-      isAdmin: true
+  const handleCredentialResponse = async (response) => {
+    const payload = JSON.parse(atob(response.credential.split('.')[1]));
+    const userData = {
+      name: payload.name,
+      email: payload.email,
+      picture: payload.picture,
+      token: response.credential,
     };
-    setUser(mockUser);
-    localStorage.setItem('barber_user', JSON.stringify(mockUser));
+
+    try {
+      const res = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${response.credential}`
+        },
+        body: JSON.stringify(userData)
+      });
+      const data = await res.json();
+      if (data.user) {
+        const finalUser = { ...userData, isAdmin: data.user.isAdmin };
+        setUser(finalUser);
+        localStorage.setItem('barber_user', JSON.stringify(finalUser));
+      }
+    } catch (err) {
+      console.error('[Login Failed]', err);
+    }
   };
+
+  useEffect(() => {
+    let retryCount = 0;
+    const initGoogle = () => {
+      if (window.google) {
+        window.google.accounts.id.initialize({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          callback: handleCredentialResponse,
+        });
+        if (!user) {
+          const btnElem = document.getElementById("googleBtn");
+          if (btnElem) {
+            window.google.accounts.id.renderButton(btnElem, { theme: "outline", size: "large", shape: "pill", width: "100%" });
+          }
+        }
+      } else if (retryCount < 10) {
+        retryCount++;
+        setTimeout(initGoogle, 500);
+      }
+    };
+    initGoogle();
+  }, [user]);
 
   const handleLogout = () => {
     setUser(null);
@@ -136,9 +175,7 @@ function App() {
         <div className="glass-card login-card" style={{ padding: '3rem', textAlign: 'center', maxWidth: '400px' }}>
           <div className="logo-text" style={{ fontSize: '3rem', marginBottom: '1rem' }}>Barber</div>
           <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>O melhor corte da sua vida, a um clique de distância.</p>
-          <button className="btn-primary" onClick={handleLogin} style={{ width: '100%' }}>
-            <User size={20} /> Entrar com Google
-          </button>
+          <div id="googleBtn" style={{ marginTop: '2rem', display: 'flex', justifyContent: 'center' }}></div>
           <p style={{ marginTop: '2rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
             Ao entrar você concorda com nossos termos.
           </p>

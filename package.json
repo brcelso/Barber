@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:server": "cd server && npx wrangler dev --local --persist",
+    "dev:server": "cd server && npx wrangler dev --local",
     "dev:full": "npm run dev & npm run dev:server",
     "db:init": "cd server && npx wrangler d1 execute barber-db --local --file=schema.sql",
     "build": "vite build",
