@@ -71,23 +71,24 @@ function App() {
     if (view === 'admin' && user?.isAdmin) {
       interval = setInterval(() => {
         fetchWaStatus();
-        if (user.isMaster) fetchMasterData();
+        if (user?.isMaster) fetchMasterData();
       }, 5000);
       fetchWaStatus();
-      if (user.isMaster) fetchMasterData();
+      if (user?.isMaster) fetchMasterData();
     }
     return () => clearInterval(interval);
   }, [view, user]);
 
   const fetchMasterData = async () => {
     try {
+      if (!user?.email) return;
       const statsRes = await fetch(`${API_URL}/master/stats`, { headers: { 'X-User-Email': user.email } });
       const statsData = await statsRes.json();
       setMasterStats(statsData);
 
       const usersRes = await fetch(`${API_URL}/master/users`, { headers: { 'X-User-Email': user.email } });
       const usersData = await usersRes.json();
-      setMasterUsers(usersData);
+      setMasterUsers(Array.isArray(usersData) ? usersData : []);
     } catch (e) {
       console.error('Erro ao buscar dados master:', e);
     }
@@ -1026,7 +1027,7 @@ function App() {
         </div>
       </header>
 
-      {view === 'admin' && user.isAdmin && (
+      {view === 'admin' && user?.isAdmin && (
         <main className="fade-in">
           {/* MASTER PANEL: Painel de Controle Global */}
           {user?.isMaster && (
@@ -1064,22 +1065,22 @@ function App() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
                     <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
                       <Users size={20} className="text-primary" />
-                      <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats.totalUsers.count}</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats?.totalUsers?.count || 0}</div>
                       <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>USUÁRIOS</div>
                     </div>
                     <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
                       <Shield size={20} className="text-primary" />
-                      <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats.activeAdmins.count}</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats?.activeAdmins?.count || 0}</div>
                       <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>ASSINANTES</div>
                     </div>
                     <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
                       <MessageSquare size={20} className="text-primary" />
-                      <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats.connectedBots.count}</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats?.connectedBots?.count || 0}</div>
                       <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>ROBÔS ATIVOS</div>
                     </div>
                     <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
                       <Calendar size={20} className="text-primary" />
-                      <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats.totalAppointments.count}</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats?.totalAppointments?.count || 0}</div>
                       <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>AGENDAMENTOS</div>
                     </div>
                   </div>
@@ -1098,7 +1099,7 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {masterUsers.map(u => (
+                      {masterUsers?.map(u => (
                         <tr key={u.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                           <td style={{ padding: '10px' }}>
                             <div style={{ fontWeight: 700 }}>{u.name}</div>
@@ -1110,14 +1111,14 @@ function App() {
                                 <input
                                   type="checkbox"
                                   defaultChecked={u.is_admin}
-                                  onChange={(e) => handleMasterUpdate(u.email, { is_admin: e.target.checked, is_barber: u.is_barber, expires: u.subscription_expires })}
+                                  onChange={(e) => handleMasterUpdate(u.email, { is_admin: e.target.checked, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan })}
                                 /> Adm
                               </label>
                               <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.65rem' }}>
                                 <input
                                   type="checkbox"
                                   defaultChecked={u.is_barber}
-                                  onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: e.target.checked, expires: u.subscription_expires })}
+                                  onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: e.target.checked, expires: u.subscription_expires, plan: u.plan })}
                                 /> Barb
                               </label>
                             </div>
