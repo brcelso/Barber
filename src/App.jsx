@@ -115,7 +115,7 @@ function App() {
   const fetchBusySlots = async (date) => {
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
-      const res = await fetch(`${API_URL}/appointments/busy-slots?date=${dateStr}`);
+      const res = await fetch(`${API_URL}/appointments/busy-slots?date=${dateStr}&t=${Date.now()}`);
       const data = await res.json();
       setBusySlots(data || []);
     } catch (e) {
@@ -231,7 +231,8 @@ function App() {
     setLoading(true);
     await Promise.all([
       fetchServices(),
-      user?.isAdmin ? fetchAdminAppointments() : fetchAppointments()
+      user?.isAdmin ? fetchAdminAppointments() : fetchAppointments(),
+      selectedDate ? fetchBusySlots(selectedDate) : Promise.resolve()
     ]);
     setLoading(false);
   };
