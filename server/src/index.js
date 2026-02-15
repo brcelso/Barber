@@ -139,18 +139,26 @@ export default {
 
             // Create Subscription Payment Link
             if (url.pathname === '/api/admin/subscription/payment' && request.method === 'POST') {
-                const { email } = await request.json();
+                const { email, planId } = await request.json();
                 const user = await env.DB.prepare('SELECT is_admin, subscription_expires FROM users WHERE email = ?').bind(email).first();
                 if (!user || user.is_admin !== 1) return json({ error: 'Permission Denied' }, 403);
 
+                const plans = {
+                    starter: { name: 'Plano Starter', price: 59.90 },
+                    pro: { name: 'Plano Pro AI', price: 119.90 },
+                    business: { name: 'Plano Barber Shop', price: 189.90 }
+                };
+
+                const plan = plans[planId] || plans.pro;
+
                 const mpPreference = {
                     items: [{
-                        title: `Assinatura Barber App - 30 Dias`,
+                        title: `Assinatura Barber App - ${plan.name} (30 Dias)`,
                         quantity: 1,
-                        unit_price: 29.90,
+                        unit_price: plan.price,
                         currency_id: 'BRL'
                     }],
-                    external_reference: `sub_${email}`,
+                    external_reference: `sub_${email}_${planId || 'pro'}`,
                     back_urls: {
                         success: `${env.FRONTEND_URL}/?subscription=success`,
                         failure: `${env.FRONTEND_URL}/?subscription=failure`,
@@ -159,7 +167,7 @@ export default {
                     auto_return: 'approved'
                 };
 
-                console.log(`[Subscription] Creating payment link for ${email}`);
+                console.log(`[Subscription] Creating payment link for ${email} - Plan: ${plan.name}`);
 
                 const mpResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
                     method: 'POST',

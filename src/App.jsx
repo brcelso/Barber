@@ -48,6 +48,7 @@ function App() {
   const [showManualLogin, setShowManualLogin] = useState(false);
   const [paymentSelectionAppt, setPaymentSelectionAppt] = useState(null);
   const [selectedActionAppt, setSelectedActionAppt] = useState(null);
+  const [showPlanSelection, setShowPlanSelection] = useState(false);
 
   // Set default view on login/load
   useEffect(() => {
@@ -320,13 +321,14 @@ function App() {
     }
   };
 
-  const handleSubscriptionPayment = async () => {
+  const handleSubscriptionPayment = async (planId) => {
+    setShowPlanSelection(false);
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/admin/subscription/payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: user.email })
+        body: JSON.stringify({ email: user.email, planId })
       });
       const data = await res.json();
       if (data.paymentUrl) {
@@ -845,7 +847,7 @@ function App() {
                   Teste 3d
                 </button>
                 <button
-                  onClick={handleSubscriptionPayment}
+                  onClick={() => setShowPlanSelection(true)}
                   style={{
                     background: 'var(--primary)',
                     color: 'black',
@@ -1307,6 +1309,59 @@ function App() {
 
               <button className="btn-close-sheet" onClick={() => setPaymentSelectionAppt(null)}>
                 Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal de Seleção de Planos */}
+      {showPlanSelection && (
+        <div className="modal-overlay" onClick={() => setShowPlanSelection(false)}>
+          <div className="glass-card fade-in" style={{ width: '90%', maxWidth: '450px', padding: '2rem' }} onClick={e => e.stopPropagation()}>
+            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+              <Shield size={48} className="text-primary" style={{ marginBottom: '1rem' }} />
+              <h2>Escolha seu Plano</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Selecione o plano ideal para sua barbearia</p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div className="action-item" onClick={() => handleSubscriptionPayment('starter')} style={{ cursor: 'pointer', border: '1px solid var(--border)' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>Starter</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Agendamento e Gestão Base</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 59,90</div>
+                  <div style={{ fontSize: '0.7rem' }}>/mês</div>
+                </div>
+              </div>
+
+              <div className="action-item" onClick={() => handleSubscriptionPayment('pro')} style={{ cursor: 'pointer', border: '1px solid var(--primary)', background: 'rgba(212, 175, 55, 0.05)' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 800, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    Pro AI <span style={{ fontSize: '0.6rem', background: 'var(--primary)', color: 'black', padding: '2px 6px', borderRadius: '4px' }}>POPULAR</span>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Mestre Leo AI + Pagamentos</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 119,90</div>
+                  <div style={{ fontSize: '0.7rem' }}>/mês</div>
+                </div>
+              </div>
+
+              <div className="action-item" onClick={() => handleSubscriptionPayment('business')} style={{ cursor: 'pointer', border: '1px solid var(--border)' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>Barber Shop</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Múltiplos Barbeiros + Equipes</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 189,90</div>
+                  <div style={{ fontSize: '0.7rem' }}>/mês</div>
+                </div>
+              </div>
+
+              <button className="btn-close-sheet" onClick={() => setShowPlanSelection(false)} style={{ marginTop: '1rem' }}>
+                Cancelar
               </button>
             </div>
           </div>
