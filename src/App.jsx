@@ -1132,55 +1132,72 @@ function App() {
                 <button className="btn-primary" onClick={() => setView('book')} style={{ margin: '1.5rem auto' }}>Agendar Agora</button>
               </div>
             ) : (
-              appointments.map(a => (
-                <div key={a.id} className="glass-card appointment-item" style={{ flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                      <div style={{ background: 'var(--accent)', padding: '0.6rem', borderRadius: '12px', textAlign: 'center', minWidth: '55px' }}>
-                        <div style={{ fontSize: '0.65rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
-                        <div style={{ fontSize: '1rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
-                      </div>
-                      <div className="user-avatar" style={{ width: '32px', height: '32px' }}>
-                        <img src={user.picture} alt={user.name} />
-                      </div>
-                      <div>
-                        <h3 style={{ color: 'var(--primary)', fontSize: '0.95rem' }}>{a.service_name}</h3>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{a.appointment_time} - Barber Central</p>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div className={`status-tag status-${a.status}`}>
-                        {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
-                      </div>
-                      <div style={{ display: 'flex', gap: '5px' }}>
-                        <button className="btn-icon" style={{ padding: '4px', opacity: 0.8 }} onClick={() => setSelectedActionAppt(a)} title="Gerenciar"><Edit2 size={14} /></button>
-                        <button className="btn-icon" style={{ padding: '4px', opacity: 0.6, color: 'var(--danger)' }} onClick={() => handleDelete(a.id)} title="Excluir do Histórico"><Trash2 size={14} /></button>
-                      </div>
-                    </div>
-                  </div>
+              appointments.map(a => {
+                const isProfessional = a.barber_email === user.email && a.user_email !== user.email;
+                const displayTitle = isProfessional ? `Para: ${a.client_name}` : a.service_name;
+                const displaySubtitle = isProfessional ? `${a.service_name} às ${a.appointment_time}` : `${a.appointment_time} - com ${a.barber_name}`;
+                const displayPicture = isProfessional ? a.client_picture : a.barber_picture;
 
-                  {a.status === 'pending' && (
-                    <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', gap: '10px' }}>
-                      <button
-                        className="btn-primary"
-                        style={{ flex: 2, padding: '0.6rem' }}
-                        onClick={() => handlePayment(a._id || a.id)} // Garante que pega o ID correto
-                        disabled={loading}
-                      >
-                        <CreditCard size={18} /> Pagar Agora (R$ {a.price})
-                      </button>
-                      <button
-                        className="btn-icon"
-                        style={{ flex: 1, padding: '0.6rem', background: 'rgba(231, 76, 60, 0.2)', color: '#e74c3c', borderRadius: '12px' }}
-                        onClick={() => handleCancel(a.id)}
-                        disabled={loading}
-                      >
-                        <X size={18} /> Cancelar
-                      </button>
+                return (
+                  <div key={a.id} className="glass-card appointment-item" style={{
+                    flexDirection: 'column',
+                    gap: '1rem',
+                    borderLeft: isProfessional ? '4px solid var(--primary)' : '4px solid rgba(255,255,255,0.1)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <div style={{ background: 'var(--accent)', padding: '0.6rem', borderRadius: '12px', textAlign: 'center', minWidth: '55px' }}>
+                          <div style={{ fontSize: '0.65rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
+                          <div style={{ fontSize: '1rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
+                        </div>
+                        <div className="user-avatar" style={{ width: '32px', height: '32px' }}>
+                          <img src={displayPicture || user.picture} alt="Avatar" />
+                        </div>
+                        <div>
+                          <h3 style={{ color: 'var(--primary)', fontSize: '0.95rem' }}>{displayTitle}</h3>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{displaySubtitle}</p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div className={`status-tag status-${a.status}`}>
+                          {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
+                        </div>
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                          <button className="btn-icon" style={{ padding: '4px', opacity: 0.8 }} onClick={() => setSelectedActionAppt(a)} title="Gerenciar"><Edit2 size={14} /></button>
+                          <button className="btn-icon" style={{ padding: '4px', opacity: 0.6, color: 'var(--danger)' }} onClick={() => handleDelete(a.id)} title="Excluir do Histórico"><Trash2 size={14} /></button>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))
+
+                    {a.status === 'pending' && !isProfessional && (
+                      <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', gap: '10px' }}>
+                        <button
+                          className="btn-primary"
+                          style={{ flex: 2, padding: '0.6rem' }}
+                          onClick={() => handlePayment(a._id || a.id)}
+                          disabled={loading}
+                        >
+                          <CreditCard size={18} /> Pagar Agora (R$ {a.price})
+                        </button>
+                        <button
+                          className="btn-icon"
+                          style={{ flex: 1, padding: '0.6rem', background: 'rgba(231, 76, 60, 0.2)', color: '#e74c3c', borderRadius: '12px' }}
+                          onClick={() => handleCancel(a.id)}
+                          disabled={loading}
+                        >
+                          <X size={18} /> Cancelar
+                        </button>
+                      </div>
+                    )}
+
+                    {isProfessional && a.status === 'pending' && (
+                      <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: '0.8rem', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                        Aguardando pagamento/confirmação do cliente
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             )}
           </main>
         )
