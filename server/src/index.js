@@ -221,18 +221,27 @@ REGRAS DE RESPOSTA:
                 return json(results);
             }
 
-            // MASTER: Update User Role/Subscription/Phone
+            // MASTER: Update User Role/Subscription/Phone/Name/Email
             if (url.pathname === '/api/master/user/update' && request.method === 'POST') {
                 const email = request.headers.get('X-User-Email');
                 if (email !== MASTER_EMAIL) return json({ error: 'Unauthorized' }, 401);
 
-                const { targetEmail, is_admin, is_barber, expires, plan, phone } = await request.json();
+                const { targetEmail, is_admin, is_barber, expires, plan, phone, newName, newEmail } = await request.json();
 
                 await env.DB.prepare(`
                     UPDATE users 
-                    SET is_admin = ?, is_barber = ?, subscription_expires = ?, plan = ?, phone = ?
+                    SET is_admin = ?, is_barber = ?, subscription_expires = ?, plan = ?, phone = ?, name = ?, email = ?
                     WHERE email = ?
-                `).bind(is_admin ? 1 : 0, is_barber ? 1 : 0, expires || null, plan || null, phone || null, targetEmail).run();
+                `).bind(
+                    is_admin ? 1 : 0,
+                    is_barber ? 1 : 0,
+                    expires || null,
+                    plan || null,
+                    phone || null,
+                    newName || null,
+                    newEmail || targetEmail,
+                    targetEmail
+                ).run();
 
                 return json({ success: true });
             }
@@ -523,17 +532,33 @@ REGRAS DE RESPOSTA:
                 return json({ paymentUrl: mpData.init_point });
             }
 
-            // Mock Appointment Payment
+            // Mock Appointment Payment / Local Payment
             if (url.pathname === '/api/payments/mock' && request.method === 'POST') {
-                const { appointmentId, email } = await request.json();
+                const { appointmentId, email, method } = await request.json();
+                const payMethod = method || 'Simulado/Local';
 
                 await env.DB.prepare(`
                     UPDATE appointments 
-                    SET payment_status = 'confirmed', status = 'confirmed', payment_id = 'mock_' || ?
+                    SET payment_status = 'confirmed', status = 'confirmed', payment_id = ?
                     WHERE id = ? AND (user_email = ? OR barber_email = ?)
-                `).bind(appointmentId, appointmentId, email, email).run();
+                `).bind(payMethod, appointmentId, email, email).run();
 
-                return json({ success: true, message: 'Pagamento simulado com sucesso!' });
+                return json({ success: true, message: 'Pagamento confirmado localmente!' });
+            }
+
+            // Admin: Update Payment Manually (Fix mistakes)
+            if (url.pathname === '/api/admin/appointments/update-payment' && request.method === 'POST') {
+                const { appointmentId, adminEmail, status, paymentId } = await request.json();
+                const admin = await env.DB.prepare('SELECT is_admin FROM users WHERE email = ?').bind(adminEmail).first();
+                if (!admin || admin.is_admin !== 1) return json({ error: 'Forbidden' }, 403);
+
+                await env.DB.prepare(`
+                    UPDATE appointments 
+                    SET payment_status = ?, payment_id = ?
+                    WHERE id = ?
+                `).bind(status, paymentId || null, appointmentId).run();
+
+                return json({ success: true });
             }
 
             // Admin: Confirm Appointment (Manual)

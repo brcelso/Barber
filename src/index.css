@@ -10,6 +10,7 @@
   --success: #2ecc71;
   --danger: #e74c3c;
   --accent: #1e1e1e;
+  color-scheme: dark;
 }
 
 * {

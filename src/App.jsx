@@ -753,6 +753,8 @@ function App() {
 
   const processPayment = async (type) => {
     const apptId = paymentSelectionAppt.id;
+    const isMock = type === 'mock' || type === 'local';
+    const methodDesc = type === 'local' ? 'Pagamento Local ($/Cartão)' : 'Simulado/Admin';
     setPaymentSelectionAppt(null);
 
     setLoading(true);
@@ -773,15 +775,15 @@ function App() {
         const res = await fetch(`${API_URL}/payments/mock`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ appointmentId: apptId, email: user.email })
+          body: JSON.stringify({ appointmentId: apptId, email: user.email, method: methodDesc })
         });
         const data = await res.json();
         if (data.success) {
-          alert('✅ Pagamento de teste confirmado!');
+          alert(type === 'local' ? '✅ Pagamento local confirmado!' : '✅ Pagamento de teste confirmado!');
           // Forçar atualização total
           await handleRefresh();
         } else {
-          alert('Erro ao simular pagamento: ' + (data.error || 'Erro desconhecido'));
+          alert('Erro ao confirmar pagamento: ' + (data.error || 'Erro desconhecido'));
         }
       }
     } catch (e) {
@@ -819,9 +821,14 @@ function App() {
                 </button>
 
                 {user.isAdmin && (
-                  <button className="action-item" onClick={() => setSheetView('status')}>
-                    <Edit2 size={20} color="#3498db" /> Alterar Status do Agendamento
-                  </button>
+                  <>
+                    <button className="action-item" onClick={() => setSheetView('status')}>
+                      <Edit2 size={20} color="#3498db" /> Alterar Status do Agendamento
+                    </button>
+                    <button className="action-item" onClick={() => setSheetView('payment')}>
+                      <CreditCard size={20} color="#2ecc71" /> Alterar Pagamento
+                    </button>
+                  </>
                 )}
 
                 <button className="action-item danger" onClick={() => {
@@ -834,7 +841,7 @@ function App() {
                 </button>
               </div>
             </>
-          ) : (
+          ) : sheetView === 'status' ? (
             <>
               <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--primary)' }}>Definir Status</h3>
               <div className="action-list">
@@ -869,6 +876,55 @@ function App() {
                     {opt.icon} {opt.label}
                   </button>
                 ))}
+                <button className="action-item" style={{ marginTop: '10px', background: 'rgba(255,255,255,0.05)' }} onClick={() => setSheetView('main')}>
+                  <ChevronLeft size={18} /> Voltar
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--primary)' }}>Alterar Pagamento</h3>
+              <div className="action-list">
+                <button
+                  className="action-item"
+                  onClick={async () => {
+                    setLoading(true);
+                    try {
+                      await fetch(`${API_URL}/admin/appointments/update-payment`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ appointmentId: selectedActionAppt.id, adminEmail: user.email, status: 'confirmed', paymentId: 'Pagamento Local ($/Cartão)' })
+                      });
+                      alert('Marcado como PAGO (Local)');
+                      handleRefresh();
+                      setSelectedActionAppt(null);
+                      setSheetView('main');
+                    } catch (e) { alert('Erro ao atualizar pagamento'); }
+                    finally { setLoading(false); }
+                  }}
+                >
+                  <CheckCircle size={18} color="#2ecc71" /> Marcar como PAGO (Local)
+                </button>
+                <button
+                  className="action-item"
+                  onClick={async () => {
+                    setLoading(true);
+                    try {
+                      await fetch(`${API_URL}/admin/appointments/update-payment`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ appointmentId: selectedActionAppt.id, adminEmail: user.email, status: 'pending', paymentId: null })
+                      });
+                      alert('Marcado como PENDENTE');
+                      handleRefresh();
+                      setSelectedActionAppt(null);
+                      setSheetView('main');
+                    } catch (e) { alert('Erro ao atualizar pagamento'); }
+                    finally { setLoading(false); }
+                  }}
+                >
+                  <Clock size={18} color="rgba(255,255,255,0.4)" /> Marcar como PENDENTE
+                </button>
                 <button className="action-item" style={{ marginTop: '10px', background: 'rgba(255,255,255,0.05)' }} onClick={() => setSheetView('main')}>
                   <ChevronLeft size={18} /> Voltar
                 </button>
@@ -1184,8 +1240,35 @@ function App() {
                         masterUsers.map(u => (
                           <tr key={u.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <td style={{ padding: '10px' }}>
-                              <div style={{ fontWeight: 700 }}>{u.name}</div>
-                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{u.email}</div>
+                              <input
+                                type="text"
+                                value={u.name || ''}
+                                onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: e.target.value, newEmail: u.email })}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: 'white',
+                                  fontWeight: 700,
+                                  fontSize: '0.85rem',
+                                  width: '100%',
+                                  outline: 'none',
+                                  padding: '2px 0'
+                                }}
+                              />
+                              <input
+                                type="email"
+                                value={u.email || ''}
+                                onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: u.name, newEmail: e.target.value })}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: 'var(--text-muted)',
+                                  fontSize: '0.7rem',
+                                  width: '100%',
+                                  outline: 'none',
+                                  padding: '2px 0'
+                                }}
+                              />
                             </td>
                             <td style={{ padding: '10px' }}>
                               <input
@@ -1194,12 +1277,12 @@ function App() {
                                 onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: e.target.value })}
                                 placeholder="Sem tel"
                                 style={{
-                                  background: 'rgba(255,255,255,0.05)',
+                                  background: 'rgba(255,255,255,0.03)',
                                   border: '1px solid var(--border)',
                                   color: 'white',
                                   fontSize: '0.75rem',
-                                  padding: '4px',
-                                  borderRadius: '8px',
+                                  padding: '6px 10px',
+                                  borderRadius: '10px',
                                   width: '120px',
                                   outline: 'none'
                                 }}
@@ -1232,12 +1315,13 @@ function App() {
                                   background: 'rgba(255,255,255,0.05)',
                                   border: '1px solid var(--border)',
                                   color: 'white',
-                                  fontSize: '0.7rem',
-                                  padding: '4px',
-                                  borderRadius: '8px',
+                                  fontSize: '0.75rem',
+                                  padding: '6px 10px',
+                                  borderRadius: '10px',
                                   width: '100%',
                                   cursor: 'pointer',
-                                  outline: 'none'
+                                  outline: 'none',
+                                  colorScheme: 'dark'
                                 }}
                               >
                                 <option value="" style={{ color: '#000', background: '#fff' }}>Sem Plano</option>
@@ -1258,10 +1342,11 @@ function App() {
                                   border: '1px solid var(--border)',
                                   color: 'white',
                                   fontSize: '0.75rem',
-                                  padding: '4px',
-                                  borderRadius: '8px',
+                                  padding: '6px 10px',
+                                  borderRadius: '10px',
                                   width: '100%',
-                                  outline: 'none'
+                                  outline: 'none',
+                                  colorScheme: 'dark'
                                 }}
                               />
                             </td>
@@ -1272,39 +1357,45 @@ function App() {
                                   height: '8px',
                                   borderRadius: '50%',
                                   background: u.wa_status === 'connected' ? '#2ecc71' : '#e74c3c',
-                                  boxShadow: u.wa_status === 'connected' ? '0 0 5px #2ecc71' : 'none'
+                                  boxShadow: u.wa_status === 'connected' ? '0 0 8px #2ecc71' : 'none'
                                 }} title={u.wa_status || 'desconectado'} />
 
                                 <button
                                   onClick={() => handleMasterDelete(u.email)}
                                   disabled={u.email === 'celsosilvajunior90@gmail.com'}
                                   style={{
-                                    background: 'rgba(231, 76, 60, 0.1)',
-                                    border: '1px solid #e74c3c',
+                                    background: 'rgba(231, 76, 60, 0.15)',
+                                    border: '1px solid rgba(231, 76, 60, 0.3)',
                                     color: '#e74c3c',
-                                    padding: '4px',
-                                    borderRadius: '6px',
+                                    padding: '6px',
+                                    borderRadius: '8px',
                                     cursor: 'pointer',
-                                    opacity: u.email === 'celsosilvajunior90@gmail.com' ? 0.3 : 1
+                                    opacity: u.email === 'celsosilvajunior90@gmail.com' ? 0.3 : 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
                                   }}
                                   title="Deletar Usuário"
                                 >
-                                  <Trash2 size={12} />
+                                  <Trash2 size={14} />
                                 </button>
 
                                 <button
                                   onClick={() => handleMasterRestartBot(u.email)}
                                   style={{
-                                    background: 'rgba(255,255,255,0.05)',
+                                    background: 'rgba(255, 255, 255, 0.05)',
                                     border: '1px solid var(--border)',
                                     color: 'white',
-                                    padding: '4px',
-                                    borderRadius: '6px',
-                                    cursor: 'pointer'
+                                    padding: '6px',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
                                   }}
                                   title="Reiniciar Robô"
                                 >
-                                  <RefreshCw size={12} />
+                                  <RefreshCw size={14} />
                                 </button>
                               </div>
                             </td>
@@ -1744,13 +1835,23 @@ function App() {
                 </div>
               </button>
 
-              <button className="action-item" style={{ borderColor: 'rgba(46, 204, 113, 0.2)' }} onClick={() => processPayment('mock')}>
+              <button className="action-item" style={{ borderColor: 'rgba(46, 204, 113, 0.2)' }} onClick={() => processPayment('local')}>
                 <div style={{ background: 'rgba(46, 204, 113, 0.1)', padding: '10px', borderRadius: '12px' }}>
                   <Shield size={24} color="#2ecc71" />
                 </div>
                 <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontWeight: 800, color: '#2ecc71' }}>Simular Sucesso</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Apenas para teste (Liberação imediata)</div>
+                  <div style={{ fontWeight: 800, color: '#2ecc71' }}>Pagamento no Local</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Dinheiro ou Cartão na Barbearia</div>
+                </div>
+              </button>
+
+              <button className="action-item" style={{ opacity: 0.5 }} onClick={() => processPayment('mock')}>
+                <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '10px', borderRadius: '12px' }}>
+                  <RefreshCw size={24} color="white" />
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontWeight: 800 }}>Simular Online</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Apenas para teste rápido</div>
                 </div>
               </button>
 
