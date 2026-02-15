@@ -129,6 +129,27 @@ async function loadExistingSessions() {
     }
 }
 
+app.post('/api/restart', async (req, res) => {
+    const { key, email } = req.body;
+    if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });
+    if (!email) return res.status(400).json({ error: 'Email necessário' });
+
+    if (sessions.has(email)) {
+        console.log(`[Restart] Terminando sessão antiga para ${email}...`);
+        try {
+            const sock = sessions.get(email);
+            sock.ev.removeAllListeners('connection.update');
+            sock.end();
+        } catch (e) { }
+        sessions.delete(email);
+    }
+
+    setTimeout(() => {
+        connectToWhatsApp(email);
+        res.json({ success: true, message: `Reiniciando robô para ${email}` });
+    }, 1000);
+});
+
 app.post('/api/init', async (req, res) => {
     const { key, email } = req.body;
     if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });

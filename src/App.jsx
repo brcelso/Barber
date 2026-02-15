@@ -112,6 +112,25 @@ function App() {
     }
   };
 
+  const handleMasterRestartBot = async (targetEmail) => {
+    try {
+      // Tenta reiniciar na ponte local (PWA mode)
+      const res = await fetch(`http://localhost:3000/api/restart`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'barber-secret-key', email: targetEmail })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Comando de reinicialização enviado para ${targetEmail}`);
+      } else {
+        alert(`Erro na ponte: ${data.error}`);
+      }
+    } catch (e) {
+      alert('Certifique-se que o Servidor Ponte está rodando localmente para reiniciar robôs.');
+    }
+  };
+
   const fetchWaStatus = async () => {
     try {
       const res = await fetch(`${API_URL}/whatsapp/status`, {
@@ -1084,20 +1103,41 @@ function App() {
                             <span style={{ fontSize: '0.65rem' }}>{u.wa_status === 'connected' ? 'ON' : 'OFF'}</span>
                           </td>
                           <td style={{ padding: '10px' }}>
-                            <button
-                              className="btn-primary"
-                              style={{ padding: '3px 8px', fontSize: '0.6rem', height: 'auto' }}
-                              onClick={() => {
-                                const expiresDate = document.getElementById(`expiry-${u.email}`).value;
-                                handleMasterUpdate(u.email, {
-                                  is_admin: document.getElementById(`admin-${u.email}`).checked,
-                                  is_barber: document.getElementById(`barber-${u.email}`).checked,
-                                  expires: expiresDate ? new Date(expiresDate).toISOString() : null
-                                });
-                              }}
-                            >
-                              Salvar
-                            </button>
+                            <div style={{ display: 'flex', gap: '5px' }}>
+                              <button
+                                className="btn-primary"
+                                style={{ padding: '3px 8px', fontSize: '0.6rem', height: 'auto' }}
+                                onClick={() => {
+                                  const expiresDate = document.getElementById(`expiry-${u.email}`).value;
+                                  handleMasterUpdate(u.email, {
+                                    is_admin: document.getElementById(`admin-${u.email}`).checked,
+                                    is_barber: document.getElementById(`barber-${u.email}`).checked,
+                                    expires: expiresDate ? new Date(expiresDate).toISOString() : null
+                                  });
+                                }}
+                              >
+                                Salvar
+                              </button>
+                              <button
+                                style={{
+                                  padding: '3px 8px',
+                                  fontSize: '0.6rem',
+                                  height: 'auto',
+                                  background: 'rgba(52, 152, 219, 0.1)',
+                                  color: '#3498db',
+                                  border: '1px solid rgba(52, 152, 219, 0.2)',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '2px'
+                                }}
+                                onClick={() => handleMasterRestartBot(u.email)}
+                                title="Reiniciar Instância do Robô"
+                              >
+                                <RefreshCw size={10} /> Reiniciar
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
