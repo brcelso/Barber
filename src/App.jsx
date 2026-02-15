@@ -1241,45 +1241,52 @@ function App() {
                           <tr key={u.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <td style={{ padding: '10px' }}>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                                <input
-                                  type="text"
-                                  value={u.name || ''}
-                                  onChange={(e) => {
-                                    const newVal = e.target.value;
-                                    setMasterUsers(prev => prev.map(item => item.email === u.email ? { ...item, name: newVal } : item));
-                                  }}
-                                  onBlur={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: e.target.value, newEmail: u.email })}
-                                  style={{
-                                    background: 'rgba(255,255,255,0.03)',
-                                    border: '1px solid var(--border)',
-                                    color: 'white',
-                                    fontWeight: 700,
-                                    fontSize: '0.8rem',
-                                    width: '100%',
-                                    outline: 'none',
-                                    padding: '6px 10px',
-                                    borderRadius: '8px'
-                                  }}
-                                />
-                                <input
-                                  type="email"
-                                  value={u.email || ''}
-                                  onChange={(e) => {
-                                    const newVal = e.target.value;
-                                    setMasterUsers(prev => prev.map(item => item.email === u.email ? { ...item, email: newVal } : item));
-                                  }}
-                                  onBlur={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: u.name, newEmail: e.target.value })}
-                                  style={{
-                                    background: 'rgba(255,255,255,0.02)',
-                                    border: '1px solid var(--border)',
-                                    color: 'var(--text-muted)',
-                                    fontSize: '0.7rem',
-                                    width: '100%',
-                                    outline: 'none',
-                                    padding: '4px 10px',
-                                    borderRadius: '8px'
-                                  }}
-                                />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                  <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', minWidth: '35px' }}>Nome:</span>
+                                  <input
+                                    type="text"
+                                    value={u.name || ''}
+                                    placeholder="Definir nome..."
+                                    onChange={(e) => {
+                                      const newVal = e.target.value;
+                                      setMasterUsers(prev => prev.map(item => item.email === u.email ? { ...item, name: newVal } : item));
+                                    }}
+                                    onBlur={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: e.target.value, newEmail: u.email })}
+                                    style={{
+                                      background: 'rgba(255,255,255,0.03)',
+                                      border: '1px solid var(--border)',
+                                      color: 'white',
+                                      fontWeight: 700,
+                                      fontSize: '0.8rem',
+                                      flex: 1,
+                                      outline: 'none',
+                                      padding: '4px 8px',
+                                      borderRadius: '6px'
+                                    }}
+                                  />
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                  <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', minWidth: '35px' }}>Email:</span>
+                                  <input
+                                    type="email"
+                                    value={u.email || ''}
+                                    onChange={(e) => {
+                                      const newVal = e.target.value;
+                                      setMasterUsers(prev => prev.map(item => item.email === u.email ? { ...item, email: newVal } : item));
+                                    }}
+                                    onBlur={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: u.name, newEmail: e.target.value })}
+                                    style={{
+                                      background: 'rgba(255,255,255,0.02)',
+                                      border: '1px solid var(--border)',
+                                      color: 'var(--text-muted)',
+                                      fontSize: '0.7rem',
+                                      flex: 1,
+                                      outline: 'none',
+                                      padding: '3px 8px',
+                                      borderRadius: '6px'
+                                    }}
+                                  />
+                                </div>
                               </div>
                             </td>
                             <td style={{ padding: '10px' }}>
