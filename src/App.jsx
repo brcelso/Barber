@@ -1218,14 +1218,14 @@ function App() {
 
                 <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>📊 Gestão Global de Usuários</h3>
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', minWidth: '800px' }}>
                     <thead>
                       <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
-                        <th style={{ padding: '10px' }}>Nome / Email</th>
-                        <th style={{ padding: '10px' }}>Telefone</th>
-                        <th style={{ padding: '10px' }}>Papéis</th>
-                        <th style={{ padding: '10px' }}>Plano</th>
-                        <th style={{ padding: '10px' }}>Expiração</th>
+                        <th style={{ padding: '10px', width: '180px' }}>Nome / Email</th>
+                        <th style={{ padding: '10px', width: '130px' }}>Telefone</th>
+                        <th style={{ padding: '10px', width: '90px' }}>Papéis</th>
+                        <th style={{ padding: '10px', width: '160px' }}>Plano</th>
+                        <th style={{ padding: '10px', width: '140px' }}>Expiração</th>
                         <th style={{ padding: '10px' }}>Ações</th>
                       </tr>
                     </thead>
@@ -1294,19 +1294,21 @@ function App() {
                             </td>
                             <td style={{ padding: '10px' }}>
                               <div style={{ display: 'flex', gap: '8px' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.65rem' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', cursor: 'pointer' }}>
                                   <input
                                     type="checkbox"
                                     defaultChecked={u.is_admin}
                                     disabled={u.email === 'celsosilvajunior90@gmail.com'}
                                     onChange={(e) => handleMasterUpdate(u.email, { is_admin: e.target.checked, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone })}
+                                    style={{ accentColor: 'var(--primary)', cursor: 'pointer' }}
                                   /> Adm
                                 </label>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.65rem' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', cursor: 'pointer' }}>
                                   <input
                                     type="checkbox"
                                     defaultChecked={u.is_barber}
                                     onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: e.target.checked, expires: u.subscription_expires, plan: u.plan, phone: u.phone })}
+                                    style={{ accentColor: 'var(--primary)', cursor: 'pointer' }}
                                   /> Barb
                                 </label>
                               </div>
@@ -1481,52 +1483,6 @@ function App() {
                 </div>
               )}
 
-              <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem', border: waStatus.status === 'connected' ? '1px solid #2ecc71' : '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <MessageSquare className="text-primary" size={24} /> Robô de WhatsApp
-                  </h2>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: waStatus.status === 'connected' ? '#2ecc71' : (waStatus.status === 'awaiting_qr' ? '#f1c40f' : '#e74c3c') }} />
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                      {waStatus.status === 'connected' ? 'Conectado' : (waStatus.status === 'awaiting_qr' ? 'Aguardando Escaneamento' : 'Desconectado')}
-                    </span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {waStatus.status === 'awaiting_qr' && waStatus.qr ? (
-                    <div style={{ textAlign: 'center', background: 'white', padding: '1rem', borderRadius: '12px' }}>
-                      <img src={waStatus.qr} alt="WhatsApp QR Code" style={{ width: '200px', height: '200px' }} />
-                      <p style={{ color: 'black', fontSize: '0.7rem', marginTop: '0.5rem', fontWeight: 800 }}>ESCANEIE COM SEU WHATSAPP</p>
-                    </div>
-                  ) : (
-                    <div style={{ flex: 1, minWidth: '250px' }}>
-                      {waStatus.status === 'connected' ? (
-                        <p style={{ color: 'var(--text-muted)' }}>
-                          ✅ Seu robô está ativo e respondendo aos clientes automaticamente através da IA do Mestre Leo.
-                        </p>
-                      ) : (
-                        <p style={{ color: 'var(--text-muted)' }}>
-                          O robô está desligado. Para ativar, certifique-se que o servidor ponte está rodando em sua máquina. O QR Code aparecerá aqui automaticamente.
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  <div style={{ flex: 1, minWidth: '250px' }}>
-                    <div className="glass-card" style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)' }}>
-                      <h4 style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Dicas:</h4>
-                      <ul style={{ fontSize: '0.8rem', color: 'var(--text-muted)', paddingLeft: '1.2rem' }}>
-                        <li>Use o WhatsApp Business para melhores resultados.</li>
-                        <li>A IA responde dúvidas sobre preços e horários.</li>
-                        <li>Clientes podem agendar digitando "1".</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                   <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1587,6 +1543,52 @@ function App() {
                 <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                   * Clique nos horários para bloqueá-los (dourado) ou liberá-los. Horários acinzentados já possuem agendamentos.
                 </p>
+              </div>
+
+              <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem', border: waStatus.status === 'connected' ? '1px solid #2ecc71' : '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <MessageSquare className="text-primary" size={24} /> Robô de WhatsApp
+                  </h2>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: waStatus.status === 'connected' ? '#2ecc71' : (waStatus.status === 'awaiting_qr' ? '#f1c40f' : '#e74c3c') }} />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                      {waStatus.status === 'connected' ? 'Conectado' : (waStatus.status === 'awaiting_qr' ? 'Aguardando Escaneamento' : 'Desconectado')}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {waStatus.status === 'awaiting_qr' && waStatus.qr ? (
+                    <div style={{ textAlign: 'center', background: 'white', padding: '1rem', borderRadius: '12px' }}>
+                      <img src={waStatus.qr} alt="WhatsApp QR Code" style={{ width: '200px', height: '200px' }} />
+                      <p style={{ color: 'black', fontSize: '0.7rem', marginTop: '0.5rem', fontWeight: 800 }}>ESCANEIE COM SEU WHATSAPP</p>
+                    </div>
+                  ) : (
+                    <div style={{ flex: 1, minWidth: '250px' }}>
+                      {waStatus.status === 'connected' ? (
+                        <p style={{ color: 'var(--text-muted)' }}>
+                          ✅ Seu robô está ativo e respondendo aos clientes automaticamente através da IA do Mestre Leo.
+                        </p>
+                      ) : (
+                        <p style={{ color: 'var(--text-muted)' }}>
+                          O robô está desligado. Para ativar, certifique-se que o servidor ponte está rodando em sua máquina. O QR Code aparecerá aqui automaticamente.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div style={{ flex: 1, minWidth: '250px' }}>
+                    <div className="glass-card" style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)' }}>
+                      <h4 style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Dicas:</h4>
+                      <ul style={{ fontSize: '0.8rem', color: 'var(--text-muted)', paddingLeft: '1.2rem' }}>
+                        <li>Use o WhatsApp Business para melhores resultados.</li>
+                        <li>A IA responde dúvidas sobre preços e horários.</li>
+                        <li>Clientes podem agendar digitando "1".</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
               </div>
             </>
           )}
