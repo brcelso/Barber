@@ -43,3 +43,11 @@ INSERT OR IGNORE INTO services (id, name, price, duration_minutes, description) 
 ('corte-simples', 'Corte de Cabelo', 40.0, 30, 'Corte tradicional'),
 ('barba', 'Barba Completa', 30.0, 20, 'Barba com toalha quente'),
 ('combo', 'Cabelo e Barba', 60.0, 50, 'O pacote completo');
+
+-- Add special 'block' service used for admin-blocked slots
+INSERT OR IGNORE INTO services (id, name, price, duration_minutes, description) VALUES
+('block', 'Blocked Slot', 0.0, 0, 'Reserved by admin');
+
+-- Ensure a system user exists for system-generated appointments/blocks
+INSERT OR IGNORE INTO users (email, name, is_admin, created_at) VALUES
+('system', 'System', 0, CURRENT_TIMESTAMP);
