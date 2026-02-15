@@ -162,6 +162,22 @@ export default {
                 return json(users.results);
             }
 
+            // MASTER: Update User Role/Subscription
+            if (url.pathname === '/api/master/user/update' && request.method === 'POST') {
+                const email = request.headers.get('X-User-Email');
+                if (email !== MASTER_EMAIL) return json({ error: 'Unauthorized' }, 401);
+
+                const { targetEmail, is_admin, is_barber, expires } = await request.json();
+
+                await env.DB.prepare(`
+                    UPDATE users 
+                    SET is_admin = ?, is_barber = ?, subscription_expires = ?
+                    WHERE email = ?
+                `).bind(is_admin ? 1 : 0, is_barber ? 1 : 0, expires || null, targetEmail).run();
+
+                return json({ success: true });
+            }
+
             // Get WhatsApp Bridge Status (for Frontend)
             if (url.pathname === '/api/whatsapp/status' && request.method === 'GET') {
                 const email = request.headers.get('X-User-Email');

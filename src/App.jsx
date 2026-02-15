@@ -93,6 +93,25 @@ function App() {
     }
   };
 
+  const handleMasterUpdate = async (targetEmail, updates) => {
+    try {
+      const res = await fetch(`${API_URL}/master/user/update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Email': user.email
+        },
+        body: JSON.stringify({ targetEmail, ...updates })
+      });
+      if (res.ok) {
+        alert('Usuário atualizado com sucesso!');
+        fetchMasterData();
+      }
+    } catch (e) {
+      alert('Erro ao atualizar usuário');
+    }
+  };
+
   const fetchWaStatus = async () => {
     try {
       const res = await fetch(`${API_URL}/whatsapp/status`, {
@@ -1462,17 +1481,44 @@ function App() {
                 <thead>
                   <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
                     <th style={{ padding: '10px' }}>Nome / Email</th>
+                    <th style={{ padding: '10px' }}>Papéis (Admin/Barbeiro)</th>
+                    <th style={{ padding: '10px' }}>Expiração Plano</th>
                     <th style={{ padding: '10px' }}>Status Robô</th>
-                    <th style={{ padding: '10px' }}>Assinatura</th>
-                    <th style={{ padding: '10px' }}>Teste</th>
+                    <th style={{ padding: '10px' }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {masterUsers.filter(u => u.is_admin).map(u => (
+                  {masterUsers.map(u => (
                     <tr key={u.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                       <td style={{ padding: '10px' }}>
                         <div style={{ fontWeight: 700 }}>{u.name}</div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{u.email}</div>
+                      </td>
+                      <td style={{ padding: '10px' }}>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem' }}>
+                            <input
+                              type="checkbox"
+                              defaultChecked={u.is_admin}
+                              id={`admin-${u.email}`}
+                            /> Admin
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem' }}>
+                            <input
+                              type="checkbox"
+                              defaultChecked={u.is_barber}
+                              id={`barber-${u.email}`}
+                            /> Barbeiro
+                          </label>
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px' }}>
+                        <input
+                          type="date"
+                          defaultValue={u.subscription_expires ? u.subscription_expires.split('T')[0] : ''}
+                          id={`expiry-${u.email}`}
+                          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '0.7rem', padding: '2px 5px', borderRadius: '4px' }}
+                        />
                       </td>
                       <td style={{ padding: '10px' }}>
                         <span style={{
@@ -1487,12 +1533,20 @@ function App() {
                         </span>
                       </td>
                       <td style={{ padding: '10px' }}>
-                        <div style={{ fontSize: '0.7rem' }}>
-                          {u.subscription_expires ? new Date(u.subscription_expires).toLocaleDateString() : 'Sem Assinatura'}
-                        </div>
-                      </td>
-                      <td style={{ padding: '10px' }}>
-                        {u.trial_used ? '✅ Usado' : '❌ Disp.'}
+                        <button
+                          className="btn-primary"
+                          style={{ padding: '4px 10px', fontSize: '0.7rem', height: 'auto' }}
+                          onClick={() => {
+                            const expiresDate = document.getElementById(`expiry-${u.email}`).value;
+                            handleMasterUpdate(u.email, {
+                              is_admin: document.getElementById(`admin-${u.email}`).checked,
+                              is_barber: document.getElementById(`barber-${u.email}`).checked,
+                              expires: expiresDate ? new Date(expiresDate).toISOString() : null
+                            });
+                          }}
+                        >
+                          Salvar
+                        </button>
                       </td>
                     </tr>
                   ))}
