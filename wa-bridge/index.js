@@ -22,17 +22,19 @@ let sock;
 
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
-    const { version } = await fetchLatestWaWebVersion().catch(() => ({ version: [2, 3000, 1015901307] }));
-
-    console.log(`Usando versão do WhatsApp Web: ${version}`);
+    const { version, isLatest } = await fetchLatestWaWebVersion().catch(() => ({ version: [2, 3000, 1015901307], isLatest: false }));
+    console.log(`Usando versão do WhatsApp Web: ${version} (Latest: ${isLatest})`);
 
     sock = makeWASocket({
         version,
         logger: pino({ level: 'silent' }),
         auth: state,
-        browser: ['Barber Bridge', 'Chrome', '1.0.0'],
+        browser: ['Ubuntu', 'Chrome', '20.0.04'], // More common browser string
         printQRInTerminal: false,
-        markOnlineOnConnect: true
+        markOnlineOnConnect: true,
+        connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 0,
+        keepAliveIntervalMs: 10000
     });
 
     sock.ev.on('messages.upsert', async m => {
@@ -52,7 +54,6 @@ async function connectToWhatsApp() {
             }).catch(e => {
                 if (e.response && e.response.data) {
                     console.error('❌ ERRO NO WORKER:', e.response.data.error || e.message);
-                    if (e.response.data.stack) console.error(e.response.data.stack);
                 } else {
                     console.error('❌ ERRO AO CHAMAR WEBHOOK:', e.message);
                 }
@@ -74,6 +75,9 @@ async function connectToWhatsApp() {
 
             if (reason === DisconnectReason.loggedOut) {
                 console.log('Sessão encerrada pelo celular. Delete a pasta auth_info_baileys e escaneie de novo.');
+            } else if (reason === 440) {
+                console.log('⚠️ Erro de Stream (440). Tentando reconectar limpando buffer...');
+                setTimeout(connectToWhatsApp, 2000);
             } else {
                 console.log('Tentando reconectar em 5 segundos...');
                 setTimeout(connectToWhatsApp, 5000);
