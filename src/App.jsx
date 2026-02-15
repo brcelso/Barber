@@ -1183,14 +1183,15 @@ function App() {
                                 value={u.plan || ''}
                                 onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: e.target.value })}
                                 style={{
-                                  background: '#1a1a1a',
+                                  background: 'rgba(255,255,255,0.05)',
                                   border: '1px solid var(--border)',
                                   color: 'white',
                                   fontSize: '0.7rem',
                                   padding: '4px',
-                                  borderRadius: '6px',
+                                  borderRadius: '8px',
                                   width: '100%',
-                                  cursor: 'pointer'
+                                  cursor: 'pointer',
+                                  outline: 'none'
                                 }}
                               >
                                 <option value="" style={{ color: '#000', background: '#fff' }}>Sem Plano</option>
@@ -1207,12 +1208,12 @@ function App() {
                                 value={u.subscription_expires ? u.subscription_expires.split('T')[0] : ''}
                                 onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: e.target.value ? new Date(e.target.value).toISOString() : null, plan: u.plan })}
                                 style={{
-                                  background: '#1a1a1a',
-                                  border: '1px solid #444',
+                                  background: 'rgba(255,255,255,0.05)',
+                                  border: '1px solid var(--border)',
                                   color: 'white',
                                   fontSize: '0.75rem',
-                                  padding: '5px',
-                                  borderRadius: '6px',
+                                  padding: '4px',
+                                  borderRadius: '8px',
                                   width: '100%',
                                   outline: 'none'
                                 }}
