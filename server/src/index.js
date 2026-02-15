@@ -159,6 +159,8 @@ export default {
                     auto_return: 'approved'
                 };
 
+                console.log(`[Subscription] Creating payment link for ${email}`);
+
                 const mpResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
                     method: 'POST',
                     headers: {
@@ -169,6 +171,13 @@ export default {
                 });
 
                 const mpData = await mpResponse.json();
+
+                if (!mpResponse.ok) {
+                    console.error('[Mercado Pago Error]', mpData);
+                    return json({ error: 'Mercado Pago API error', details: mpData }, mpResponse.status);
+                }
+
+                console.log(`[Subscription] Link created: ${mpData.init_point}`);
                 return json({ paymentUrl: mpData.init_point });
             }
 
