@@ -768,27 +768,7 @@ function App() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
-          {user.isAdmin && (
-            <button
-              className={`btn-icon ${isAdminMode ? 'active-admin' : ''}`}
-              onClick={() => {
-                setIsAdminMode(!isAdminMode);
-                setView(!isAdminMode ? 'admin' : 'book');
-              }}
-              title={isAdminMode ? "Ver como Cliente" : "Voltar para Admin"}
-              style={{ background: isAdminMode ? 'rgba(212, 175, 55, 0.2)' : 'rgba(255,255,255,0.05)' }}
-            >
-              <User size={20} />
-            </button>
-          )}
-          <button
-            className="btn-icon"
-            style={{ background: 'rgba(37, 211, 102, 0.1)', color: '#25D366', border: '1px solid rgba(37, 211, 102, 0.2)' }}
-            onClick={() => window.open('https://wa.me/5511972509876', '_blank')}
-            title="Falar com Barbeiro"
-          >
-            <MessageCircle size={20} />
-          </button>
+          {/* Admin toggle removed as requested */}
         </div>
 
         <div className="user-nav-group">
@@ -890,7 +870,16 @@ function App() {
             </button>
           )}
 
-          <button className="btn-icon" onClick={handleLogout} title="Sair"><LogOut /></button>
+          <button
+            className="btn-icon"
+            style={{ background: 'rgba(37, 211, 102, 0.1)', color: '#25D366', border: '1px solid rgba(37, 211, 102, 0.2)' }}
+            onClick={() => window.open('https://wa.me/5511972509876', '_blank')}
+            title="Falar com Barbeiro"
+          >
+            <MessageCircle size={20} />
+          </button>
+
+          <button className="btn-icon" onClick={handleLogout} title="Sair"><LogOut size={20} /></button>
         </div>
       </header>
 
