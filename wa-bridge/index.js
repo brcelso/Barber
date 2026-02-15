@@ -11,13 +11,16 @@ const pino = require('pino');
 const { Boom } = require('@hapi/boom');
 const axios = require('axios');
 const QRCode = require('qrcode');
+const cors = require('cors');
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const STATUS_URL = 'https://barber-server.celsosilvajunior90.workers.dev/api/whatsapp/status';
 
 const fs = require('fs');
+const path = require('path');
 
 const app = express();
+app.use(cors());
 app.use(bodyParser.json());
 
 const PORT = 3000;
@@ -28,12 +31,17 @@ const sessions = new Map();
 
 async function connectToWhatsApp(email) {
     if (sessions.has(email)) {
-        console.log(`[Session] Reusando sessão existente para ${email}`);
+        console.log(`[Session] Sessão já inicializada para ${email}`);
         return;
     }
 
-    console.log(`[Session] Iniciando conexão para: ${email}`);
-    const authFolder = `auth_sessions/session_${email.replace(/[@.]/g, '_')}`;
+    console.log(`[Session] 🔄 Iniciando conexão: ${email}`);
+    // Usar base64 para o nome da pasta ser seguro e reversível se necessário
+    const safeId = Buffer.from(email).toString('hex');
+    const authFolder = `auth_sessions/session_${safeId}`;
+
+    if (!fs.existsSync('auth_sessions')) fs.mkdirSync('auth_sessions');
+
     const { state, saveCreds } = await useMultiFileAuthState(authFolder);
     const { version } = await fetchLatestWaWebVersion().catch(() => ({ version: [2, 3000, 1015901307] }));
 
@@ -108,14 +116,15 @@ async function loadExistingSessions() {
 
     const folders = fs.readdirSync(root);
     for (const folder of folders) {
-        if (folder.startsWith('session_')) {
-            const email = folder.replace('session_', '').replace(/_/g, (match, offset, string) => {
-                // Heurística simples para restaurar o e-mail (não é perfeita, mas funciona para carregar no boot)
-                return match;
-            });
-            // Como o nome da pasta mudou os pontos/arrobas, vamos precisar de uma forma melhor de recuperar o email original
-            // Por enquanto, vamos deixar que o servidor peça a inicialização via API quando o admin logar
-            console.log(`[Boot] Pasta de sessão encontrada: ${folder}`);
+        if (folder.startsWith('session_') && fs.lstatSync(path.join(root, folder)).isDirectory()) {
+            const hex = folder.replace('session_', '');
+            try {
+                const email = Buffer.from(hex, 'hex').toString();
+                console.log(`[Boot] Restaurando sessão: ${email}`);
+                connectToWhatsApp(email);
+            } catch (e) {
+                console.log(`[Boot] Erro ao restaurar pasta: ${folder}`);
+            }
         }
     }
 }

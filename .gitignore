@@ -35,4 +35,6 @@ server/node_modules
 
 # WhatsApp Bridge
 wa-bridge/auth_info_baileys/
+wa-bridge/auth_sessions/
+wa-bridge/node_modules/
 wa-bridge/ngrok_log.txt
