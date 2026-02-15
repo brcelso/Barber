@@ -316,3 +316,52 @@ button {
 .refresh-spin {
   animation: spin 1s linear infinite;
 }
+
+.nav-segmented {
+  display: flex;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 4px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  gap: 4px;
+}
+
+.nav-item-fluid {
+  padding: 0.6rem 1.2rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: transparent;
+  border: none;
+}
+
+.nav-item-fluid.active {
+  background: var(--primary);
+  color: #000 !important;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2);
+}
+
+.nav-item-fluid:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+}
+
+.user-nav-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .nav-item-fluid span {
+    display: none;
+  }
+  .nav-item-fluid {
+    padding: 0.6rem;
+  }
+}

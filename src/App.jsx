@@ -583,19 +583,36 @@ function App() {
           >
             <MessageCircle size={20} />
           </button>
+        </div>
+
+        <div className="user-nav-group">
+          <nav className="nav-segmented">
+            <button
+              className={`nav-item-fluid ${view === 'book' ? 'active' : ''}`}
+              onClick={() => setView('book')}
+            >
+              <Plus size={18} /> <span>Agendar</span>
+            </button>
+            <button
+              className={`nav-item-fluid ${view === 'history' ? 'active' : ''}`}
+              onClick={() => setView('history')}
+            >
+              <History size={18} /> <span>Histórico</span>
+            </button>
+            {user.isAdmin && (
+              <button
+                className={`nav-item-fluid ${view === 'admin' ? 'active' : ''}`}
+                onClick={() => setView('admin')}
+              >
+                <Shield size={18} /> <span>Admin</span>
+              </button>
+            )}
+          </nav>
+
           <button className="btn-icon" onClick={handleRefresh} title="Atualizar Dados">
             <RefreshCw size={20} className={loading ? 'refresh-spin' : ''} />
           </button>
-          {(!user.isAdmin || !isAdminMode) ? (
-            <>
-              <button className="btn-icon" onClick={() => setView('book')} title="Agendar"><Plus /></button>
-              <button className="btn-icon" onClick={() => setView('history')} title="Meus Agendamentos"><History /></button>
-            </>
-          ) : (
-            <button className="btn-icon active-admin" onClick={() => setView('admin')} title="Painel Admin">
-              <Shield className="text-primary" />
-            </button>
-          )}
+
           <div className="user-avatar" onClick={() => {
             const newPhone = prompt('Deseja alterar seu número de WhatsApp?', user.phone);
             if (newPhone) handleUpdateProfile(newPhone);
@@ -608,6 +625,59 @@ function App() {
 
       {view === 'admin' && user.isAdmin && (
         <main className="fade-in">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <History className="text-primary" /> Agendamentos Ativos
+            </h2>
+            <div className="glass-card" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+              Total: <span className="text-primary" style={{ fontWeight: 800 }}>{adminAppointments.filter(a => a.status !== 'blocked').length}</span>
+            </div>
+          </div>
+          {adminAppointments.filter(a => a.status !== 'blocked').length === 0 ? (
+            <div className="glass-card" style={{ padding: '3rem', textAlign: 'center', marginBottom: '2rem' }}>
+              <History size={48} style={{ color: 'var(--border)', marginBottom: '1rem' }} />
+              <p>Nenhum agendamento ativo.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '3rem' }}>
+              {adminAppointments.filter(a => a.status !== 'blocked').map(a => (
+                <div key={a.id} className="glass-card appointment-item" style={{ borderLeft: a.status === 'confirmed' ? '4px solid var(--success)' : (a.status === 'cancelled' ? '4px solid var(--danger)' : '4px solid var(--primary)') }}>
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
+                    <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: '12px', textAlign: 'center', minWidth: '55px' }}>
+                      <div style={{ fontSize: '0.65rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
+                    </div>
+                    <div className="user-avatar" style={{ width: '32px', height: '32px' }}>
+                      <img src={a.user_picture} alt={a.user_name} />
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: '0.95rem' }}>{a.user_name}</h3>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>{a.service_name} às {a.appointment_time}</p>
+                      {a.payment_status === 'paid' ? (
+                        <p style={{ fontSize: '0.7rem', color: 'var(--success)', fontWeight: 700 }}>💰 PAGAMENTO CONFIRMADO</p>
+                      ) : (
+                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>⏳ Pagamento pendente</p>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    <div className={`status-tag status-${a.status}`} style={{ fontSize: '0.7rem' }}>
+                      {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
+                    </div>
+                    <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
+                      {a.status === 'pending' && (
+                        <button className="btn-icon" style={{ padding: '4px', background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71' }} onClick={() => handleAdminConfirm(a.id)} title="Confirmar"><Check size={14} /></button>
+                      )}
+                      <button className="btn-icon" style={{ padding: '4px', background: 'rgba(37, 211, 102, 0.1)', color: '#25D366' }} onClick={() => handleWhatsAppNotify(a)} title="Notificar WhatsApp"><MessageSquare size={14} /></button>
+                      <button className="btn-icon" style={{ padding: '4px', background: 'rgba(52, 152, 219, 0.1)', color: '#3498db' }} onClick={() => handleUpdateStatus(a.id)} title="Mudar Status"><Edit2 size={14} /></button>
+                      <button className="btn-icon" style={{ padding: '4px', background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c' }} onClick={() => handleDelete(a.id)} title="Excluir"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -669,57 +739,6 @@ function App() {
               * Clique nos horários para bloqueá-los (dourado) ou liberá-los. Horários acinzentados já possuem agendamentos.
             </p>
           </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-            <h2>Agendamentos Ativos</h2>
-            <div className="glass-card" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-              Total: <span className="text-primary" style={{ fontWeight: 800 }}>{adminAppointments.filter(a => a.status !== 'blocked').length}</span>
-            </div>
-          </div>
-          {adminAppointments.filter(a => a.status !== 'blocked').length === 0 ? (
-            <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
-              <History size={48} style={{ color: 'var(--border)', marginBottom: '1rem' }} />
-              <p>Nenhum agendamento ativo.</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {adminAppointments.filter(a => a.status !== 'blocked').map(a => (
-                <div key={a.id} className="glass-card appointment-item" style={{ borderLeft: a.status === 'confirmed' ? '4px solid var(--success)' : (a.status === 'cancelled' ? '4px solid var(--danger)' : '4px solid var(--primary)') }}>
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
-                    <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: '12px', textAlign: 'center', minWidth: '55px' }}>
-                      <div style={{ fontSize: '0.65rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
-                      <div style={{ fontSize: '1rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
-                    </div>
-                    <div className="user-avatar" style={{ width: '32px', height: '32px' }}>
-                      <img src={a.user_picture} alt={a.user_name} />
-                    </div>
-                    <div>
-                      <h3 style={{ fontSize: '0.95rem' }}>{a.user_name}</h3>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>{a.service_name} às {a.appointment_time}</p>
-                      {a.payment_status === 'paid' ? (
-                        <p style={{ fontSize: '0.7rem', color: 'var(--success)', fontWeight: 700 }}>💰 PAGAMENTO CONFIRMADO</p>
-                      ) : (
-                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>⏳ Pagamento pendente</p>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    <div className={`status-tag status-${a.status}`} style={{ fontSize: '0.7rem' }}>
-                      {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
-                    </div>
-                    <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
-                      {a.status === 'pending' && (
-                        <button className="btn-icon" style={{ padding: '4px', background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71' }} onClick={() => handleAdminConfirm(a.id)} title="Confirmar"><Check size={14} /></button>
-                      )}
-                      <button className="btn-icon" style={{ padding: '4px', background: 'rgba(37, 211, 102, 0.1)', color: '#25D366' }} onClick={() => handleWhatsAppNotify(a)} title="Notificar WhatsApp"><MessageSquare size={14} /></button>
-                      <button className="btn-icon" style={{ padding: '4px', background: 'rgba(52, 152, 219, 0.1)', color: '#3498db' }} onClick={() => handleUpdateStatus(a.id)} title="Mudar Status"><Edit2 size={14} /></button>
-                      <button className="btn-icon" style={{ padding: '4px', background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c' }} onClick={() => handleDelete(a.id)} title="Excluir"><Trash2 size={14} /></button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </main>
       )}
 
