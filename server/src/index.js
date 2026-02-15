@@ -21,8 +21,15 @@ export default {
         }
 
         try {
-            // --- Helper: Notify WhatsApp ---
+            // --- Helper: Notify WhatsApp (Custom Bridge Script) ---
             const notifyWhatsApp = async (appointmentId, status) => {
+                const BRIDGE_URL = env.WA_BRIDGE_URL; // e.g., https://seu-tunnel-ngrok.com
+                const BRIDGE_KEY = env.WA_BRIDGE_KEY;
+
+                if (!BRIDGE_URL || !BRIDGE_KEY) {
+                    console.log('[WhatsApp] Bridge credentials not set. Message logged instead.');
+                }
+
                 try {
                     const appt = await env.DB.prepare(`
                         SELECT a.*, s.name as service_name, u.phone, u.name as user_name
@@ -47,9 +54,25 @@ export default {
                     }
 
                     if (message) {
-                        console.log(`[WhatsApp Auto-Notify] TO: ${appt.phone} MSG: ${message}`);
-                        // Evolution/Z-API Integration:
-                        // if(env.WA_API_URL) await fetch(`${env.WA_API_URL}/send`, { method: 'POST', body: JSON.stringify({ phone: appt.phone, message }), headers: { 'Authorization': env.WA_TOKEN } });
+                        const cleanPhone = appt.phone.replace(/\D/g, "");
+                        const finalPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
+
+                        console.log(`[WhatsApp Auto-Notify] TO: ${finalPhone} MSG: ${message}`);
+
+                        if (BRIDGE_URL && BRIDGE_KEY) {
+                            const waRes = await fetch(`${BRIDGE_URL}/send-message`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    key: BRIDGE_KEY,
+                                    number: finalPhone,
+                                    message: message
+                                })
+                            });
+                            const waData = await waRes.json();
+                            if (!waRes.ok) console.error('[Bridge Error]', waData);
+                            else console.log('[Bridge Success]', waData);
+                        }
                     }
                 } catch (e) {
                     console.error('[WhatsApp Notify Error]', e);
