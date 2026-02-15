@@ -243,6 +243,10 @@ export default {
                 const conflict = await env.DB.prepare('SELECT id FROM appointments WHERE appointment_date = ? AND appointment_time = ? AND id != ? AND status != "cancelled"').bind(date, time, appointmentId).first();
                 if (conflict) return json({ error: 'Horário indisponível' }, 409);
 
+                // Ensure the requested service exists to avoid FK constraint failures
+                const service = await env.DB.prepare('SELECT id FROM services WHERE id = ?').bind(serviceId).first();
+                if (!service) return json({ error: 'Service not found' }, 404);
+
                 await env.DB.prepare(`
                     UPDATE appointments 
                     SET service_id = ?, appointment_date = ?, appointment_time = ?, status = 'pending'
