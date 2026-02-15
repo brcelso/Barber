@@ -60,18 +60,22 @@ export default {
                         console.log(`[WhatsApp Auto-Notify] TO: ${finalPhone} MSG: ${message}`);
 
                         if (BRIDGE_URL && BRIDGE_KEY) {
-                            const waRes = await fetch(`${BRIDGE_URL}/send-message`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    key: BRIDGE_KEY,
-                                    number: finalPhone,
-                                    message: message
-                                })
-                            });
-                            const waData = await waRes.json();
-                            if (!waRes.ok) console.error('[Bridge Error]', waData);
-                            else console.log('[Bridge Success]', waData);
+                            try {
+                                const waRes = await fetch(`${BRIDGE_URL}/send-message`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        key: BRIDGE_KEY,
+                                        number: finalPhone,
+                                        message: message
+                                    })
+                                });
+                                const waData = await waRes.json();
+                                if (!waRes.ok) console.error('[Bridge Error Response]', waData);
+                                else console.log('[Bridge Success Response]', waData);
+                            } catch (fetchErr) {
+                                console.error('[Bridge Connection Failed]', fetchErr.message);
+                            }
                         }
                     }
                 } catch (e) {

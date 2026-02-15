@@ -308,19 +308,44 @@ function App() {
   };
 
   const handleUpdateStatus = async (appointmentId) => {
-    const statuses = ['pending', 'confirmed', 'cancelled'];
-    const currentAppt = adminAppointments.find(a => a.id === appointmentId) || appointments.find(a => a.id === appointmentId);
-    const currentIndex = statuses.indexOf(currentAppt.status);
-    const nextStatus = statuses[(currentIndex + 1) % statuses.length];
+    const appt = adminAppointments.find(a => a.id === appointmentId);
+    if (!appt) return;
+
+    const options = [
+      { id: 'pending', label: 'Pendente' },
+      { id: 'confirmed', label: 'Confirmado' },
+      { id: 'cancelled', label: 'Cancelado' }
+    ];
+
+    const message = `Selecione o novo status para ${appt.user_name}:\n\n` +
+      options.map((opt, i) => `${i + 1} - ${opt.label}`).join('\n') +
+      `\n\nDigite o número da opção:`;
+
+    const choice = prompt(message);
+    if (!choice) return;
+
+    const selected = options[parseInt(choice) - 1];
+    if (!selected) {
+      alert('Opção inválida');
+      return;
+    }
+
+    const nextStatus = selected.id;
 
     setLoading(true);
     try {
-      await fetch(`${API_URL}/appointments/update-status`, {
+      const res = await fetch(`${API_URL}/appointments/update-status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ appointmentId, status: nextStatus, userEmail: user.email })
       });
-      handleRefresh();
+
+      if (res.ok) {
+        alert(`Status alterado para ${selected.label}. Cliente será notificado.`);
+        handleRefresh();
+      } else {
+        alert('Erro ao atualizar no servidor');
+      }
     } catch (e) {
       alert('Erro ao atualizar status');
     } finally {

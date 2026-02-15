@@ -2,7 +2,7 @@ const {
     default: makeWASocket,
     useMultiFileAuthState,
     DisconnectReason,
-    makeInMemoryStore
+    fetchLatestWaWebVersion
 } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
 const express = require('express');
@@ -14,80 +14,72 @@ const app = express();
 app.use(bodyParser.json());
 
 const PORT = 3000;
-const API_KEY = 'barber-secret-key'; // Mude para algo seguro
+const API_KEY = 'barber-secret-key';
 
-// Store para manter dados em memória
-const store = makeInMemoryStore({});
-store.readFromFile('./baileys_store.json');
-setInterval(() => {
-    store.writeToFile('./baileys_store.json');
-}, 10000);
+let sock;
 
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
+    const { version } = await fetchLatestWaWebVersion().catch(() => ({ version: [2, 3000, 1015901307] }));
 
-    const sock = makeWASocket({
+    console.log(`Usando versão do WhatsApp Web: ${version}`);
+
+    sock = makeWASocket({
+        version,
         logger: pino({ level: 'silent' }),
         auth: state,
-        printQRInTerminal: true
+        browser: ['Barber Bridge', 'Chrome', '1.0.0'],
+        printQRInTerminal: false,
+        markOnlineOnConnect: true
     });
 
-    store.bind(sock.ev);
-
-    sock.ev.on('connection.update', (update) => {
+    sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
-            console.log('--- ESCANEIE O QR CODE ABAIXO ---');
+            console.log('\n--- NOVO QR CODE GERADO. ESCANEIE ABAIXO ---');
             qrcode.generate(qr, { small: true });
         }
 
         if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect.error instanceof Boom) ?
-                lastDisconnect.error.output?.statusCode !== DisconnectReason.loggedOut : true;
-            console.log('Conexão fechada. Motivo:', lastDisconnect.error, 'Reconectando:', shouldReconnect);
-            if (shouldReconnect) {
-                connectToWhatsApp();
+            const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
+            console.log('Conexão fechada. Razão:', reason);
+
+            if (reason === DisconnectReason.loggedOut) {
+                console.log('Sessão encerrada pelo celular. Delete a pasta auth_info_baileys e escaneie de novo.');
+            } else {
+                console.log('Tentando reconectar em 5 segundos...');
+                setTimeout(connectToWhatsApp, 5000);
             }
         } else if (connection === 'open') {
-            console.log('✅ WhatsApp Conectado com Sucesso!');
+            console.log('\n✅ WhatsApp Conectado e Pronto para Enviar!');
         }
     });
 
     sock.ev.on('creds.update', saveCreds);
-
-    // Endpoint para receber ordens do App de Barbearia
-    app.post('/send-message', async (req, res) => {
-        const { key, number, message } = req.body;
-
-        if (key !== API_KEY) {
-            return res.status(401).json({ error: 'Chave de API inválida' });
-        }
-
-        if (!number || !message) {
-            return res.status(400).json({ error: 'Número e mensagem são obrigatórios' });
-        }
-
-        try {
-            // Formatar número: remove caracteres, garante 55 e termina com @s.whatsapp.net
-            let jid = number.replace(/\D/g, '');
-            if (!jid.startsWith('55')) jid = '55' + jid;
-            jid = jid + '@s.whatsapp.net';
-
-            await sock.sendMessage(jid, { text: message });
-            console.log(`[Enviado] Para: ${jid} Mensagem: ${message}`);
-            res.json({ success: true });
-        } catch (err) {
-            console.error('Erro ao enviar mensagem:', err);
-            res.status(500).json({ error: 'Falha ao enviar mensagem' });
-        }
-    });
-
-    return sock;
 }
 
+app.post('/send-message', async (req, res) => {
+    const { key, number, message } = req.body;
+
+    if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });
+    if (!sock) return res.status(503).json({ error: 'WhatsApp não inicializado' });
+
+    try {
+        let cleanNumber = number.replace(/\D/g, '');
+        if (!cleanNumber.startsWith('55')) cleanNumber = '55' + cleanNumber;
+        const jid = `${cleanNumber}@s.whatsapp.net`;
+
+        await sock.sendMessage(jid, { text: message });
+        console.log(`[OK] Mensagem enviada para ${cleanNumber}`);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('❌ ERRO NO ENVIO:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.listen(PORT, () => {
-    console.log(`🚀 Script Ponte rodando na porta ${PORT}`);
-    console.log(`Chave de API: ${API_KEY}`);
+    console.log(`🚀 Servidor Ponte ativo na porta ${PORT}`);
     connectToWhatsApp();
 });
