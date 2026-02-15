@@ -32,3 +32,7 @@ server/node_modules
 .env.local
 .env.*.local
 
+
+# WhatsApp Bridge
+wa-bridge/auth_info_baileys/
+wa-bridge/ngrok_log.txt
