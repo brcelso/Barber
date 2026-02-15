@@ -1009,6 +1009,104 @@ function App() {
 
       {view === 'admin' && user.isAdmin && (
         <main className="fade-in">
+          {/* MASTER PANEL: Painel de Controle Global */}
+          {user?.isMaster && (
+            <div style={{ marginBottom: '2rem' }}>
+              <div className="glass-card" style={{ padding: '2rem', border: '1px solid var(--primary)' }}>
+                <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
+                  <Activity className="text-primary" size={24} /> Centro de Controle Master
+                </h2>
+
+                {masterStats && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+                    <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
+                      <Users size={20} className="text-primary" />
+                      <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats.totalUsers.count}</div>
+                      <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>USUÁRIOS</div>
+                    </div>
+                    <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
+                      <Shield size={20} className="text-primary" />
+                      <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats.activeAdmins.count}</div>
+                      <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>ASSINANTES</div>
+                    </div>
+                    <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
+                      <MessageSquare size={20} className="text-primary" />
+                      <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats.connectedBots.count}</div>
+                      <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>ROBÔS ATIVOS</div>
+                    </div>
+                    <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
+                      <Calendar size={20} className="text-primary" />
+                      <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats.totalAppointments.count}</div>
+                      <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>AGENDAMENTOS</div>
+                    </div>
+                  </div>
+                )}
+
+                <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>📊 Gestão Global de Usuários</h3>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                    <thead>
+                      <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
+                        <th style={{ padding: '10px' }}>Nome / Email</th>
+                        <th style={{ padding: '10px' }}>Papéis</th>
+                        <th style={{ padding: '10px' }}>Expiração</th>
+                        <th style={{ padding: '10px' }}>Bot</th>
+                        <th style={{ padding: '10px' }}>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {masterUsers.map(u => (
+                        <tr key={u.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <td style={{ padding: '10px' }}>
+                            <div style={{ fontWeight: 700 }}>{u.name}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{u.email}</div>
+                          </td>
+                          <td style={{ padding: '10px' }}>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.65rem' }}>
+                                <input type="checkbox" defaultChecked={u.is_admin} id={`admin-${u.email}`} /> Adm
+                              </label>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.65rem' }}>
+                                <input type="checkbox" defaultChecked={u.is_barber} id={`barber-${u.email}`} /> Barb
+                              </label>
+                            </div>
+                          </td>
+                          <td style={{ padding: '10px' }}>
+                            <input
+                              type="date"
+                              defaultValue={u.subscription_expires ? u.subscription_expires.split('T')[0] : ''}
+                              id={`expiry-${u.email}`}
+                              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '0.65rem', padding: '2px', borderRadius: '4px', width: '90px' }}
+                            />
+                          </td>
+                          <td style={{ padding: '10px' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: u.wa_status === 'connected' ? '#2ecc71' : '#e74c3c', display: 'inline-block', marginRight: '4px' }}></div>
+                            <span style={{ fontSize: '0.65rem' }}>{u.wa_status === 'connected' ? 'ON' : 'OFF'}</span>
+                          </td>
+                          <td style={{ padding: '10px' }}>
+                            <button
+                              className="btn-primary"
+                              style={{ padding: '3px 8px', fontSize: '0.6rem', height: 'auto' }}
+                              onClick={() => {
+                                const expiresDate = document.getElementById(`expiry-${u.email}`).value;
+                                handleMasterUpdate(u.email, {
+                                  is_admin: document.getElementById(`admin-${u.email}`).checked,
+                                  is_barber: document.getElementById(`barber-${u.email}`).checked,
+                                  expires: expiresDate ? new Date(expiresDate).toISOString() : null
+                                });
+                              }}
+                            >
+                              Salvar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
             <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <History className="text-primary" /> Agendamentos Ativos
@@ -1438,120 +1536,6 @@ function App() {
               <button className="btn-close-sheet" onClick={() => setPaymentSelectionAppt(null)}>
                 Fechar
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* MASTER PANEL: Painel de Controle Global */}
-      {view === 'admin' && user?.isMaster && (
-        <div style={{ padding: '0 1rem 5rem 1rem' }}>
-          <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem', border: '1px solid var(--primary)' }}>
-            <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
-              <Activity className="text-primary" size={24} /> Centro de Controle Master
-            </h2>
-
-            {masterStats && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-                <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
-                  <Users size={20} className="text-primary" />
-                  <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats.totalUsers.count}</div>
-                  <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>USUÁRIOS</div>
-                </div>
-                <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
-                  <Shield size={20} className="text-primary" />
-                  <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats.activeAdmins.count}</div>
-                  <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>ASSINANTES</div>
-                </div>
-                <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
-                  <MessageSquare size={20} className="text-primary" />
-                  <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats.connectedBots.count}</div>
-                  <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>ROBÔS ATIVOS</div>
-                </div>
-                <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
-                  <Calendar size={20} className="text-primary" />
-                  <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats.totalAppointments.count}</div>
-                  <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>AGENDAMENTOS</div>
-                </div>
-              </div>
-            )}
-
-            <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>📊 Gestão de Barbeiros</h3>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-                <thead>
-                  <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
-                    <th style={{ padding: '10px' }}>Nome / Email</th>
-                    <th style={{ padding: '10px' }}>Papéis (Admin/Barbeiro)</th>
-                    <th style={{ padding: '10px' }}>Expiração Plano</th>
-                    <th style={{ padding: '10px' }}>Status Robô</th>
-                    <th style={{ padding: '10px' }}>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {masterUsers.map(u => (
-                    <tr key={u.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <td style={{ padding: '10px' }}>
-                        <div style={{ fontWeight: 700 }}>{u.name}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{u.email}</div>
-                      </td>
-                      <td style={{ padding: '10px' }}>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem' }}>
-                            <input
-                              type="checkbox"
-                              defaultChecked={u.is_admin}
-                              id={`admin-${u.email}`}
-                            /> Admin
-                          </label>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem' }}>
-                            <input
-                              type="checkbox"
-                              defaultChecked={u.is_barber}
-                              id={`barber-${u.email}`}
-                            /> Barbeiro
-                          </label>
-                        </div>
-                      </td>
-                      <td style={{ padding: '10px' }}>
-                        <input
-                          type="date"
-                          defaultValue={u.subscription_expires ? u.subscription_expires.split('T')[0] : ''}
-                          id={`expiry-${u.email}`}
-                          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '0.7rem', padding: '2px 5px', borderRadius: '4px' }}
-                        />
-                      </td>
-                      <td style={{ padding: '10px' }}>
-                        <span style={{
-                          padding: '2px 8px',
-                          borderRadius: '10px',
-                          background: u.wa_status === 'connected' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(231, 76, 60, 0.1)',
-                          color: u.wa_status === 'connected' ? '#2ecc71' : '#e74c3c',
-                          fontSize: '0.65rem',
-                          fontWeight: 800
-                        }}>
-                          {u.wa_status === 'connected' ? 'ONLINE' : 'OFFLINE'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '10px' }}>
-                        <button
-                          className="btn-primary"
-                          style={{ padding: '4px 10px', fontSize: '0.7rem', height: 'auto' }}
-                          onClick={() => {
-                            const expiresDate = document.getElementById(`expiry-${u.email}`).value;
-                            handleMasterUpdate(u.email, {
-                              is_admin: document.getElementById(`admin-${u.email}`).checked,
-                              is_barber: document.getElementById(`barber-${u.email}`).checked,
-                              expires: expiresDate ? new Date(expiresDate).toISOString() : null
-                            });
-                          }}
-                        >
-                          Salvar
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         </div>
