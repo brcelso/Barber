@@ -16,6 +16,7 @@ import {
   X,
   Check,
   MessageSquare,
+  MessageCircle,
   Trash2,
   Edit2,
   Shield
@@ -326,6 +327,14 @@ function App() {
           <p style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>{user.isAdmin ? 'Relatórios & Gestão' : 'Premium Experience'}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
+          <button
+            className="btn-icon"
+            style={{ background: 'rgba(37, 211, 102, 0.1)', color: '#25D366', border: '1px solid rgba(37, 211, 102, 0.2)' }}
+            onClick={() => window.open('https://wa.me/5511972509876', '_blank')}
+            title="Falar com Barbeiro"
+          >
+            <MessageCircle size={20} />
+          </button>
           <button className="btn-icon" onClick={handleRefresh} title="Atualizar Dados"><RefreshCw size={20} /></button>
           {!user.isAdmin ? (
             <>
