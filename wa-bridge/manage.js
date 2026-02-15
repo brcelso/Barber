@@ -71,27 +71,34 @@ function stopAll() {
 async function run() {
     console.log('--- GERENCIADOR BARBER BRIDGE ---');
 
-    const license = await checkLicense();
+    let isActive = false;
 
-    if (!license.isActive) {
-        console.log('\n❌ ASSINATURA VENCIDA! ❌');
-        console.log('Por favor, realize o pagamento no painel administrativo para liberar o serviço.');
-        process.exit();
-    }
+    while (true) {
+        const license = await checkLicense();
 
-    console.log(`✅ Assinatura Ativa (Restam ${license.daysLeft} dias)`);
-
-    await startNgrok();
-    await startWhatsApp();
-
-    // Loop de verificação a cada 1 hora
-    setInterval(async () => {
-        const check = await checkLicense();
-        if (!check.isActive) {
-            console.log('\n⚠️ Assinatura expirou enquanto o serviço rodava. Desligando...');
-            stopAll();
+        if (license.isActive) {
+            if (!isActive) {
+                console.log(`\n✅ Assinatura Ativada! (Restam ${license.daysLeft} dias)`);
+                console.log('🚀 Iniciando serviços...');
+                await startNgrok();
+                await startWhatsApp();
+                isActive = true;
+            }
+        } else {
+            if (isActive || !license.isActive) {
+                if (isActive) {
+                    console.log('\n⚠️ Assinatura expirou ou foi cancelada. Desligando...');
+                    if (ngrokProcess) ngrokProcess.kill();
+                    if (whatsappProcess) whatsappProcess.kill();
+                    isActive = false;
+                }
+                console.log(`\r⏳ Aguardando assinatura ativa... [${new Date().toLocaleTimeString()}]`,);
+            }
         }
-    }, 3600 * 1000);
+
+        // Espera 30 segundos antes de checar novamente
+        await new Promise(r => setTimeout(r, 30000));
+    }
 }
 
 process.on('SIGINT', stopAll);
