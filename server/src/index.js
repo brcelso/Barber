@@ -31,13 +31,16 @@ export default {
                 }
 
                 try {
-                    // Check Subscription
-                    const adminUser = await env.DB.prepare('SELECT subscription_expires FROM users WHERE is_admin = 1 LIMIT 1').first();
+                    // Check Subscription of the BARBER
+                    const apptData = await env.DB.prepare('SELECT barber_email FROM appointments WHERE id = ?').bind(appointmentId).first();
+                    const barberEmail = apptData?.barber_email || 'celsosilvajunior90@gmail.com';
+
+                    const barberUser = await env.DB.prepare('SELECT subscription_expires FROM users WHERE email = ?').bind(barberEmail).first();
                     const now = new Date();
-                    const expires = adminUser?.subscription_expires ? new Date(adminUser.subscription_expires) : null;
+                    const expires = barberUser?.subscription_expires ? new Date(barberUser.subscription_expires) : null;
 
                     if (!expires || expires < now) {
-                        console.log('[WhatsApp] AVISO: Assinatura vencida. Mensagem não enviada.');
+                        console.log(`[WhatsApp] AVISO: Assinatura do barbeiro ${barberEmail} vencida. Mensagem não enviada.`);
                         return;
                     }
 
@@ -154,8 +157,38 @@ export default {
 
             // Get Styles/Services (exclude internal 'block' service)
             if (url.pathname === '/api/services' && request.method === 'GET') {
-                const services = await env.DB.prepare('SELECT * FROM services WHERE id != ?').bind('block').all();
+                const barberEmail = url.searchParams.get('barber_email');
+                let query = 'SELECT * FROM services WHERE id != ?';
+                let params = ['block'];
+
+                if (barberEmail) {
+                    query += ' AND (barber_email = ? OR barber_email IS NULL)';
+                    params.push(barberEmail);
+                }
+
+                const services = await env.DB.prepare(query).bind(...params).all();
                 return json(services.results);
+            }
+
+            // Get All Barbers
+            if (url.pathname === '/api/barbers' && request.method === 'GET') {
+                const barbers = await env.DB.prepare('SELECT email, name, picture FROM users WHERE is_barber = 1').all();
+                return json(barbers.results);
+            }
+
+            // Promote to Barber (3-day trial)
+            if (url.pathname === '/api/user/promote' && request.method === 'POST') {
+                const { email } = await request.json();
+                const now = new Date();
+                const expires = new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000)).toISOString();
+
+                await env.DB.prepare(`
+                    UPDATE users 
+                    SET is_barber = 1, is_admin = 1, subscription_expires = ? 
+                    WHERE email = ?
+                `).bind(expires, email).run();
+
+                return json({ success: true, expires });
             }
 
             // Admin: Get ALL Appointments
@@ -172,8 +205,9 @@ export default {
                     FROM appointments a
                     LEFT JOIN services s ON a.service_id = s.id
                     LEFT JOIN users u ON a.user_email = u.email
+                    WHERE a.barber_email = ?
                     ORDER BY a.appointment_date DESC, a.appointment_time DESC
-                `).all();
+                `).bind(email).all();
 
                 return json(allAppointments.results);
             }
@@ -196,8 +230,8 @@ export default {
 
             // Book an Appointment
             if (url.pathname === '/api/appointments/book' && request.method === 'POST') {
-                const { email, serviceId, date, time, skipPayment } = await request.json();
-                if (!email || !serviceId || !date || !time) {
+                const { email, barberEmail, serviceId, date, time, skipPayment } = await request.json();
+                if (!email || !barberEmail || !serviceId || !date || !time) {
                     return json({ error: 'Missing fields' }, 400);
                 }
 
@@ -206,17 +240,17 @@ export default {
 
                 if (!service) return json({ error: 'Service not found' }, 404);
 
-                // Check for existing appointment at same time
-                const conflict = await env.DB.prepare('SELECT id FROM appointments WHERE appointment_date = ? AND appointment_time = ? AND status != "cancelled"').bind(date, time).first();
+                // Check for existing appointment at same time for THIS barber
+                const conflict = await env.DB.prepare('SELECT id FROM appointments WHERE barber_email = ? AND appointment_date = ? AND appointment_time = ? AND status != "cancelled"').bind(barberEmail, date, time).first();
                 if (conflict) {
-                    return json({ error: 'Horário já ocupado' }, 409);
+                    return json({ error: 'Horário já ocupado com este barbeiro' }, 409);
                 }
 
                 // Create appointment record
                 await env.DB.prepare(`
-                    INSERT INTO appointments (id, user_email, service_id, appointment_date, appointment_time, status)
-                    VALUES (?, ?, ?, ?, ?, 'pending')
-                `).bind(id, email, serviceId, date, time).run();
+                    INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status)
+                    VALUES (?, ?, ?, ?, ?, ?, 'pending')
+                `).bind(id, email, barberEmail, serviceId, date, time).run();
 
                 if (skipPayment) {
                     return json({ appointmentId: id, status: 'pending' });
@@ -530,6 +564,19 @@ export default {
                     }
                 };
 
+                let session = await env.DB.prepare('SELECT * FROM whatsapp_sessions WHERE phone = ?').bind(from).first();
+
+                // Identifica se o usuário já existe para pular o e-mail depois
+                let userInDb = null;
+                if (!session || !session.user_email) {
+                    const allUsers = await env.DB.prepare('SELECT email, phone FROM users WHERE phone IS NOT NULL').all();
+                    const cleanFrom = from.replace(/\D/g, "");
+                    userInDb = allUsers.results.find(u => {
+                        const cleanU = u.phone.replace(/\D/g, "");
+                        return cleanU.endsWith(cleanFrom) || cleanFrom.endsWith(cleanU);
+                    });
+                }
+
                 // AI Agent Helper
                 const askAI = async (userMessage, history = []) => {
                     try {
@@ -537,15 +584,16 @@ export default {
                         const servicesList = services.results.map((s, i) => `*${i + 1}* - ${s.name} (R$ ${s.price})`).join('\n');
 
                         const systemPrompt = `Você é o assistente virtual da Barber.
-Seu objetivo é ajudar o cliente a agendar, ver ou cancelar agendamentos.
+Seu objetivo é ajudar o cliente. 
+Se ele quiser agendar, peça para escolher o serviço.
+Se ele quiser ver/cancelar, peça para digitar "Menu".
 
-SERVIÇOS DISPONÍVEIS:
+SERVIÇOS:
 ${servicesList}
 
 REGRAS:
-1. Se o cliente quiser agendar, diga para ele escolher um serviço pelo número.
-2. Se ele quiser VER ou CANCELAR algo, diga para ele digitar "Menu" e escolher a opção "Meus Agendamentos".
-3. Seja breve e amigável. Use emojis ✂️.`;
+1. Responda em UMA frase curta.
+2. Use emojis ✂️.`;
 
                         const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
                             messages: [
@@ -554,47 +602,34 @@ REGRAS:
                             ]
                         });
 
-                        const aiText = response.response || "Para agendar, basta escolher uma das opções abaixo:";
-                        return `${aiText}\n\n${servicesList}`;
+                        const aiText = response.response || "Como posso ajudar? Escolha uma opção:";
+                        return aiText;
                     } catch (e) {
-                        console.error('[AI Error]', e.message);
-                        const services = await env.DB.prepare('SELECT * FROM services WHERE id != "block"').all();
-                        let fallback = "Olá! Como posso te ajudar hoje? Escolha um de nossos serviços:\n";
-                        services.results.forEach((s, i) => { fallback += `\n*${i + 1}* - ${s.name}`; });
-                        return fallback;
+                        return "Olá! Como posso te ajudar hoje? Digite 'Menu' para ver as opções.";
                     }
                 };
 
-                let session = await env.DB.prepare('SELECT * FROM whatsapp_sessions WHERE phone = ?').bind(from).first();
-
-                // Do not link/lookup a full `user` record from inside the worker.
-                // Use `session.user_email` to determine if the user is recognized.
-                const recognizedUserEmail = session && session.user_email ? session.user_email : null;
-
                 const isNumericChoice = /^\d+$/.test(text) && text.length <= 2;
 
-                // Restart or AI Chat
-                if (!session || textLower === 'sair') {
-                    await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state) VALUES (?, "ai_chat")').bind(from).run();
-                    const aiMsg = await askAI(text);
-                    await sendMessage(from, aiMsg);
-                    return json({ success: true });
-                }
+                // Fluxo Inicial / Menu
+                if (!session || textLower === 'oi' || textLower === 'ola' || textLower === 'menu' || textLower === 'sair') {
+                    const userEmail = userInDb ? userInDb.email : (session ? session.user_email : null);
 
-                if (textLower === 'oi' || textLower === 'ola' || textLower === 'menu' || (isNumericChoice && session.state === 'ai_chat')) {
-                    let msg = "✂️ *Menu Barber* \n\nComo posso te ajudar hoje?\n\n";
+                    await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email) VALUES (?, "main_menu", ?)').bind(from, userEmail).run();
+
+                    let msg = "✂️ *Bem-vindo à Barber* \n\nComo posso te ajudar hoje?\n\n";
                     msg += "1️⃣ - Agendar novo horário\n";
                     msg += "2️⃣ - Meus Agendamentos (Ver/Cancelar)\n";
                     msg += "3️⃣ - Falar com a IA (Dúvidas)\n";
 
-                    await env.DB.prepare('UPDATE whatsapp_sessions SET state = "main_menu" WHERE phone = ?').bind(from).run();
                     await sendMessage(from, msg);
                     return json({ success: true });
                 }
 
-                // AI Interception: Natural language
-                if (session.state === 'ai_chat' || (isNaN(parseInt(text)) && session.state === 'main_menu')) {
+                // AI Interception: Natural language ou opção 3
+                if (session.state === 'ai_chat' || text === '3' || (isNaN(parseInt(text)) && session.state === 'main_menu')) {
                     const aiMsg = await askAI(text);
+                    await env.DB.prepare('UPDATE whatsapp_sessions SET state = "ai_chat" WHERE phone = ?').bind(from).run();
                     await sendMessage(from, aiMsg);
                     return json({ success: true });
                 }
@@ -602,10 +637,11 @@ REGRAS:
                 // MAIN MENU FLOW
                 if (session.state === 'main_menu') {
                     if (text === '1') {
-                        const services = await env.DB.prepare('SELECT * FROM services WHERE id != "block"').all();
-                        let msg = "📅 *Escolha o serviço:* \n";
-                        services.results.forEach((s, i) => { msg += `\n*${i + 1}* - ${s.name} (R$ ${s.price})`; });
-                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_service" WHERE phone = ?').bind(from).run();
+                        const barbers = await env.DB.prepare('SELECT email, name FROM users WHERE is_barber = 1').all();
+                        let msg = "💈 *Escolha o Barbeiro:* \n";
+                        barbers.results.forEach((b, i) => { msg += `\n*${i + 1}* - ${b.name}`; });
+
+                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_barber" WHERE phone = ?').bind(from).run();
                         await sendMessage(from, msg);
                         return json({ success: true });
                     } else if (text === '2') {
@@ -640,26 +676,30 @@ REGRAS:
                     }
                 }
 
-                // MANAGING APPOINTMENTS FLOW
-                if (session.state === 'managing_appointments') {
-                    if (isNumericChoice) {
-                        const apptIds = JSON.parse(session.metadata || "[]");
-                        const targetId = apptIds[parseInt(text) - 1];
-                        if (targetId) {
-                            await env.DB.prepare('UPDATE appointments SET status = "cancelled" WHERE id = ?').bind(targetId).run();
-                            await sendMessage(from, "✅ Agendamento cancelado com sucesso. Digite 'Menu' se precisar de algo mais.");
-                            await env.DB.prepare('DELETE FROM whatsapp_sessions WHERE phone = ?').bind(from).run();
-                            return json({ success: true });
-                        }
+                // FLOW: Choose Barber
+                if (session.state === 'awaiting_barber') {
+                    const barbers = await env.DB.prepare('SELECT email, name FROM users WHERE is_barber = 1').all();
+                    const index = parseInt(text) - 1;
+                    const barber = barbers.results[index];
+
+                    if (!barber) {
+                        await sendMessage(from, "❌ Barbeiro inválido. Escolha um da lista.");
+                        return json({ success: true });
                     }
-                    await sendMessage(from, "Opção inválida. Digite o número do agendamento para cancelar ou 'Menu' para voltar.");
+
+                    const services = await env.DB.prepare('SELECT * FROM services WHERE barber_email = ?').bind(barber.email).all();
+                    let msg = `Você escolheu *${barber.name}*.\n\n📅 *Agora escolha o serviço:* \n`;
+                    services.results.forEach((s, i) => { msg += `\n*${i + 1}* - ${s.name} (R$ ${s.price})`; });
+
+                    await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_service", selected_barber_email = ? WHERE phone = ?').bind(barber.email, from).run();
+                    await sendMessage(from, msg);
                     return json({ success: true });
                 }
 
                 // FLOW: Choose Service
                 if (session.state === 'awaiting_service') {
                     const index = parseInt(text) - 1;
-                    const services = await env.DB.prepare('SELECT * FROM services WHERE id != "block"').all();
+                    const services = await env.DB.prepare('SELECT * FROM services WHERE barber_email = ?').bind(session.selected_barber_email).all();
                     const service = services.results[index];
 
                     if (!service) {
@@ -690,7 +730,7 @@ REGRAS:
                     const d = new Date(); d.setDate(d.getDate() + index);
                     const dateStr = d.toISOString().split('T')[0];
 
-                    const busy = await env.DB.prepare('SELECT appointment_time FROM appointments WHERE appointment_date = ? AND status != "cancelled"').bind(dateStr).all();
+                    const busy = await env.DB.prepare('SELECT appointment_time FROM appointments WHERE barber_email = ? AND appointment_date = ? AND status != "cancelled"').bind(session.selected_barber_email, dateStr).all();
                     const busyTimes = busy.results.map(r => r.appointment_time);
                     const timeSlots = ["09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
                     const available = timeSlots.filter(t => !busyTimes.includes(t));
@@ -711,7 +751,7 @@ REGRAS:
                 // FLOW: Choose Time
                 if (session.state === 'awaiting_time') {
                     const dateStr = session.appointment_date;
-                    const busy = await env.DB.prepare('SELECT appointment_time FROM appointments WHERE appointment_date = ? AND status != "cancelled"').bind(dateStr).all();
+                    const busy = await env.DB.prepare('SELECT appointment_time FROM appointments WHERE barber_email = ? AND appointment_date = ? AND status != "cancelled"').bind(session.selected_barber_email, dateStr).all();
                     const busyTimes = busy.results.map(r => r.appointment_time);
                     const timeSlots = ["09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
                     const available = timeSlots.filter(t => !busyTimes.includes(t));
@@ -724,28 +764,35 @@ REGRAS:
                         return json({ success: true });
                     }
 
-                    // Buscamos se o usuário já existe no banco de dados 'users'
-                    const allUsers = await env.DB.prepare('SELECT email, phone FROM users WHERE phone IS NOT NULL').all();
-                    const cleanFrom = from.replace(/\D/g, "");
-                    const userInDb = allUsers.results.find(u => {
-                        const cleanU = u.phone.replace(/\D/g, "");
-                        return cleanU.endsWith(cleanFrom) || cleanFrom.endsWith(cleanU);
-                    });
-
-                    if (userInDb && userInDb.email) {
-                        // Se encontramos o e-mail, avançamos para a confirmação
-                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_confirmation", appointment_time = ?, user_email = ? WHERE phone = ?')
-                            .bind(time, userInDb.email, from).run();
+                    if (session.user_email) {
+                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_confirmation", appointment_time = ? WHERE phone = ?')
+                            .bind(time, from).run();
 
                         await sendMessage(from, `📍 *Quase lá!* \n\n*Serviço:* ${session.service_id}\n*Data:* ${dateStr}\n*Hora:* ${time}\n\nConfirma o agendamento? \n*1* - Sim\n*2* - Não/Cancelar`);
                         return json({ success: true });
                     } else {
-                        // Se NÃO encontramos, pedimos o e-mail (fluxo de novo usuário)
-                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_email", appointment_time = ? WHERE phone = ?')
-                            .bind(time, from).run();
+                        // Tenta buscar novamente caso não tenha vindo no início
+                        const allUsers = await env.DB.prepare('SELECT email, phone FROM users WHERE phone IS NOT NULL').all();
+                        const cleanFrom = from.replace(/\D/g, "");
+                        const userFound = allUsers.results.find(u => {
+                            const cleanU = u.phone.replace(/\D/g, "");
+                            return cleanU.endsWith(cleanFrom) || cleanFrom.endsWith(cleanU);
+                        });
 
-                        await sendMessage(from, `⏰ *Horário ${time} reservado!* \n\nComo é sua primeira vez por aqui, por favor digite seu *E-mail* para completar o agendamento:`);
-                        return json({ success: true });
+                        if (userFound && userFound.email) {
+                            await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_confirmation", appointment_time = ?, user_email = ? WHERE phone = ?')
+                                .bind(time, userFound.email, from).run();
+
+                            await sendMessage(from, `📍 *Quase lá!* \n\n*Serviço:* ${session.service_id}\n*Data:* ${dateStr}\n*Hora:* ${time}\n\nConfirma o agendamento? \n*1* - Sim\n*2* - Não/Cancelar`);
+                            return json({ success: true });
+                        } else {
+                            // Se REALMENTE não temos o e-mail
+                            await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_email", appointment_time = ? WHERE phone = ?')
+                                .bind(time, from).run();
+
+                            await sendMessage(from, `⏰ *Horário ${time} reservado!* \n\nComo é sua primeira vez por aqui, por favor digite seu *E-mail* para completar o agendamento:`);
+                            return json({ success: true });
+                        }
                     }
                 }
 
@@ -772,9 +819,9 @@ REGRAS:
                         const service = await env.DB.prepare('SELECT * FROM services WHERE id = ?').bind(session.service_id).first();
 
                         await env.DB.prepare(`
-                            INSERT INTO appointments (id, user_email, service_id, appointment_date, appointment_time, status)
-                            VALUES (?, ?, ?, ?, ?, 'pending')
-                        `).bind(id, session.user_email, session.service_id, session.appointment_date, session.appointment_time).run();
+                            INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status)
+                            VALUES (?, ?, ?, ?, ?, ?, 'pending')
+                        `).bind(id, session.user_email, session.selected_barber_email, session.service_id, session.appointment_date, session.appointment_time).run();
 
                         // Create MP Preference directly
                         const mpPreference = {

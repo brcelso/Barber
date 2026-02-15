@@ -37,6 +37,8 @@ function App() {
   const [selectedTime, setSelectedTime] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [adminAppointments, setAdminAppointments] = useState([]);
+  const [barbers, setBarbers] = useState([]);
+  const [selectedBarber, setSelectedBarber] = useState(null);
   const [busySlots, setBusySlots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false); // Changed default to false
@@ -134,7 +136,6 @@ function App() {
   };
 
   useEffect(() => {
-    fetchServices();
     if (user) {
       if (user.isAdmin) {
         fetchAdminAppointments();
@@ -145,13 +146,21 @@ function App() {
   }, [user, view]);
 
   useEffect(() => {
-    if (selectedDate) fetchBusySlots(selectedDate);
-  }, [selectedDate]);
+    fetchBarbers();
+  }, []);
+
+  useEffect(() => {
+    if (selectedBarber) {
+      fetchServices();
+      fetchBusySlots(selectedDate);
+    }
+  }, [selectedBarber, selectedDate]);
 
   const fetchBusySlots = async (date) => {
+    if (!selectedBarber) return;
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
-      const res = await fetch(`${API_URL}/appointments/busy-slots?date=${dateStr}&t=${Date.now()}`);
+      const res = await fetch(`${API_URL}/appointments/busy-slots?date=${dateStr}&barber_email=${selectedBarber.email}&t=${Date.now()}`);
       const data = await res.json();
       setBusySlots(data || []);
     } catch (e) {
@@ -159,12 +168,23 @@ function App() {
     }
   };
 
+  const fetchBarbers = async () => {
+    try {
+      const res = await fetch(`${API_URL}/barbers`);
+      const data = await res.json();
+      setBarbers(data || []);
+      // Auto-select if there's only one or if it was Celso before
+      if (data && data.length === 1) setSelectedBarber(data[0]);
+    } catch (e) { console.error('Failed to fetch barbers'); }
+  };
+
   const [selectedActionAppt, setSelectedActionAppt] = useState(null);
   const [sheetView, setSheetView] = useState('main'); // 'main' or 'status'
 
   const fetchServices = async () => {
     try {
-      const res = await fetch(`${API_URL}/services`);
+      const url = selectedBarber ? `${API_URL}/services?barber_email=${selectedBarber.email}` : `${API_URL}/services`;
+      const res = await fetch(url);
       const data = await res.json();
       setServices(data || []);
     } catch (e) {
@@ -319,6 +339,27 @@ function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePromoteToBarber = async () => {
+    if (!confirm('Deseja se tornar um Barbeiro parceiro? Você terá 3 dias de licença grátis para gerenciar sua agenda!')) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/user/promote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Parabéns! Você agora é um Barbeiro. Sua agenda está liberada!');
+        const updatedUser = { ...user, isAdmin: true, isBarber: true };
+        setUser(updatedUser);
+        localStorage.setItem('barber_user', JSON.stringify(updatedUser));
+        window.location.reload();
+      }
+    } catch (e) { alert('Erro ao promover usuário'); }
+    finally { setLoading(false); }
   };
 
   const handleRefresh = async () => {
@@ -486,13 +527,22 @@ function App() {
 
   const handleBooking = async () => {
     if (!selectedService || !selectedTime || !user) return;
+    const bookingData = {
+      email: user.email,
+      barberEmail: selectedBarber.email,
+      serviceId: selectedService.id,
+      date: format(selectedDate, 'yyyy-MM-dd'),
+      time: selectedTime,
+    };
+
     setLoading(true);
     try {
       const endpoint = editingAppointment ? '/appointments/update' : '/appointments/book';
       const body = {
         email: user.email,
-        userEmail: user.email, // for update route
+        userEmail: user.email,
         appointmentId: editingAppointment?.id,
+        barberEmail: selectedBarber.email,
         serviceId: selectedService.id,
         date: format(selectedDate, 'yyyy-MM-dd'),
         time: selectedTime,
@@ -829,9 +879,20 @@ function App() {
           }} title="Editar Perfil" style={{ cursor: 'pointer' }}>
             <img src={user.picture} alt={user.name} />
           </div>
+
+          {!user.isAdmin && (
+            <button
+              className="btn-primary"
+              style={{ fontSize: '0.7rem', padding: '5px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--primary)', color: 'var(--primary)' }}
+              onClick={handlePromoteToBarber}
+            >
+              Quero ser Barbeiro
+            </button>
+          )}
+
           <button className="btn-icon" onClick={handleLogout} title="Sair"><LogOut /></button>
         </div>
-      </header >
+      </header>
 
       {view === 'admin' && user.isAdmin && (
         <main className="fade-in">
@@ -944,97 +1005,129 @@ function App() {
       {
         view === 'book' && (
           <main>
-            <section style={{ marginBottom: '3rem' }}>
-              <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Scissors className="text-primary" /> Escolha o Serviço
-              </h2>
-              <div className="service-grid">
-                {services.map(s => (
-                  <div
-                    key={s.id}
-                    className={`glass-card service-card ${selectedService?.id === s.id ? 'selected' : ''}`}
-                    onClick={() => setSelectedService(s)}
-                  >
-                    <h3 style={{ fontSize: '1.2rem' }}>{s.name}</h3>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>{s.duration_minutes} min</p>
-                    <div className="price">R$ {s.price}</div>
-                    <div style={{ color: selectedService?.id === s.id ? 'var(--primary)' : 'transparent' }}>
-                      <CheckCircle size={24} />
+            {!selectedBarber ? (
+              <section style={{ marginBottom: '3rem' }}>
+                <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <User className="text-primary" /> Escolha seu Barbeiro
+                </h2>
+                <div className="service-grid">
+                  {barbers.map(b => (
+                    <div
+                      key={b.email}
+                      className="glass-card service-card"
+                      onClick={() => setSelectedBarber(b)}
+                      style={{ textAlign: 'center' }}
+                    >
+                      <img src={b.picture} alt={b.name} style={{ width: '80px', height: '80px', borderRadius: '50%', margin: '0 auto 1rem', border: '2px solid var(--primary)' }} />
+                      <h3 style={{ fontSize: '1.2rem' }}>{b.name}</h3>
+                      <button className="btn-primary" style={{ marginTop: '1rem', width: '100%' }}>Escolher</button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '2rem' }}>
+                  <button className="btn-icon" onClick={() => { setSelectedBarber(null); setSelectedService(null); }}>
+                    <ChevronLeft size={20} />
+                  </button>
+                  <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Agendando com: </span>
+                  <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{selectedBarber.name}</span>
+                </div>
+
+                <section style={{ marginBottom: '3rem' }}>
+                  <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Scissors className="text-primary" /> Escolha o Serviço
+                  </h2>
+                  <div className="service-grid">
+                    {services.map(s => (
+                      <div
+                        key={s.id}
+                        className={`glass-card service-card ${selectedService?.id === s.id ? 'selected' : ''}`}
+                        onClick={() => setSelectedService(s)}
+                      >
+                        <h3 style={{ fontSize: '1.2rem' }}>{s.name}</h3>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>{s.duration_minutes} min</p>
+                        <div className="price">R$ {s.price}</div>
+                        <div style={{ color: selectedService?.id === s.id ? 'var(--primary)' : 'transparent' }}>
+                          <CheckCircle size={24} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="glass-card" style={{ padding: '2rem' }}>
+                  <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Calendar className="text-primary" /> Data e Horário
+                  </h2>
+
+                  <div className="date-list">
+                    {[...Array(14)].map((_, i) => {
+                      const date = addDays(startOfToday(), i);
+                      const isActive = isSameDay(selectedDate, date);
+                      return (
+                        <button
+                          key={i}
+                          className={`date-card ${isActive ? 'active' : ''}`}
+                          onClick={() => setSelectedDate(date)}
+                        >
+                          <div className="day-name">{format(date, 'eee', { locale: ptBR })}</div>
+                          <div className="day-number">{format(date, 'dd')}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="time-slots">
+                    {timeSlots.map(t => {
+                      const isBusy = busySlots.find(b => b.time === t);
+                      const isSelected = selectedTime === t;
+                      return (
+                        <button
+                          key={t}
+                          className={`time-slot ${isSelected ? 'selected' : (isBusy ? 'occupied' : 'available')}`}
+                          onClick={() => !isBusy && setSelectedTime(t)}
+                          disabled={isBusy}
+                          title={isBusy ? 'Horário Ocupado' : 'Horário Disponível'}
+                        >
+                          {t}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ marginTop: '2.5rem', borderTop: '1px solid var(--border)', paddingTop: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Resumo {editingAppointment && '(Editando)'}:</p>
+                      <h3 style={{ fontSize: '1.1rem' }}>
+                        {selectedService ? selectedService.name : 'Selecione um serviço'}
+                        {selectedTime && ` às ${selectedTime}`}
+                      </h3>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      {editingAppointment && (
+                        <button className="btn-icon" onClick={() => { setEditingAppointment(null); setView('history'); }} title="Cancelar Edição">
+                          <X size={20} />
+                        </button>
+                      )}
+                      <button
+                        className="btn-primary"
+                        disabled={!selectedService || !selectedTime || loading}
+                        onClick={handleBooking}
+                        style={user?.isAdmin ? { background: 'linear-gradient(135deg, #2ecc71, #27ae60)', borderColor: '#27ae60' } : {}}
+                      >
+                        {loading ? 'Processando...' : (
+                          user?.isAdmin ?
+                            <><CheckCircle size={20} /> Salvar Agendamento (Admin)</> :
+                            <><Calendar size={20} /> {editingAppointment ? 'Salvar Alterações' : 'Agendar Agora'}</>
+                        )}
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="glass-card" style={{ padding: '2rem' }}>
-              <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Calendar className="text-primary" /> Data e Horário
-              </h2>
-
-              <div className="date-list">
-                {[...Array(14)].map((_, i) => {
-                  const date = addDays(startOfToday(), i);
-                  const isActive = isSameDay(selectedDate, date);
-                  return (
-                    <button
-                      key={i}
-                      className={`date-card ${isActive ? 'active' : ''}`}
-                      onClick={() => setSelectedDate(date)}
-                    >
-                      <div className="day-name">{format(date, 'eee', { locale: ptBR })}</div>
-                      <div className="day-number">{format(date, 'dd')}</div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="time-slots">
-                {timeSlots.map(t => {
-                  const isBusy = busySlots.find(b => b.time === t);
-                  const isSelected = selectedTime === t;
-                  return (
-                    <button
-                      key={t}
-                      className={`time-slot ${isSelected ? 'selected' : (isBusy ? 'occupied' : 'available')}`}
-                      onClick={() => !isBusy && setSelectedTime(t)}
-                      disabled={isBusy}
-                      title={isBusy ? 'Horário Ocupado' : 'Horário Disponível'}
-                    >
-                      {t}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div style={{ marginTop: '2.5rem', borderTop: '1px solid var(--border)', paddingTop: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Resumo {editingAppointment && '(Editando)'}:</p>
-                  <h3 style={{ fontSize: '1.1rem' }}>
-                    {selectedService ? selectedService.name : 'Selecione um serviço'}
-                    {selectedTime && ` às ${selectedTime}`}
-                  </h3>
-                </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  {editingAppointment && (
-                    <button className="btn-icon" onClick={() => { setEditingAppointment(null); setView('history'); }} title="Cancelar Edição">
-                      <X size={20} />
-                    </button>
-                  )}
-                  <button
-                    className="btn-primary"
-                    disabled={!selectedService || !selectedTime || loading}
-                    onClick={handleBooking}
-                    style={user?.isAdmin ? { background: 'linear-gradient(135deg, #2ecc71, #27ae60)', borderColor: '#27ae60' } : {}}
-                  >
-                    {loading ? 'Processando...' : (
-                      user?.isAdmin ?
-                        <><CheckCircle size={20} /> Salvar Agendamento (Admin)</> :
-                        <><Calendar size={20} /> {editingAppointment ? 'Salvar Alterações' : 'Agendar Agora'}</>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </section>
+                </section>
+              </>
+            )}
           </main>
         )
       }
@@ -1104,7 +1197,7 @@ function App() {
         )
       }
       {renderActionSheet()}
-    </div >
+    </div>
   );
 }
 
