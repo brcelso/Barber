@@ -137,10 +137,9 @@ function App() {
 
   useEffect(() => {
     if (user) {
+      fetchAppointments();
       if (user.isAdmin) {
         fetchAdminAppointments();
-      } else {
-        fetchAppointments();
       }
     }
   }, [user, view]);
@@ -198,7 +197,7 @@ function App() {
   };
 
   const fetchAppointments = async () => {
-    if (!user || user.isAdmin) return;
+    if (!user) return;
     try {
       const res = await fetch(`${API_URL}/appointments`, {
         headers: { 'X-User-Email': user.email }
@@ -364,12 +363,21 @@ function App() {
 
   const handleRefresh = async () => {
     setLoading(true);
-    await Promise.all([
+    const promises = [
       fetchServices(),
-      user?.isAdmin ? fetchAdminAppointments() : fetchAppointments(),
-      selectedDate ? fetchBusySlots(selectedDate) : Promise.resolve(),
-      user?.isAdmin ? fetchSubscription() : Promise.resolve()
-    ]);
+      fetchAppointments(),
+    ];
+
+    if (user?.isAdmin) {
+      promises.push(fetchAdminAppointments());
+      promises.push(fetchSubscription());
+    }
+
+    if (selectedDate) {
+      promises.push(fetchBusySlots(selectedDate));
+    }
+
+    await Promise.all(promises);
     setLoading(false);
   };
 
