@@ -221,18 +221,34 @@ REGRAS DE RESPOSTA:
                 return json(results);
             }
 
-            // MASTER: Update User Role/Subscription
+            // MASTER: Update User Role/Subscription/Phone
             if (url.pathname === '/api/master/user/update' && request.method === 'POST') {
                 const email = request.headers.get('X-User-Email');
                 if (email !== MASTER_EMAIL) return json({ error: 'Unauthorized' }, 401);
 
-                const { targetEmail, is_admin, is_barber, expires, plan } = await request.json();
+                const { targetEmail, is_admin, is_barber, expires, plan, phone } = await request.json();
 
                 await env.DB.prepare(`
                     UPDATE users 
-                    SET is_admin = ?, is_barber = ?, subscription_expires = ?, plan = ?
+                    SET is_admin = ?, is_barber = ?, subscription_expires = ?, plan = ?, phone = ?
                     WHERE email = ?
-                `).bind(is_admin ? 1 : 0, is_barber ? 1 : 0, expires || null, plan || null, targetEmail).run();
+                `).bind(is_admin ? 1 : 0, is_barber ? 1 : 0, expires || null, plan || null, phone || null, targetEmail).run();
+
+                return json({ success: true });
+            }
+
+            // MASTER: Delete User
+            if (url.pathname === '/api/master/user/delete' && request.method === 'POST') {
+                const email = request.headers.get('X-User-Email');
+                if (email !== MASTER_EMAIL) return json({ error: 'Unauthorized' }, 401);
+
+                const { targetEmail } = await request.json();
+                if (targetEmail === MASTER_EMAIL) return json({ error: 'Cannot delete master user' }, 400);
+
+                // Delete dependencies first if any (e.g., appointments, whatsapp_sessions)
+                await env.DB.prepare('DELETE FROM appointments WHERE user_email = ? OR barber_email = ?').bind(targetEmail, targetEmail).run();
+                await env.DB.prepare('DELETE FROM whatsapp_sessions WHERE user_email = ?').bind(targetEmail).run();
+                await env.DB.prepare('DELETE FROM users WHERE email = ?').bind(targetEmail).run();
 
                 return json({ success: true });
             }

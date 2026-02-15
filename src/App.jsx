@@ -137,6 +137,33 @@ function App() {
     }
   };
 
+  const handleMasterDelete = async (targetEmail) => {
+    if (!confirm(`Tem certeza que deseja deletar permanentemente o usuário ${targetEmail}? Esta ação não pode ser desfeita e apagará todos os agendamentos dele.`)) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/master/user/delete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Email': user.email
+        },
+        body: JSON.stringify({ targetEmail })
+      });
+      if (res.ok) {
+        alert('Usuário deletado com sucesso!');
+        fetchMasterData();
+      } else {
+        const data = await res.json();
+        alert('Erro: ' + (data.error || 'Não foi possível deletar'));
+      }
+    } catch (e) {
+      alert('Erro de conexão');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleMasterRestartBot = async (targetEmail) => {
     try {
       // Tenta reiniciar na ponte local (PWA mode)
@@ -1139,16 +1166,17 @@ function App() {
                     <thead>
                       <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
                         <th style={{ padding: '10px' }}>Nome / Email</th>
+                        <th style={{ padding: '10px' }}>Telefone</th>
                         <th style={{ padding: '10px' }}>Papéis</th>
                         <th style={{ padding: '10px' }}>Plano</th>
                         <th style={{ padding: '10px' }}>Expiração</th>
-                        <th style={{ padding: '10px' }}>Bot</th>
+                        <th style={{ padding: '10px' }}>Ações</th>
                       </tr>
                     </thead>
                     <tbody>
                       {masterError ? (
                         <tr>
-                          <td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: '#e74c3c' }}>
+                          <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#e74c3c' }}>
                             ❌ Erro: {masterError}
                           </td>
                         </tr>
@@ -1160,20 +1188,38 @@ function App() {
                               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{u.email}</div>
                             </td>
                             <td style={{ padding: '10px' }}>
+                              <input
+                                type="text"
+                                value={u.phone || ''}
+                                onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: e.target.value })}
+                                placeholder="Sem tel"
+                                style={{
+                                  background: 'rgba(255,255,255,0.05)',
+                                  border: '1px solid var(--border)',
+                                  color: 'white',
+                                  fontSize: '0.75rem',
+                                  padding: '4px',
+                                  borderRadius: '8px',
+                                  width: '120px',
+                                  outline: 'none'
+                                }}
+                              />
+                            </td>
+                            <td style={{ padding: '10px' }}>
                               <div style={{ display: 'flex', gap: '8px' }}>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.65rem' }}>
                                   <input
                                     type="checkbox"
                                     defaultChecked={u.is_admin}
                                     disabled={u.email === 'celsosilvajunior90@gmail.com'}
-                                    onChange={(e) => handleMasterUpdate(u.email, { is_admin: e.target.checked, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan })}
+                                    onChange={(e) => handleMasterUpdate(u.email, { is_admin: e.target.checked, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone })}
                                   /> Adm
                                 </label>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.65rem' }}>
                                   <input
                                     type="checkbox"
                                     defaultChecked={u.is_barber}
-                                    onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: e.target.checked, expires: u.subscription_expires, plan: u.plan })}
+                                    onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: e.target.checked, expires: u.subscription_expires, plan: u.plan, phone: u.phone })}
                                   /> Barb
                                 </label>
                               </div>
@@ -1181,7 +1227,7 @@ function App() {
                             <td style={{ padding: '10px' }}>
                               <select
                                 value={u.plan || ''}
-                                onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: e.target.value })}
+                                onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: e.target.value, phone: u.phone })}
                                 style={{
                                   background: 'rgba(255,255,255,0.05)',
                                   border: '1px solid var(--border)',
@@ -1206,7 +1252,7 @@ function App() {
                               <input
                                 type="date"
                                 value={u.subscription_expires ? u.subscription_expires.split('T')[0] : ''}
-                                onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: e.target.value ? new Date(e.target.value).toISOString() : null, plan: u.plan })}
+                                onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: e.target.value ? new Date(e.target.value).toISOString() : null, plan: u.plan, phone: u.phone })}
                                 style={{
                                   background: 'rgba(255,255,255,0.05)',
                                   border: '1px solid var(--border)',
@@ -1220,14 +1266,53 @@ function App() {
                               />
                             </td>
                             <td style={{ padding: '10px' }}>
-                              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: u.wa_status === 'connected' ? '#2ecc71' : '#e74c3c', display: 'inline-block', marginRight: '4px' }}></div>
-                              <span style={{ fontSize: '0.65rem' }}>{u.wa_status === 'connected' ? 'ON' : 'OFF'}</span>
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <div style={{
+                                  width: '8px',
+                                  height: '8px',
+                                  borderRadius: '50%',
+                                  background: u.wa_status === 'connected' ? '#2ecc71' : '#e74c3c',
+                                  boxShadow: u.wa_status === 'connected' ? '0 0 5px #2ecc71' : 'none'
+                                }} title={u.wa_status || 'desconectado'} />
+
+                                <button
+                                  onClick={() => handleMasterDelete(u.email)}
+                                  disabled={u.email === 'celsosilvajunior90@gmail.com'}
+                                  style={{
+                                    background: 'rgba(231, 76, 60, 0.1)',
+                                    border: '1px solid #e74c3c',
+                                    color: '#e74c3c',
+                                    padding: '4px',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    opacity: u.email === 'celsosilvajunior90@gmail.com' ? 0.3 : 1
+                                  }}
+                                  title="Deletar Usuário"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+
+                                <button
+                                  onClick={() => handleMasterRestartBot(u.email)}
+                                  style={{
+                                    background: 'rgba(255,255,255,0.05)',
+                                    border: '1px solid var(--border)',
+                                    color: 'white',
+                                    padding: '4px',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer'
+                                  }}
+                                  title="Reiniciar Robô"
+                                >
+                                  <RefreshCw size={12} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                             Nenhum usuário encontrado.
                           </td>
                         </tr>
