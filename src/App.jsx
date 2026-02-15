@@ -73,6 +73,13 @@ function App() {
 
   const fetchWaStatus = async () => {
     try {
+      // Tenta inicializar a sessão se não estiver rodando (PWA local bridge)
+      fetch(`http://localhost:3000/api/init`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'barber-secret-key', email: user.email })
+      }).catch(() => { }); // Ignora erro se a ponte não estiver rodando localmente
+
       const res = await fetch(`${API_URL}/whatsapp/status`, {
         headers: { 'X-User-Email': user.email }
       });

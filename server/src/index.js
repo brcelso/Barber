@@ -625,6 +625,7 @@ export default {
                 const from = body.phone?.replace(/\D/g, ""); // Clean phone
                 const text = (body.message || "").trim();
                 const textLower = text.toLowerCase();
+                const botBarberEmail = body.barber_email; // O barbeiro dono do robô que recebeu a msg
 
                 if (!from) return json({ error: "Missing phone" }, 400);
 
@@ -647,7 +648,8 @@ export default {
                             body: JSON.stringify({
                                 key: BRIDGE_KEY,
                                 number: finalPhone,
-                                message: message
+                                message: message,
+                                barber_email: botBarberEmail // Devolve para o robô correto
                             })
                         });
                     } catch (e) {
@@ -671,16 +673,23 @@ export default {
                 // AI Agent Helper with refined personality
                 const askAI = async (userMessage, sessionState = 'main_menu') => {
                     try {
-                        const services = await env.DB.prepare('SELECT * FROM services WHERE id != "block"').all();
-                        const servicesList = services.results.map((s, i) => `✂️ ${s.name}: R$ ${s.price}`).join('\n');
+                        // Buscar barbeiro para personificar
+                        const barber = await env.DB.prepare('SELECT name FROM users WHERE email = ?').bind(botBarberEmail).first();
+                        const barberName = barber ? barber.name : 'Barber Central';
 
-                        const systemPrompt = `Você é o Leo, assistente virtual premium da Barber. 
+                        // Buscar serviços apenas deste barbeiro
+                        const services = await env.DB.prepare('SELECT * FROM services WHERE id != "block" AND barber_email = ?').bind(botBarberEmail).all();
+                        const servicesList = services.results.length > 0
+                            ? services.results.map((s, i) => `✂️ ${s.name}: R$ ${s.price}`).join('\n')
+                            : "Consulte nossos serviços no agendamento.";
+
+                        const systemPrompt = `Você é o Leo, assistente virtual premium de ${barberName}. 
 Seu tom é amigável, profissional e direto. 
 
 CONTEXTO:
-- Estamos localizados na Barber Central.
+- Estamos localizados na ${barberName}.
 - Funcionamento: Seg-Sáb, 09h às 19h.
-- Serviços disponíveis:
+- Serviços disponíveis em ${barberName}:
 ${servicesList}
 
 OBJETIVO:

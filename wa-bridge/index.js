@@ -15,6 +15,8 @@ const QRCode = require('qrcode');
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const STATUS_URL = 'https://barber-server.celsosilvajunior90.workers.dev/api/whatsapp/status';
 
+const fs = require('fs');
+
 const app = express();
 app.use(bodyParser.json());
 
@@ -22,24 +24,29 @@ const PORT = 3000;
 const API_KEY = 'barber-secret-key';
 const WORKER_URL = 'https://barber-server.celsosilvajunior90.workers.dev/api/whatsapp/webhook';
 
-let sock;
+const sessions = new Map();
 
-async function connectToWhatsApp() {
-    const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
-    const { version, isLatest } = await fetchLatestWaWebVersion().catch(() => ({ version: [2, 3000, 1015901307], isLatest: false }));
-    console.log(`Usando versão do WhatsApp Web: ${version} (Latest: ${isLatest})`);
+async function connectToWhatsApp(email) {
+    if (sessions.has(email)) {
+        console.log(`[Session] Reusando sessão existente para ${email}`);
+        return;
+    }
 
-    sock = makeWASocket({
+    console.log(`[Session] Iniciando conexão para: ${email}`);
+    const authFolder = `auth_sessions/session_${email.replace(/[@.]/g, '_')}`;
+    const { state, saveCreds } = await useMultiFileAuthState(authFolder);
+    const { version } = await fetchLatestWaWebVersion().catch(() => ({ version: [2, 3000, 1015901307] }));
+
+    const sock = makeWASocket({
         version,
         logger: pino({ level: 'silent' }),
         auth: state,
-        browser: ['Ubuntu', 'Chrome', '20.0.04'], // More common browser string
+        browser: ['Barber App', 'Chrome', '1.0.0'],
         printQRInTerminal: false,
-        markOnlineOnConnect: true,
-        connectTimeoutMs: 60000,
-        defaultQueryTimeoutMs: 0,
-        keepAliveIntervalMs: 10000
+        markOnlineOnConnect: true
     });
+
+    sessions.set(email, sock);
 
     sock.ev.on('messages.upsert', async m => {
         if (m.type !== 'notify') return;
@@ -50,18 +57,12 @@ async function connectToWhatsApp() {
         const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
 
         if (text) {
-            console.log(`[Recebido] De: ${sender} - Msg: ${text}`);
-            // Encaminha para a IA no Worker
+            console.log(`[Recebido] (${email}) De: ${sender} - Msg: ${text}`);
             axios.post(WORKER_URL, {
                 phone: sender,
-                message: text
-            }).catch(e => {
-                if (e.response && e.response.data) {
-                    console.error('❌ ERRO NO WORKER:', e.response.data.error || e.message);
-                } else {
-                    console.error('❌ ERRO AO CHAMAR WEBHOOK:', e.message);
-                }
-            });
+                message: text,
+                barber_email: email // Crucial para o Worker saber qual bot respondeu
+            }).catch(e => console.error('❌ ERRO NO WORKER:', e.message));
         }
     });
 
@@ -69,60 +70,74 @@ async function connectToWhatsApp() {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
-            console.log('\n--- NOVO QR CODE GERADO. ESCANEIE ABAIXO ---');
-            qrcode.generate(qr, { small: true });
-
-            // Enviar QR para o Worker para o Barbeiro ler no App
+            console.log(`[QR] Novo código para ${email}`);
             try {
                 const qrImage = await QRCode.toDataURL(qr);
-                await axios.post(STATUS_URL, {
-                    email: ADMIN_EMAIL,
-                    status: 'qr',
-                    qr: qrImage
-                });
-            } catch (e) {
-                console.error('Erro ao enviar QR para Worker:', e.message);
-            }
+                await axios.post(STATUS_URL, { email, status: 'qr', qr: qrImage });
+            } catch (e) { console.error('Erro ao enviar QR:', e.message); }
         }
 
         if (connection === 'close') {
             const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
-            console.log('Conexão fechada. Razão:', reason);
+            console.log(`[Session] (${email}) Conexão fechada: ${reason}`);
 
-            // Notificar Worker
-            axios.post(STATUS_URL, {
-                email: ADMIN_EMAIL,
-                status: 'disconnected',
-                reason: reason
-            }).catch(() => { });
+            axios.post(STATUS_URL, { email, status: 'disconnected', reason }).catch(() => { });
 
             if (reason === DisconnectReason.loggedOut) {
-                console.log('Sessão encerrada pelo celular. Delete a pasta auth_info_baileys e escaneie de novo.');
-            } else if (reason === 440) {
-                console.log('⚠️ Erro de Stream (440). Tentando reconectar limpando buffer...');
-                setTimeout(connectToWhatsApp, 2000);
+                sessions.delete(email);
+                console.log(`[Session] (${email}) LogOUT - Removendo sessão.`);
             } else {
-                console.log('Tentando reconectar em 5 segundos...');
-                setTimeout(connectToWhatsApp, 5000);
+                setTimeout(() => {
+                    sessions.delete(email);
+                    connectToWhatsApp(email);
+                }, 5000);
             }
         } else if (connection === 'open') {
-            console.log('\n✅ WhatsApp Conectado e Pronto para Enviar!');
-            // Notificar Worker
-            axios.post(STATUS_URL, {
-                email: ADMIN_EMAIL,
-                status: 'connected'
-            }).catch(() => { });
+            console.log(`[Session] ✅ ${email} CONECTADO!`);
+            axios.post(STATUS_URL, { email, status: 'connected' }).catch(() => { });
         }
     });
 
     sock.ev.on('creds.update', saveCreds);
 }
 
+// Carregar sessões existentes ao iniciar
+async function loadExistingSessions() {
+    const root = 'auth_sessions';
+    if (!fs.existsSync(root)) fs.mkdirSync(root);
+
+    const folders = fs.readdirSync(root);
+    for (const folder of folders) {
+        if (folder.startsWith('session_')) {
+            const email = folder.replace('session_', '').replace(/_/g, (match, offset, string) => {
+                // Heurística simples para restaurar o e-mail (não é perfeita, mas funciona para carregar no boot)
+                return match;
+            });
+            // Como o nome da pasta mudou os pontos/arrobas, vamos precisar de uma forma melhor de recuperar o email original
+            // Por enquanto, vamos deixar que o servidor peça a inicialização via API quando o admin logar
+            console.log(`[Boot] Pasta de sessão encontrada: ${folder}`);
+        }
+    }
+}
+
+app.post('/api/init', async (req, res) => {
+    const { key, email } = req.body;
+    if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });
+    if (!email) return res.status(400).json({ error: 'Email necessário' });
+
+    connectToWhatsApp(email);
+    res.json({ success: true, message: `Iniciando sessão para ${email}` });
+});
+
 app.post('/send-message', async (req, res) => {
-    const { key, number, message } = req.body;
+    const { key, number, message, barber_email } = req.body;
 
     if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });
-    if (!sock) return res.status(503).json({ error: 'WhatsApp não inicializado' });
+
+    const targetEmail = barber_email || ADMIN_EMAIL;
+    const sock = sessions.get(targetEmail);
+
+    if (!sock) return res.status(503).json({ error: `WhatsApp não conectado para ${targetEmail}` });
 
     try {
         let cleanNumber = number.replace(/\D/g, '');
@@ -130,15 +145,13 @@ app.post('/send-message', async (req, res) => {
         const jid = `${cleanNumber}@s.whatsapp.net`;
 
         await sock.sendMessage(jid, { text: message });
-        console.log(`[OK] Mensagem enviada para ${cleanNumber}`);
         res.json({ success: true });
     } catch (err) {
-        console.error('❌ ERRO NO ENVIO:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Servidor Ponte ativo na porta ${PORT}`);
-    connectToWhatsApp();
+    console.log(`🚀 Barber Multi-Bridge ativo na porta ${PORT}`);
+    loadExistingSessions();
 });
