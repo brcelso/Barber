@@ -96,7 +96,7 @@ function App() {
       if (usersData.error) throw new Error(usersData.error);
 
       console.log('[Master] Users fetched:', usersData);
-      setMasterUsers(Array.isArray(usersData) ? usersData.map(u => ({ ...u, originalEmail: u.email })) : []);
+      setMasterUsers(Array.isArray(usersData) ? usersData : []);
     } catch (e) {
       console.error('Erro ao buscar dados master:', e);
       setMasterError(e.message);
@@ -1222,7 +1222,7 @@ function App() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', minWidth: '800px' }}>
                     <thead>
                       <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
-                        <th style={{ padding: '10px', width: '180px' }}>Nome / Email</th>
+                        <th style={{ padding: '10px', width: '240px' }}>Nome / Email</th>
                         <th style={{ padding: '10px', width: '130px' }}>Telefone</th>
                         <th style={{ padding: '10px', width: '90px' }}>Papéis</th>
                         <th style={{ padding: '10px', width: '160px' }}>Plano</th>
@@ -1239,24 +1239,24 @@ function App() {
                         </tr>
                       ) : masterUsers?.length > 0 ? (
                         masterUsers.map(u => (
-                          <tr key={u.originalEmail} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <tr key={u.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <td style={{ padding: '10px' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 <input
                                   type="text"
-                                  value={u.name || ''}
+                                  defaultValue={u.name || ''}
                                   placeholder="Nome"
-                                  onChange={(e) => {
-                                    const newVal = e.target.value;
-                                    setMasterUsers(prev => prev.map(item => item.originalEmail === u.originalEmail ? { ...item, name: newVal } : item));
+                                  onBlur={(e) => {
+                                    if (e.target.value !== (u.name || '')) {
+                                      handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: e.target.value, newEmail: u.email });
+                                    }
                                   }}
-                                  onBlur={(e) => handleMasterUpdate(u.originalEmail, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: e.target.value, newEmail: u.email })}
                                   style={{
-                                    background: 'rgba(255,255,255,0.03)',
+                                    background: 'rgba(255,255,255,0.04)',
                                     border: '1px solid var(--border)',
                                     color: 'white',
                                     fontWeight: 700,
-                                    fontSize: '0.85rem',
+                                    fontSize: '0.8rem',
                                     width: '100%',
                                     outline: 'none',
                                     padding: '6px 10px',
@@ -1265,18 +1265,18 @@ function App() {
                                 />
                                 <input
                                   type="email"
-                                  value={u.email || ''}
+                                  defaultValue={u.email || ''}
                                   placeholder="Email"
-                                  onChange={(e) => {
-                                    const newVal = e.target.value;
-                                    setMasterUsers(prev => prev.map(item => item.originalEmail === u.originalEmail ? { ...item, email: newVal } : item));
+                                  onBlur={(e) => {
+                                    if (e.target.value !== (u.email || '')) {
+                                      handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: u.name, newEmail: e.target.value });
+                                    }
                                   }}
-                                  onBlur={(e) => handleMasterUpdate(u.originalEmail, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: u.name, newEmail: e.target.value })}
                                   style={{
                                     background: 'rgba(255,255,255,0.02)',
                                     border: '1px solid var(--border)',
                                     color: 'var(--text-muted)',
-                                    fontSize: '0.75rem',
+                                    fontSize: '0.7rem',
                                     width: '100%',
                                     outline: 'none',
                                     padding: '4px 10px',
@@ -1289,8 +1289,12 @@ function App() {
                               <input
                                 type="text"
                                 defaultValue={u.phone || ''}
-                                onBlur={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: e.target.value })}
                                 placeholder="Sem tel"
+                                onBlur={(e) => {
+                                  if (e.target.value !== (u.phone || '')) {
+                                    handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: e.target.value, newName: u.name, newEmail: u.email });
+                                  }
+                                }}
                                 style={{
                                   background: 'rgba(255,255,255,0.03)',
                                   border: '1px solid var(--border)',
