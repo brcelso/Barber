@@ -321,14 +321,11 @@ export default {
                     SELECT a.*, s.name as service_name, s.price 
                     FROM appointments a 
                     JOIN services s ON a.service_id = s.id 
-                    WHERE a.id = ? AND a.user_email = ?
-                `).bind(appointmentId, email).first();
+                    WHERE a.id = ? AND (a.user_email = ? OR a.barber_email = ?)
+                `).bind(appointmentId, email, email).first();
 
                 if (!appointment) {
-                    return new Response(JSON.stringify({ error: 'Agendamento não encontrado' }), {
-                        status: 404,
-                        headers: corsHeaders
-                    });
+                    return json({ error: 'Agendamento não encontrado' }, 404);
                 }
 
                 const mpPreference = {
@@ -368,8 +365,8 @@ export default {
                 await env.DB.prepare(`
                     UPDATE appointments 
                     SET payment_status = 'confirmed', status = 'confirmed', payment_id = 'mock_' || ?
-                    WHERE id = ? AND user_email = ?
-                `).bind(appointmentId, appointmentId, email).run();
+                    WHERE id = ? AND (user_email = ? OR barber_email = ?)
+                `).bind(appointmentId, appointmentId, email, email).run();
 
                 return json({ success: true, message: 'Pagamento simulado com sucesso!' });
             }

@@ -950,11 +950,22 @@ function App() {
                     <div>
                       <h3 style={{ fontSize: '0.95rem' }}>{a.user_name}</h3>
                       <p style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>{a.service_name} às {a.appointment_time}</p>
-                      {a.payment_status === 'paid' ? (
-                        <p style={{ fontSize: '0.7rem', color: 'var(--success)', fontWeight: 700 }}>💰 PAGAMENTO CONFIRMADO</p>
-                      ) : (
-                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>⏳ Pagamento pendente</p>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                        {(a.payment_status === 'confirmed' || a.status === 'confirmed') ? (
+                          <span style={{ background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>PAGO</span>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>⏳ Pagamento pendente</span>
+                            <button
+                              className="btn-primary"
+                              style={{ fontSize: '0.65rem', padding: '2px 8px', height: 'auto', minHeight: 'unset' }}
+                              onClick={() => handlePayment(a.id)}
+                            >
+                              Pagar
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '5px' }}>
