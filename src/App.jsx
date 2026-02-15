@@ -963,7 +963,7 @@ function App() {
                     <button
                       className="btn-primary"
                       style={{ flex: 2, padding: '0.6rem' }}
-                      onClick={() => handlePayment(a.id)}
+                      onClick={() => handlePayment(a._id || a.id)} // Garante que pega o ID correto
                       disabled={loading}
                     >
                       <CreditCard size={18} /> Pagar Agora (R$ {a.price})

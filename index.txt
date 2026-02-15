@@ -713,30 +713,19 @@ REGRAS:
 
                     const index = parseInt(text) - 1;
                     const time = available[index];
-
                     if (!time) {
-                        await sendMessage(from, "❌ Horário inválido ou já ocupado.");
+                        await sendMessage(from, "❌ Horário inválido.");
                         return json({ success: true });
                     }
 
-                    // --- A CORREÇÃO ESTÁ AQUI ---
-                    // Buscamos se o usuário já existe no banco de dados 'users' pelo telefone
-                    const userInDb = await env.DB.prepare('SELECT email FROM users WHERE phone = ? LIMIT 1').bind(from).first();
-
-                    if (userInDb && userInDb.email) {
-                        // Se encontramos o e-mail, avançamos para a confirmação
-                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_confirmation", appointment_time = ?, user_email = ? WHERE phone = ?')
-                            .bind(time, userInDb.email, from).run();
-
+                    if (recognizedUserEmail) {
+                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_confirmation", appointment_time = ?, user_email = ? WHERE phone = ?').bind(time, recognizedUserEmail, from).run();
                         await sendMessage(from, `📍 *Quase lá!* \n\n*Serviço:* ${session.service_id}\n*Data:* ${dateStr}\n*Hora:* ${time}\n\nConfirma o agendamento? \n*1* - Sim\n*2* - Não/Cancelar`);
-                        return json({ success: true });
+                        return json({ success: true, user_recognized: true });
                     } else {
-                        // Se NÃO encontramos, pedimos o e-mail (fluxo de novo usuário)
-                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_email", appointment_time = ? WHERE phone = ?')
-                            .bind(time, from).run();
-
-                        await sendMessage(from, `⏰ *Horário ${time} reservado!* \n\nComo é sua primeira vez por aqui, por favor digite seu *E-mail* para completar o agendamento:`);
-                        return json({ success: true });
+                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_email", appointment_time = ? WHERE phone = ?').bind(time, from).run();
+                        await sendMessage(from, `⏰ *Horário ${time} reservado!* \n\nComo é sua primeira vez pelo WhatsApp, por favor digite seu *E-mail* para completar o cadastro:`);
+                        return json({ success: true, user_recognized: false });
                     }
                 }
 
