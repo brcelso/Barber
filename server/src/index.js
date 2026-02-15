@@ -137,6 +137,41 @@ export default {
                 return json({ success: true, newExpires, daysLeft: 30 });
             }
 
+            // Create Subscription Payment Link
+            if (url.pathname === '/api/admin/subscription/payment' && request.method === 'POST') {
+                const { email } = await request.json();
+                const user = await env.DB.prepare('SELECT is_admin, subscription_expires FROM users WHERE email = ?').bind(email).first();
+                if (!user || user.is_admin !== 1) return json({ error: 'Permission Denied' }, 403);
+
+                const mpPreference = {
+                    items: [{
+                        title: `Assinatura Barber App - 30 Dias`,
+                        quantity: 1,
+                        unit_price: 29.90,
+                        currency_id: 'BRL'
+                    }],
+                    external_reference: `sub_${email}`,
+                    back_urls: {
+                        success: `${env.FRONTEND_URL}/?subscription=success`,
+                        failure: `${env.FRONTEND_URL}/?subscription=failure`,
+                        pending: `${env.FRONTEND_URL}/?subscription=pending`
+                    },
+                    auto_return: 'approved'
+                };
+
+                const mpResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${env.MP_ACCESS_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(mpPreference)
+                });
+
+                const mpData = await mpResponse.json();
+                return json({ paymentUrl: mpData.init_point });
+            }
+
             // Authentication / Login
             if (url.pathname === '/api/login' && request.method === 'POST') {
                 const userData = await request.json();
@@ -877,9 +912,23 @@ REGRAS:
                     const payment = await res.json();
 
                     if (payment.status === 'approved') {
-                        const apptId = payment.external_reference;
-                        await env.DB.prepare('UPDATE appointments SET status = "confirmed", payment_status = "paid" WHERE id = ?').bind(apptId).run();
-                        await notifyWhatsApp(apptId, 'confirmed');
+                        const ref = payment.external_reference;
+                        if (ref && ref.startsWith('sub_')) {
+                            const email = ref.replace('sub_', '');
+                            const user = await env.DB.prepare('SELECT subscription_expires FROM users WHERE email = ?').bind(email).first();
+
+                            const currentExpires = user?.subscription_expires ? new Date(user.subscription_expires) : new Date();
+                            const base = currentExpires > new Date() ? currentExpires : new Date();
+                            base.setDate(base.getDate() + 30);
+                            const newExpires = base.toISOString();
+
+                            await env.DB.prepare('UPDATE users SET subscription_expires = ? WHERE email = ?').bind(newExpires, email).run();
+                            console.log(`[Webhook] Subscription renewed for ${email} until ${newExpires}`);
+                        } else {
+                            const apptId = ref;
+                            await env.DB.prepare('UPDATE appointments SET status = "confirmed", payment_status = "paid" WHERE id = ?').bind(apptId).run();
+                            await notifyWhatsApp(apptId, 'confirmed');
+                        }
                     }
                 }
                 return json({ received: true });
