@@ -237,7 +237,12 @@ export default {
                     WHERE a.id = ? AND a.user_email = ?
                 `).bind(appointmentId, email).first();
 
-                if (!appointment) return json({ error: 'Agendamento não encontrado' }, 404);
+                if (!appointment) {
+                    return new Response(JSON.stringify({ error: 'Agendamento não encontrado' }), {
+                        status: 404,
+                        headers: corsHeaders
+                    });
+                }
 
                 const mpPreference = {
                     items: [{
@@ -266,7 +271,7 @@ export default {
 
                 const mpData = await mpResponse.json();
 
-                await notifyWhatsApp(id, 'pending');
+                await notifyWhatsApp(appointmentId, 'pending');
                 return json({ paymentUrl: mpData.init_point });
             }
 
@@ -719,9 +724,13 @@ REGRAS:
                         return json({ success: true });
                     }
 
-                    // --- A CORREÇÃO ESTÁ AQUI ---
-                    // Buscamos se o usuário já existe no banco de dados 'users' pelo telefone
-                    const userInDb = await env.DB.prepare('SELECT email FROM users WHERE phone = ? LIMIT 1').bind(from).first();
+                    // Buscamos se o usuário já existe no banco de dados 'users'
+                    const allUsers = await env.DB.prepare('SELECT email, phone FROM users WHERE phone IS NOT NULL').all();
+                    const cleanFrom = from.replace(/\D/g, "");
+                    const userInDb = allUsers.results.find(u => {
+                        const cleanU = u.phone.replace(/\D/g, "");
+                        return cleanU.endsWith(cleanFrom) || cleanFrom.endsWith(cleanU);
+                    });
 
                     if (userInDb && userInDb.email) {
                         // Se encontramos o e-mail, avançamos para a confirmação
