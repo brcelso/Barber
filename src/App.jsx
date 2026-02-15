@@ -158,10 +158,13 @@ function App() {
     localStorage.removeItem('barber_user');
   };
 
-  const handleRefresh = () => {
-    fetchServices();
-    fetchAppointments();
-    if (user?.isAdmin) fetchAdminAppointments();
+  const handleRefresh = async () => {
+    setLoading(true);
+    await Promise.all([
+      fetchServices(),
+      user?.isAdmin ? fetchAdminAppointments() : fetchAppointments()
+    ]);
+    setLoading(false);
   };
 
   const handleAdminConfirm = async (appointmentId) => {
@@ -308,7 +311,7 @@ function App() {
     return (
       <div className="login-screen fade-in">
         <div className="glass-card login-card" style={{ padding: '3rem', textAlign: 'center', maxWidth: '400px' }}>
-          <div className="logo-text" style={{ fontSize: '3rem', marginBottom: '1rem' }}>Barber</div>
+          <div className="logo-text" style={{ fontSize: '3rem', marginBottom: '1rem' }}>✂️ Barber</div>
           <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>O melhor corte da sua vida, a um clique de distância.</p>
           <div id="googleBtn" style={{ marginTop: '2rem', display: 'flex', justifyContent: 'center' }}></div>
           <p style={{ marginTop: '2rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
@@ -323,7 +326,7 @@ function App() {
     <div className="container fade-in">
       <header className="header">
         <div>
-          <h1 className="logo-text">Barber</h1>
+          <h1 className="logo-text">✂️ Barber</h1>
           <p style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>{user.isAdmin ? 'Relatórios & Gestão' : 'Premium Experience'}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
@@ -335,7 +338,9 @@ function App() {
           >
             <MessageCircle size={20} />
           </button>
-          <button className="btn-icon" onClick={handleRefresh} title="Atualizar Dados"><RefreshCw size={20} /></button>
+          <button className="btn-icon" onClick={handleRefresh} title="Atualizar Dados">
+            <RefreshCw size={20} className={loading ? 'refresh-spin' : ''} />
+          </button>
           {!user.isAdmin ? (
             <>
               <button className="btn-icon" onClick={() => setView('book')} title="Agendar"><Plus /></button>
