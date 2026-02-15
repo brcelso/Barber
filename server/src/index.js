@@ -106,7 +106,7 @@ export default {
             // Subscription Status
             if (url.pathname === '/api/admin/subscription' && request.method === 'GET') {
                 const email = request.headers.get('X-User-Email');
-                const user = await env.DB.prepare('SELECT is_admin, subscription_expires FROM users WHERE email = ?').bind(email).first();
+                const user = await env.DB.prepare('SELECT is_admin, subscription_expires, trial_used FROM users WHERE email = ?').bind(email).first();
                 if (!user || user.is_admin !== 1) return json({ error: 'Permission Denied' }, 403);
 
                 const now = new Date();
@@ -117,7 +117,8 @@ export default {
                 return json({
                     daysLeft: Math.max(0, diffDays),
                     expires: user.subscription_expires,
-                    isActive: diffTime > 0
+                    isActive: diffTime > 0,
+                    trialUsed: !!user.trial_used
                 });
             }
 
@@ -145,8 +146,12 @@ export default {
             // Mock Payment (3-day trial)
             if (url.pathname === '/api/admin/subscription/pay' && request.method === 'POST') {
                 const { email } = await request.json();
-                const user = await env.DB.prepare('SELECT is_admin, subscription_expires FROM users WHERE email = ?').bind(email).first();
+                const user = await env.DB.prepare('SELECT is_admin, subscription_expires, trial_used FROM users WHERE email = ?').bind(email).first();
                 if (!user || user.is_admin !== 1) return json({ error: 'Permission Denied' }, 403);
+
+                if (user.trial_used) {
+                    return json({ error: 'Trial already used' }, 400);
+                }
 
                 // Add 3 days to existing or now
                 const currentExpires = user.subscription_expires ? new Date(user.subscription_expires) : new Date();
@@ -154,7 +159,7 @@ export default {
                 base.setDate(base.getDate() + 3);
                 const newExpires = base.toISOString();
 
-                await env.DB.prepare('UPDATE users SET subscription_expires = ? WHERE email = ?').bind(newExpires, email).run();
+                await env.DB.prepare('UPDATE users SET subscription_expires = ?, trial_used = 1 WHERE email = ?').bind(newExpires, email).run();
                 return json({ success: true, newExpires, daysLeft: 3 });
             }
 
