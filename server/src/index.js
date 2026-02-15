@@ -121,20 +121,20 @@ export default {
                 });
             }
 
-            // Mock Payment
+            // Mock Payment (3-day trial)
             if (url.pathname === '/api/admin/subscription/pay' && request.method === 'POST') {
                 const { email } = await request.json();
                 const user = await env.DB.prepare('SELECT is_admin, subscription_expires FROM users WHERE email = ?').bind(email).first();
                 if (!user || user.is_admin !== 1) return json({ error: 'Permission Denied' }, 403);
 
-                // Add 30 days to existing or now
+                // Add 3 days to existing or now
                 const currentExpires = user.subscription_expires ? new Date(user.subscription_expires) : new Date();
                 const base = currentExpires > new Date() ? currentExpires : new Date();
-                base.setDate(base.getDate() + 30);
+                base.setDate(base.getDate() + 3);
                 const newExpires = base.toISOString();
 
                 await env.DB.prepare('UPDATE users SET subscription_expires = ? WHERE email = ?').bind(newExpires, email).run();
-                return json({ success: true, newExpires, daysLeft: 30 });
+                return json({ success: true, newExpires, daysLeft: 3 });
             }
 
             // Create Subscription Payment Link

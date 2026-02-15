@@ -796,33 +796,33 @@ function App() {
             <div className="subscription-badge" style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
-              padding: '0.4rem 1rem',
+              gap: '8px',
+              padding: '0.3rem 0.8rem',
               background: subscription.daysLeft < 3 ? 'rgba(231, 76, 60, 0.1)' : 'rgba(212, 175, 55, 0.1)',
-              borderRadius: '20px',
-              fontSize: '0.8rem',
+              borderRadius: '16px',
+              fontSize: '0.75rem',
               border: `1px solid ${subscription.daysLeft < 3 ? '#e74c3c' : '#d4af37'}`,
-              marginBottom: '10px'
+              marginBottom: '0'
             }}>
-              <span style={{ color: subscription.daysLeft < 3 ? '#e74c3c' : '#d4af37', fontWeight: 700 }}>
-                {subscription.isActive ? `Licença: ${subscription.daysLeft} dias restantes` : 'Licença Vencida!'}
+              <span style={{ color: subscription.daysLeft < 3 ? '#e74c3c' : '#d4af37', fontWeight: 600 }}>
+                {subscription.isActive ? `${subscription.daysLeft}d restantes` : 'Expirada!'}
               </span>
-              <div style={{ display: 'flex', gap: '5px' }}>
+              <div style={{ display: 'flex', gap: '4px' }}>
                 <button
                   onClick={handleMockPay}
                   style={{
-                    background: 'rgba(255,255,255,0.1)',
+                    background: 'rgba(255,255,255,0.08)',
                     color: 'white',
-                    border: '1px solid var(--border)',
-                    padding: '2px 8px',
-                    borderRadius: '8px',
-                    fontSize: '0.65rem',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    padding: '2px 6px',
+                    borderRadius: '6px',
+                    fontSize: '0.6rem',
                     fontWeight: 600,
                     cursor: 'pointer'
                   }}
                   title="Ativar 3 dias de teste"
                 >
-                  Ativar 3d
+                  Teste 3d
                 </button>
                 <button
                   onClick={handleSubscriptionPayment}
@@ -830,17 +830,17 @@ function App() {
                     background: 'var(--primary)',
                     color: 'black',
                     border: 'none',
-                    padding: '4px 12px',
-                    borderRadius: '10px',
-                    fontSize: '0.75rem',
+                    padding: '3px 10px',
+                    borderRadius: '8px',
+                    fontSize: '0.7rem',
                     fontWeight: 800,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '5px'
+                    gap: '4px'
                   }}
                 >
-                  <CreditCard size={12} /> Pagar
+                  <CreditCard size={10} /> Pagar
                 </button>
               </div>
             </div>
