@@ -1092,6 +1092,7 @@ function App() {
                       <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
                         <th style={{ padding: '10px' }}>Nome / Email</th>
                         <th style={{ padding: '10px' }}>Papéis</th>
+                        <th style={{ padding: '10px' }}>Plano</th>
                         <th style={{ padding: '10px' }}>Expiração</th>
                         <th style={{ padding: '10px' }}>Bot</th>
                       </tr>
@@ -1122,10 +1123,22 @@ function App() {
                             </div>
                           </td>
                           <td style={{ padding: '10px' }}>
+                            <select
+                              defaultValue={u.plan || ''}
+                              onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: e.target.value })}
+                              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '0.65rem', padding: '2px', borderRadius: '4px' }}
+                            >
+                              <option value="">Sem Plano</option>
+                              <option value="starter">Starter</option>
+                              <option value="pro">Pro AI</option>
+                              <option value="business">Business</option>
+                            </select>
+                          </td>
+                          <td style={{ padding: '10px' }}>
                             <input
                               type="date"
                               defaultValue={u.subscription_expires ? u.subscription_expires.split('T')[0] : ''}
-                              onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                              onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: e.target.value ? new Date(e.target.value).toISOString() : null, plan: u.plan })}
                               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '0.65rem', padding: '2px', borderRadius: '4px', width: '90px' }}
                             />
                           </td>

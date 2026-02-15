@@ -158,7 +158,7 @@ export default {
                 const email = request.headers.get('X-User-Email');
                 if (email !== MASTER_EMAIL) return json({ error: 'Unauthorized' }, 401);
 
-                const users = await env.DB.prepare('SELECT email, name, phone, is_admin, is_barber, wa_status, subscription_expires, trial_used FROM users ORDER BY created_at DESC').all();
+                const users = await env.DB.prepare("SELECT email, name, phone, is_admin, is_barber, wa_status, subscription_expires, trial_used, plan FROM users WHERE email != 'sistema@leoai.br' ORDER BY created_at DESC").all();
                 return json(users.results);
             }
 
@@ -167,13 +167,13 @@ export default {
                 const email = request.headers.get('X-User-Email');
                 if (email !== MASTER_EMAIL) return json({ error: 'Unauthorized' }, 401);
 
-                const { targetEmail, is_admin, is_barber, expires } = await request.json();
+                const { targetEmail, is_admin, is_barber, expires, plan } = await request.json();
 
                 await env.DB.prepare(`
                     UPDATE users 
-                    SET is_admin = ?, is_barber = ?, subscription_expires = ?
+                    SET is_admin = ?, is_barber = ?, subscription_expires = ?, plan = ?
                     WHERE email = ?
-                `).bind(is_admin ? 1 : 0, is_barber ? 1 : 0, expires || null, targetEmail).run();
+                `).bind(is_admin ? 1 : 0, is_barber ? 1 : 0, expires || null, plan || null, targetEmail).run();
 
                 return json({ success: true });
             }
