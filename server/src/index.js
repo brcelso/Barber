@@ -256,18 +256,27 @@ export default {
                 return json(allAppointments.results);
             }
 
-            // Get Appointments for a user
+            // Get Appointments for a user (unified history: personal + professional)
             if (url.pathname === '/api/appointments' && request.method === 'GET') {
                 const email = request.headers.get('X-User-Email');
                 if (!email) return json({ error: 'Unauthorized' }, 401);
 
                 const appointments = await env.DB.prepare(`
-                    SELECT a.*, s.name as service_name, s.price
+                    SELECT 
+                        a.*, 
+                        s.name as service_name, 
+                        s.price, 
+                        u.name as client_name, 
+                        u.picture as client_picture,
+                        b.name as barber_name,
+                        b.picture as barber_picture
                     FROM appointments a
                     JOIN services s ON a.service_id = s.id
-                    WHERE a.user_email = ?
+                    JOIN users u ON a.user_email = u.email
+                    JOIN users b ON a.barber_email = b.email
+                    WHERE a.user_email = ? OR a.barber_email = ?
                     ORDER BY a.appointment_date DESC, a.appointment_time DESC
-                `).bind(email).all();
+                `).bind(email, email).all();
 
                 return json(appointments.results);
             }
