@@ -46,9 +46,9 @@ export default {
                 return json({ user: { ...user, isAdmin: user.is_admin === 1 } });
             }
 
-            // Get Styles/Services
+            // Get Styles/Services (exclude internal 'block' service)
             if (url.pathname === '/api/services' && request.method === 'GET') {
-                const services = await env.DB.prepare('SELECT * FROM services').all();
+                const services = await env.DB.prepare('SELECT * FROM services WHERE id != ?').bind('block').all();
                 return json(services.results);
             }
 
@@ -349,6 +349,134 @@ export default {
 
                 const busy = await env.DB.prepare('SELECT appointment_time as time, status FROM appointments WHERE appointment_date = ? AND status != "cancelled"').bind(date).all();
                 return json(busy.results);
+            }
+
+            // Webhook for WhatsAppBot
+            if (url.pathname === '/api/whatsapp/webhook' && request.method === 'POST') {
+                const body = await request.json();
+                const from = body.phone?.replace(/\D/g, ""); // Clean phone
+                const text = (body.message || "").trim();
+                const textLower = text.toLowerCase();
+
+                if (!from) return json({ error: "Missing phone" }, 400);
+
+                // Helper to send message back (Placeholder for Evolution/Z-API/Twilio)
+                const sendMessage = async (phone, message) => {
+                    console.log(`[WhatsApp Bot] TO: ${phone} MSG: ${message}`);
+                    // return fetch(`${env.WA_API_URL}/send`, { method: 'POST', body: JSON.stringify({ phone, message }), headers: { 'Authorization': env.WA_TOKEN } });
+                };
+
+                let session = await env.DB.prepare('SELECT * FROM whatsapp_sessions WHERE phone = ?').bind(from).first();
+
+                // Restart or Start
+                if (!session || textLower === 'oi' || textLower === 'ola' || textLower === 'menu' || textLower === 'sair') {
+                    const services = await env.DB.prepare('SELECT * FROM services WHERE id != "block"').all();
+                    let msg = "✂️ *Bem-vindo à Barber!* \n\nEscolha um serviço enviando o número:\n";
+                    services.results.forEach((s, i) => { msg += `\n*${i + 1}* - ${s.name} (R$ ${s.price})`; });
+
+                    await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state) VALUES (?, "awaiting_service")').bind(from).run();
+                    await sendMessage(from, msg);
+                    return json({ success: true });
+                }
+
+                // FLOW: Choose Service
+                if (session.state === 'awaiting_service') {
+                    const index = parseInt(text) - 1;
+                    const services = await env.DB.prepare('SELECT * FROM services WHERE id != "block"').all();
+                    const service = services.results[index];
+
+                    if (!service) return sendMessage(from, "❌ Opção inválida. Escolha um serviço da lista.");
+
+                    await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_date", service_id = ? WHERE phone = ?').bind(service.id, from).run();
+
+                    let msg = `✅ *${service.name}* selecionado.\n\n📅 *Escolha a data:*`;
+                    for (let i = 0; i < 7; i++) {
+                        const d = new Date(); d.setDate(d.getDate() + i);
+                        const str = d.toISOString().split('T')[0];
+                        msg += `\n*${i + 1}* - ${str}`;
+                    }
+                    return sendMessage(from, msg);
+                }
+
+                // FLOW: Choose Date
+                if (session.state === 'awaiting_date') {
+                    const index = parseInt(text) - 1;
+                    if (index < 0 || index > 6) return sendMessage(from, "❌ Data inválida. Escolha de 1 a 7.");
+
+                    const d = new Date(); d.setDate(d.getDate() + index);
+                    const dateStr = d.toISOString().split('T')[0];
+
+                    const busy = await env.DB.prepare('SELECT appointment_time FROM appointments WHERE appointment_date = ? AND status != "cancelled"').bind(dateStr).all();
+                    const busyTimes = busy.results.map(r => r.appointment_time);
+                    const timeSlots = ["09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
+                    const available = timeSlots.filter(t => !busyTimes.includes(t));
+
+                    if (available.length === 0) return sendMessage(from, "❌ Infelizmente não há horários para este dia. Escolha outro dia.");
+
+                    await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_time", appointment_date = ? WHERE phone = ?').bind(dateStr, from).run();
+
+                    let msg = `📅 *Data: ${dateStr}*\n\n⏰ *Escolha o horário:*`;
+                    available.forEach((t, i) => { msg += `\n*${i + 1}* - ${t}`; });
+                    return sendMessage(from, msg);
+                }
+
+                // FLOW: Choose Time
+                if (session.state === 'awaiting_time') {
+                    const dateStr = session.appointment_date;
+                    const busy = await env.DB.prepare('SELECT appointment_time FROM appointments WHERE appointment_date = ? AND status != "cancelled"').bind(dateStr).all();
+                    const busyTimes = busy.results.map(r => r.appointment_time);
+                    const timeSlots = ["09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
+                    const available = timeSlots.filter(t => !busyTimes.includes(t));
+
+                    const index = parseInt(text) - 1;
+                    const time = available[index];
+                    if (!time) return sendMessage(from, "❌ Horário inválido.");
+
+                    // Check if we know this user
+                    const user = await env.DB.prepare('SELECT email FROM users WHERE phone LIKE ?').bind(`%${from}`).first();
+
+                    if (user) {
+                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_confirmation", appointment_time = ?, user_email = ? WHERE phone = ?').bind(time, user.email, from).run();
+                        return sendMessage(from, `📍 *Quase lá!* \n\n*Serviço:* ${session.service_id}\n*Data:* ${dateStr}\n*Hora:* ${time}\n\nConfirma o agendamento? \n*1* - Sim\n*2* - Não/Cancelar`);
+                    } else {
+                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_email", appointment_time = ? WHERE phone = ?').bind(time, from).run();
+                        return sendMessage(from, `⏰ *Horário ${time} reservado!* \n\nComo é sua primeira vez pelo WhatsApp, por favor digite seu *E-mail* para completar o cadastro:`);
+                    }
+                }
+
+                // FLOW: Awaiting Email (New users)
+                if (session.state === 'awaiting_email') {
+                    const email = text.toLowerCase();
+                    if (!email.includes('@')) return sendMessage(from, "❌ E-mail inválido. Digite um e-mail correto:");
+
+                    // Upsert user
+                    await env.DB.prepare('INSERT OR IGNORE INTO users (email, name, phone) VALUES (?, ?, ?)').bind(email, `Cliente ${from}`, from).run();
+
+                    await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_confirmation", user_email = ? WHERE phone = ?').bind(email, from).run();
+                    return sendMessage(from, `📍 *Confirmado e-mail!* \n\nConfirma o agendamento? \n*1* - Sim\n*2* - Não/Cancelar`);
+                }
+
+                // FLOW: Final Confirmation + Payment Link
+                if (session.state === 'awaiting_confirmation') {
+                    if (text === '1') {
+                        const id = crypto.randomUUID();
+                        await env.DB.prepare(`
+                            INSERT INTO appointments (id, user_email, service_id, appointment_date, appointment_time, status)
+                            VALUES (?, ?, ?, ?, ?, 'pending')
+                        `).bind(id, session.user_email, session.service_id, session.appointment_date, session.appointment_time).run();
+
+                        // Generate MP Link (Simplified)
+                        const paymentUrl = `${env.FRONTEND_URL}/?payment=${id}`; // In real case, call MP API to get init_point
+
+                        await env.DB.prepare('DELETE FROM whatsapp_sessions WHERE phone = ?').bind(from).run();
+                        return sendMessage(from, `🎉 *Agendamento Realizado!* \n\nSeu horário está reservado. Para garantir sua vaga, realize o pagamento no link abaixo:\n\n🔗 ${paymentUrl}\n\nObrigado!`);
+                    } else {
+                        await env.DB.prepare('DELETE FROM whatsapp_sessions WHERE phone = ?').bind(from).run();
+                        return sendMessage(from, "❌ Agendamento cancelado. Quando quiser, mande um 'Oi'.");
+                    }
+                }
+
+                return sendMessage(from, "Não entendi. Digite 'Menu' para recomeçar.");
             }
 
             // Webhook for Mercado Pago

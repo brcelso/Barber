@@ -51,3 +51,13 @@ INSERT OR IGNORE INTO services (id, name, price, duration_minutes, description) 
 -- Ensure a system user exists for system-generated appointments/blocks
 INSERT OR IGNORE INTO users (email, name, is_admin, created_at) VALUES
 ('system', 'System', 0, CURRENT_TIMESTAMP);
+
+CREATE TABLE IF NOT EXISTS whatsapp_sessions (
+  phone TEXT PRIMARY KEY,
+  state TEXT,
+  service_id TEXT,
+  appointment_date TEXT,
+  appointment_time TEXT,
+  user_email TEXT,
+  last_interaction TEXT DEFAULT CURRENT_TIMESTAMP
+);
