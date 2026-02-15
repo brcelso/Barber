@@ -6,22 +6,21 @@ export default {
     async fetch(request, env) {
         const url = new URL(request.url);
         const corsHeaders = {
-            'Access-Control-Allow-Origin': '*', // Adjust for production
+            'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
             'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-User-Email',
         };
+
+        const json = (data, status = 200) => new Response(JSON.stringify(data), {
+            status,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
 
         if (request.method === 'OPTIONS') {
             return new Response(null, { headers: corsHeaders });
         }
 
         try {
-            // --- Helper: Response Builder ---
-            const json = (data, status = 200) => new Response(JSON.stringify(data), {
-                status,
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            });
-
             // --- Routes ---
 
             // Health check
@@ -65,8 +64,8 @@ export default {
                 const allAppointments = await env.DB.prepare(`
                     SELECT a.*, s.name as service_name, s.price, u.name as user_name, u.picture as user_picture, u.phone as user_phone
                     FROM appointments a
-                    JOIN services s ON a.service_id = s.id
-                    JOIN users u ON a.user_email = u.email
+                    LEFT JOIN services s ON a.service_id = s.id
+                    LEFT JOIN users u ON a.user_email = u.email
                     ORDER BY a.appointment_date DESC, a.appointment_time DESC
                 `).all();
 

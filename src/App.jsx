@@ -319,12 +319,18 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date: dateStr, time, adminEmail: user.email })
       });
+
       const data = await res.json();
-      if (data.error) alert(data.error);
+      if (!res.ok) {
+        alert(data.error || 'Erro ao alterar status do horário');
+        return;
+      }
+
       fetchBusySlots(selectedDate);
       fetchAdminAppointments();
     } catch (e) {
-      alert('Erro ao alterar status do horário');
+      console.error(e);
+      alert('Erro de conexão ou no servidor');
     } finally {
       setLoading(false);
     }
@@ -578,7 +584,10 @@ function App() {
                       minWidth: '90px',
                       textAlign: 'center',
                       borderColor: isSameDay(selectedDate, date) ? 'var(--primary)' : 'var(--border)',
-                      background: isSameDay(selectedDate, date) ? 'rgba(212, 175, 55, 0.1)' : 'transparent'
+                      background: isSameDay(selectedDate, date) ?
+                        (busySlots.length >= timeSlots.length ? 'rgba(231, 76, 60, 0.1)' : 'rgba(46, 204, 113, 0.1)') :
+                        'transparent',
+                      borderWidth: isSameDay(selectedDate, date) ? '2px' : '1px'
                     }}
                     onClick={() => setSelectedDate(date)}
                   >
@@ -724,13 +733,14 @@ function App() {
             <div className="time-slots">
               {timeSlots.map(t => {
                 const isBusy = busySlots.find(b => b.time === t);
+                const isSelected = selectedTime === t;
                 return (
                   <button
                     key={t}
-                    className={`time-slot ${selectedTime === t ? 'selected' : (isBusy ? 'occupied' : 'available')}`}
+                    className={`time-slot ${isSelected ? 'selected' : (isBusy ? 'occupied' : 'available')}`}
                     onClick={() => !isBusy && setSelectedTime(t)}
                     disabled={isBusy}
-                    style={isBusy ? { opacity: 0.3, cursor: 'not-allowed', textDecoration: 'line-through' } : {}}
+                    title={isBusy ? 'Horário Ocupado' : 'Horário Disponível'}
                   >
                     {t}
                   </button>
@@ -756,8 +766,13 @@ function App() {
                   className="btn-primary"
                   disabled={!selectedService || !selectedTime || loading}
                   onClick={handleBooking}
+                  style={user?.isAdmin ? { background: 'linear-gradient(135deg, #2ecc71, #27ae60)', borderColor: '#27ae60' } : {}}
                 >
-                  {loading ? 'Processando...' : <><Calendar size={20} /> {editingAppointment ? 'Salvar Alterações' : 'Agendar Agora'}</>}
+                  {loading ? 'Processando...' : (
+                    user?.isAdmin ?
+                      <><CheckCircle size={20} /> Salvar Agendamento (Admin)</> :
+                      <><Calendar size={20} /> {editingAppointment ? 'Salvar Alterações' : 'Agendar Agora'}</>
+                  )}
                 </button>
               </div>
             </div>
