@@ -17,6 +17,7 @@ import {
   Check,
   MessageSquare,
   MessageCircle,
+  Lock,
   Trash2,
   Edit2,
   Shield
@@ -36,7 +37,12 @@ function App() {
   const [selectedTime, setSelectedTime] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [adminAppointments, setAdminAppointments] = useState([]);
+  const [busySlots, setBusySlots] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isAdminMode, setIsAdminMode] = useState(true);
+  const [showPhoneSetup, setShowPhoneSetup] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState(null);
+  const [showManualLogin, setShowManualLogin] = useState(false);
 
   // Set default view on login/load
   useEffect(() => {
@@ -46,6 +52,47 @@ function App() {
       setView('book');
     }
   }, [user]);
+
+  // Handle Manual Login Submission
+  const handleManualLogin = async (e) => {
+    e.preventDefault();
+    const name = e.target.name.value;
+    const email = e.target.email.value;
+    const phone = e.target.phone.value;
+
+    if (!name || !email || !phone) return alert('Preecha todos os campos');
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          email,
+          phone,
+          picture: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=d4af37&color=fff`
+        })
+      });
+      const data = await res.json();
+      if (data.user) {
+        const finalUser = {
+          name: data.user.name,
+          email: data.user.email,
+          picture: data.user.picture,
+          isAdmin: data.user.isAdmin,
+          phone: data.user.phone
+        };
+        setUser(finalUser);
+        localStorage.setItem('barber_user', JSON.stringify(finalUser));
+        setShowManualLogin(false);
+      }
+    } catch (e) {
+      alert('Erro ao fazer login');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Mock Availability
   const timeSlots = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00"];
@@ -60,6 +107,21 @@ function App() {
       }
     }
   }, [user, view]);
+
+  useEffect(() => {
+    if (selectedDate) fetchBusySlots(selectedDate);
+  }, [selectedDate]);
+
+  const fetchBusySlots = async (date) => {
+    try {
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const res = await fetch(`${API_URL}/appointments/busy-slots?date=${dateStr}`);
+      const data = await res.json();
+      setBusySlots(data || []);
+    } catch (e) {
+      console.error('Failed to fetch busy slots');
+    }
+  };
 
   const fetchServices = async () => {
     try {
@@ -122,9 +184,16 @@ function App() {
       });
       const data = await res.json();
       if (data.user) {
-        const finalUser = { ...userData, isAdmin: data.user.isAdmin };
+        const finalUser = {
+          name: data.user.name,
+          email: data.user.email,
+          picture: data.user.picture,
+          isAdmin: data.user.isAdmin,
+          phone: data.user.phone
+        };
         setUser(finalUser);
         localStorage.setItem('barber_user', JSON.stringify(finalUser));
+        if (!data.user.phone) setShowPhoneSetup(true);
       }
     } catch (err) {
       console.error('[Login Failed]', err);
@@ -240,14 +309,34 @@ function App() {
     }
   };
 
-  const handleWhatsAppNotify = (appt) => {
-    let phone = appt.user_phone;
-    if (!phone) {
-      phone = prompt(`O cliente ${appt.user_name} não tem telefone cadastrado. Digite o número (ex: 11999999999):`, "");
+  const handleToggleBlock = async (time) => {
+    if (!user?.isAdmin) return;
+    setLoading(true);
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const res = await fetch(`${API_URL}/admin/toggle-block`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: dateStr, time, adminEmail: user.email })
+      });
+      const data = await res.json();
+      if (data.error) alert(data.error);
+      fetchBusySlots(selectedDate);
+      fetchAdminAppointments();
+    } catch (e) {
+      alert('Erro ao alterar status do horário');
+    } finally {
+      setLoading(false);
     }
-    if (!phone) return;
+  };
 
-    const cleanPhone = phone.replace(/\D/g, "");
+  const handleWhatsAppNotify = (appt) => {
+    let phone = appt.user_phone || "";
+    const confirmedPhone = prompt(`Enviar WhatsApp para ${appt.user_name}:`, phone);
+
+    if (!confirmedPhone) return;
+
+    const cleanPhone = confirmedPhone.replace(/\D/g, "");
     const finalPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
     const dateStr = format(parseISO(appt.appointment_date), 'dd/MM/yyyy');
     const text = `Olá ${appt.user_name}! Confirmamos seu agendamento na Barber para o dia ${dateStr} às ${appt.appointment_time} (${appt.service_name}). Até lá!`;
@@ -256,31 +345,65 @@ function App() {
     window.open(url, '_blank');
   };
 
+  const handleUpdateProfile = async (phone) => {
+    setLoading(true);
+    try {
+      await fetch(`${API_URL}/user/update-profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, phone })
+      });
+      const updatedUser = { ...user, phone };
+      setUser(updatedUser);
+      localStorage.setItem('barber_user', JSON.stringify(updatedUser));
+      setShowPhoneSetup(false);
+    } catch (e) {
+      alert('Erro ao atualizar perfil');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditStart = (appt) => {
+    setEditingAppointment(appt);
+    setSelectedService(services.find(s => s.id === appt.service_id));
+    setSelectedDate(parseISO(appt.appointment_date));
+    setSelectedTime(appt.appointment_time);
+    setView('book');
+  };
+
   const handleBooking = async () => {
     if (!selectedService || !selectedTime || !user) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/appointments/book`, {
+      const endpoint = editingAppointment ? '/appointments/update' : '/appointments/book';
+      const body = {
+        email: user.email,
+        userEmail: user.email, // for update route
+        appointmentId: editingAppointment?.id,
+        serviceId: selectedService.id,
+        date: format(selectedDate, 'yyyy-MM-dd'),
+        time: selectedTime,
+        skipPayment: true
+      };
+
+      const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: user.email,
-          serviceId: selectedService.id,
-          date: format(selectedDate, 'yyyy-MM-dd'),
-          time: selectedTime,
-          skipPayment: true // Signal the backend to not auto-generate payment URL
-        })
+        body: JSON.stringify(body)
       });
-      const data = await res.json();
+
       if (res.ok) {
-        alert('Agendamento realizado com sucesso! Você pode realizar o pagamento agora ou depois em seus agendamentos.');
+        alert(editingAppointment ? 'Agendamento atualizado! O barbeiro foi notificado.' : 'Agendamento realizado com sucesso!');
+        setEditingAppointment(null);
         fetchAppointments();
         setView('history');
       } else {
-        alert('Erro ao agendar: ' + (data.error || 'Erro desconhecido'));
+        const data = await res.json();
+        alert('Erro: ' + (data.error || 'Desconhecido'));
       }
     } catch (e) {
-      alert('Erro de conexão: ' + e.message);
+      alert('Erro de conexão');
     } finally {
       setLoading(false);
     }
@@ -310,10 +433,41 @@ function App() {
   if (!user) {
     return (
       <div className="login-screen fade-in">
-        <div className="glass-card login-card" style={{ padding: '3rem', textAlign: 'center', maxWidth: '400px' }}>
+        <div className="glass-card login-card" style={{ padding: '3rem', textAlign: 'center', width: '100%', maxWidth: '420px' }}>
           <div className="logo-text" style={{ fontSize: '3rem', marginBottom: '1rem' }}>✂️ Barber</div>
           <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>O melhor corte da sua vida, a um clique de distância.</p>
-          <div id="googleBtn" style={{ marginTop: '2rem', display: 'flex', justifyContent: 'center' }}></div>
+
+          {!showManualLogin ? (
+            <>
+              <div id="googleBtn" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'center' }}></div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>ou continue com seus dados</p>
+              <button
+                className="btn-primary"
+                style={{ width: '100%', background: 'transparent', border: '1px solid var(--border)', color: 'white', display: 'flex', gap: '10px' }}
+                onClick={() => setShowManualLogin(true)}
+              >
+                <User size={18} /> Entrar com E-mail e Telefone
+              </button>
+            </>
+          ) : (
+            <form onSubmit={handleManualLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <input name="name" type="text" placeholder="Seu Nome" className="glass-card" style={{ padding: '1rem', width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--border)', borderRadius: '12px' }} required />
+              <input name="email" type="email" placeholder="E-mail" className="glass-card" style={{ padding: '1rem', width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--border)', borderRadius: '12px' }} required />
+              <input name="phone" type="tel" placeholder="WhatsApp (ex: 11999999999)" className="glass-card" style={{ padding: '1rem', width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--border)', borderRadius: '12px' }} required />
+              <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={loading}>
+                {loading ? 'Entrando...' : 'Entrar agora'}
+              </button>
+              <button
+                type="button"
+                className="btn-icon"
+                style={{ width: '100%', background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '0.9rem' }}
+                onClick={() => setShowManualLogin(false)}
+              >
+                <ChevronLeft size={16} /> Voltar para Login Google
+              </button>
+            </form>
+          )}
+
           <p style={{ marginTop: '2rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
             Ao entrar você concorda com nossos termos.
           </p>
@@ -324,12 +478,57 @@ function App() {
 
   return (
     <div className="container fade-in">
+      {showPhoneSetup && (
+        <div className="modal-overlay">
+          <div className="glass-card modal-content" style={{ textAlign: 'center' }}>
+            <MessageSquare size={48} className="text-primary" style={{ marginBottom: '1.5rem' }} />
+            <h2 style={{ marginBottom: '1rem' }}>Falta pouco!</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
+              Para agendar seus horários, precisamos do seu número de WhatsApp para confirmações.
+            </p>
+            <input
+              type="tel"
+              placeholder="(11) 99999-9999"
+              id="phoneInput"
+              className="glass-card"
+              style={{ width: '100%', padding: '1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', color: 'white', fontSize: '1.2rem', textAlign: 'center', marginBottom: '1.5rem' }}
+            />
+            <button
+              className="btn-primary"
+              style={{ width: '100%' }}
+              onClick={() => {
+                const val = document.getElementById('phoneInput').value;
+                if (val.length < 10) return alert('Por favor, insira um número válido');
+                handleUpdateProfile(val);
+              }}
+            >
+              Salvar e Continuar
+            </button>
+          </div>
+        </div>
+      )}
+
       <header className="header">
         <div>
           <h1 className="logo-text">✂️ Barber</h1>
-          <p style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>{user.isAdmin ? 'Relatórios & Gestão' : 'Premium Experience'}</p>
+          <p style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>
+            {user.isAdmin && isAdminMode ? 'Relatórios & Gestão' : 'Premium Experience'}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
+          {user.isAdmin && (
+            <button
+              className={`btn-icon ${isAdminMode ? 'active-admin' : ''}`}
+              onClick={() => {
+                setIsAdminMode(!isAdminMode);
+                setView(!isAdminMode ? 'admin' : 'book');
+              }}
+              title={isAdminMode ? "Ver como Cliente" : "Voltar para Admin"}
+              style={{ background: isAdminMode ? 'rgba(212, 175, 55, 0.2)' : 'rgba(255,255,255,0.05)' }}
+            >
+              <User size={20} />
+            </button>
+          )}
           <button
             className="btn-icon"
             style={{ background: 'rgba(37, 211, 102, 0.1)', color: '#25D366', border: '1px solid rgba(37, 211, 102, 0.2)' }}
@@ -341,7 +540,7 @@ function App() {
           <button className="btn-icon" onClick={handleRefresh} title="Atualizar Dados">
             <RefreshCw size={20} className={loading ? 'refresh-spin' : ''} />
           </button>
-          {!user.isAdmin ? (
+          {(!user.isAdmin || !isAdminMode) ? (
             <>
               <button className="btn-icon" onClick={() => setView('book')} title="Agendar"><Plus /></button>
               <button className="btn-icon" onClick={() => setView('history')} title="Meus Agendamentos"><History /></button>
@@ -351,7 +550,10 @@ function App() {
               <Shield className="text-primary" />
             </button>
           )}
-          <div className="user-avatar">
+          <div className="user-avatar" onClick={() => {
+            const newPhone = prompt('Deseja alterar seu número de WhatsApp?', user.phone);
+            if (newPhone) handleUpdateProfile(newPhone);
+          }} title="Editar Perfil" style={{ cursor: 'pointer' }}>
             <img src={user.picture} alt={user.name} />
           </div>
           <button className="btn-icon" onClick={handleLogout} title="Sair"><LogOut /></button>
@@ -360,20 +562,70 @@ function App() {
 
       {view === 'admin' && user.isAdmin && (
         <main className="fade-in">
+          <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
+            <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Lock className="text-primary" size={24} /> Configurar Agenda
+            </h2>
+            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+              {[...Array(14)].map((_, i) => {
+                const date = addDays(startOfToday(), i);
+                return (
+                  <button
+                    key={i}
+                    className="glass-card"
+                    style={{
+                      padding: '0.8rem 1.2rem',
+                      minWidth: '90px',
+                      textAlign: 'center',
+                      borderColor: isSameDay(selectedDate, date) ? 'var(--primary)' : 'var(--border)',
+                      background: isSameDay(selectedDate, date) ? 'rgba(212, 175, 55, 0.1)' : 'transparent'
+                    }}
+                    onClick={() => setSelectedDate(date)}
+                  >
+                    <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{format(date, 'eee', { locale: ptBR })}</div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{format(date, 'dd')}</div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="time-slots">
+              {timeSlots.map(t => {
+                const isBusy = busySlots.find(b => b.time === t);
+                const isBlocked = isBusy?.status === 'blocked';
+                const isBooked = isBusy && isBusy.status !== 'blocked';
+
+                return (
+                  <button
+                    key={t}
+                    className={`time-slot ${isBlocked ? 'selected' : 'available'}`}
+                    style={isBooked ? { opacity: 0.5, cursor: 'not-allowed', background: 'rgba(255,255,255,0.1)' } : {}}
+                    onClick={() => !isBooked && handleToggleBlock(t)}
+                    title={isBooked ? 'Agendado por Cliente' : (isBlocked ? 'Liberar Horário' : 'Bloquear Horário')}
+                  >
+                    {t} {isBlocked && <Lock size={12} />}
+                  </button>
+                );
+              })}
+            </div>
+            <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              * Clique nos horários para bloqueá-los (dourado) ou liberá-los. Horários acinzentados já possuem agendamentos.
+            </p>
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-            <h2>Painel do Barbeiro</h2>
+            <h2>Agendamentos Ativos</h2>
             <div className="glass-card" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-              Total: <span className="text-primary" style={{ fontWeight: 800 }}>{adminAppointments.length}</span>
+              Total: <span className="text-primary" style={{ fontWeight: 800 }}>{adminAppointments.filter(a => a.status !== 'blocked').length}</span>
             </div>
           </div>
-          {adminAppointments.length === 0 ? (
+          {adminAppointments.filter(a => a.status !== 'blocked').length === 0 ? (
             <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
               <History size={48} style={{ color: 'var(--border)', marginBottom: '1rem' }} />
-              <p>Nenhum agendamento encontrado no sistema.</p>
+              <p>Nenhum agendamento ativo.</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {adminAppointments.map(a => (
+              {adminAppointments.filter(a => a.status !== 'blocked').map(a => (
                 <div key={a.id} className="glass-card appointment-item" style={{ borderLeft: a.status === 'confirmed' ? '4px solid var(--success)' : (a.status === 'cancelled' ? '4px solid var(--danger)' : '4px solid var(--primary)') }}>
                   <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
                     <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: '12px', textAlign: 'center', minWidth: '55px' }}>
@@ -470,32 +722,44 @@ function App() {
             </div>
 
             <div className="time-slots">
-              {timeSlots.map(t => (
-                <button
-                  key={t}
-                  className={`time-slot ${selectedTime === t ? 'selected' : 'available'}`}
-                  onClick={() => setSelectedTime(t)}
-                >
-                  {t}
-                </button>
-              ))}
+              {timeSlots.map(t => {
+                const isBusy = busySlots.find(b => b.time === t);
+                return (
+                  <button
+                    key={t}
+                    className={`time-slot ${selectedTime === t ? 'selected' : (isBusy ? 'occupied' : 'available')}`}
+                    onClick={() => !isBusy && setSelectedTime(t)}
+                    disabled={isBusy}
+                    style={isBusy ? { opacity: 0.3, cursor: 'not-allowed', textDecoration: 'line-through' } : {}}
+                  >
+                    {t}
+                  </button>
+                );
+              })}
             </div>
 
             <div style={{ marginTop: '2.5rem', borderTop: '1px solid var(--border)', paddingTop: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Resumo:</p>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Resumo {editingAppointment && '(Editando)'}:</p>
                 <h3 style={{ fontSize: '1.1rem' }}>
                   {selectedService ? selectedService.name : 'Selecione um serviço'}
                   {selectedTime && ` às ${selectedTime}`}
                 </h3>
               </div>
-              <button
-                className="btn-primary"
-                disabled={!selectedService || !selectedTime || loading}
-                onClick={handleBooking}
-              >
-                {loading ? 'Processando...' : <><Calendar size={20} /> Agendar Agora</>}
-              </button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                {editingAppointment && (
+                  <button className="btn-icon" onClick={() => { setEditingAppointment(null); setView('history'); }} title="Cancelar Edição">
+                    <X size={20} />
+                  </button>
+                )}
+                <button
+                  className="btn-primary"
+                  disabled={!selectedService || !selectedTime || loading}
+                  onClick={handleBooking}
+                >
+                  {loading ? 'Processando...' : <><Calendar size={20} /> {editingAppointment ? 'Salvar Alterações' : 'Agendar Agora'}</>}
+                </button>
+              </div>
             </div>
           </section>
         </main>
@@ -532,6 +796,7 @@ function App() {
                       {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
                     </div>
                     <div style={{ display: 'flex', gap: '5px' }}>
+                      <button className="btn-icon" style={{ padding: '4px', opacity: 0.6 }} onClick={() => handleEditStart(a)} title="Editar Agendamento"><Edit2 size={14} /></button>
                       {user.isAdmin && <button className="btn-icon" style={{ padding: '4px', opacity: 0.6 }} onClick={() => handleUpdateStatus(a.id)} title="Alterar Status"><Edit2 size={14} /></button>}
                       <button className="btn-icon" style={{ padding: '4px', opacity: 0.6, color: 'var(--danger)' }} onClick={() => handleDelete(a.id)} title="Excluir do Histórico"><Trash2 size={14} /></button>
                     </div>

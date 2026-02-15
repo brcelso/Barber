@@ -32,18 +32,16 @@ export default {
             // Authentication / Login
             if (url.pathname === '/api/login' && request.method === 'POST') {
                 const userData = await request.json();
-                const token = request.headers.get('Authorization')?.replace('Bearer ', '');
 
-                // In a real app, verify 'token' with Google Auth
-                // For now, we trust the frontend and save user info
                 await env.DB.prepare(`
-                    INSERT INTO users (email, name, picture, last_login)
-                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                    INSERT INTO users (email, name, picture, phone, last_login)
+                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
                     ON CONFLICT(email) DO UPDATE SET
                     name = excluded.name,
                     picture = excluded.picture,
+                    phone = COALESCE(excluded.phone, users.phone),
                     last_login = CURRENT_TIMESTAMP
-                `).bind(userData.email, userData.name, userData.picture).run();
+                `).bind(userData.email, userData.name, userData.picture, userData.phone || null).run();
 
                 const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(userData.email).first();
                 return json({ user: { ...user, isAdmin: user.is_admin === 1 } });
@@ -224,33 +222,91 @@ export default {
                 return json({ success: true });
             }
 
+            // Update User Profile (Phone)
+            if (url.pathname === '/api/user/update-profile' && request.method === 'POST') {
+                const { email, phone } = await request.json();
+                if (!email || !phone) return json({ error: 'Missing email or phone' }, 400);
+
+                await env.DB.prepare('UPDATE users SET phone = ? WHERE email = ?').bind(phone, email).run();
+                return json({ success: true });
+            }
+
+            // Client: Edit/Update Appointment
+            if (url.pathname === '/api/appointments/update' && request.method === 'POST') {
+                const { appointmentId, serviceId, date, time, userEmail } = await request.json();
+
+                const appointment = await env.DB.prepare('SELECT user_email FROM appointments WHERE id = ?').bind(appointmentId).first();
+                if (!appointment || appointment.user_email !== userEmail) {
+                    return json({ error: 'Unauthorized' }, 401);
+                }
+
+                // Check conflict
+                const conflict = await env.DB.prepare('SELECT id FROM appointments WHERE appointment_date = ? AND appointment_time = ? AND id != ? AND status != "cancelled"').bind(date, time, appointmentId).first();
+                if (conflict) return json({ error: 'Horário indisponível' }, 409);
+
+                await env.DB.prepare(`
+                    UPDATE appointments 
+                    SET service_id = ?, appointment_date = ?, appointment_time = ?, status = 'pending'
+                    WHERE id = ?
+                `).bind(serviceId, date, time, appointmentId).run();
+
+                return json({ success: true });
+            }
+
+            // Admin: Toggle Block Slot
+            if (url.pathname === '/api/admin/toggle-block' && request.method === 'POST') {
+                const { date, time, adminEmail } = await request.json();
+                const admin = await env.DB.prepare('SELECT is_admin FROM users WHERE email = ?').bind(adminEmail).first();
+                if (!admin || admin.is_admin !== 1) return json({ error: 'Forbidden' }, 403);
+
+                // Check if already blocked
+                const existing = await env.DB.prepare('SELECT id FROM appointments WHERE appointment_date = ? AND appointment_time = ? AND status = "blocked"').bind(date, time).first();
+
+                if (existing) {
+                    await env.DB.prepare('DELETE FROM appointments WHERE id = ?').bind(existing.id).run();
+                    return json({ status: 'unblocked' });
+                } else {
+                    // Check for conflicts before blocking (don't block if there's a real appointment)
+                    const conflict = await env.DB.prepare('SELECT id FROM appointments WHERE appointment_date = ? AND appointment_time = ? AND status != "cancelled"').bind(date, time).first();
+                    if (conflict) return json({ error: 'Já existe um agendamento neste horário' }, 409);
+
+                    const id = `block-${crypto.randomUUID()}`;
+                    await env.DB.prepare(`
+                        INSERT INTO appointments (id, user_email, service_id, appointment_date, appointment_time, status)
+                        VALUES (?, 'system', 'block', ?, ?, 'blocked')
+                    `).bind(id, date, time).run();
+                    return json({ status: 'blocked' });
+                }
+            }
+
+            // Public: Get Busy Slots for a Date
+            if (url.pathname === '/api/appointments/busy-slots' && request.method === 'GET') {
+                const date = url.searchParams.get('date');
+                if (!date) return json({ error: 'Missing date' }, 400);
+
+                const busy = await env.DB.prepare('SELECT appointment_time as time, status FROM appointments WHERE appointment_date = ? AND status != "cancelled"').bind(date).all();
+                return json(busy.results);
+            }
+
             // Webhook for Mercado Pago
             if (url.pathname === '/api/webhook/mp' && request.method === 'POST') {
                 const data = await request.json();
-
-                // Usually check 'topic' and 'resource'
-                if (data.type === 'payment') {
+                if (data.type === 'payment' && data.data?.id) {
                     const paymentId = data.data.id;
-
-                    // Fetch payment details from MP
-                    const pRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+                    const res = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
                         headers: { 'Authorization': `Bearer ${env.MP_ACCESS_TOKEN}` }
                     });
-                    const payment = await pRes.json();
+                    const payment = await res.json();
 
                     if (payment.status === 'approved') {
-                        const appointmentId = payment.external_reference;
-                        await env.DB.prepare('UPDATE appointments SET status = "confirmed", payment_status = "paid", payment_id = ? WHERE id = ?')
-                            .bind(paymentId.toString(), appointmentId)
-                            .run();
+                        const apptId = payment.external_reference;
+                        await env.DB.prepare('UPDATE appointments SET status = "confirmed", payment_status = "paid" WHERE id = ?').bind(apptId).run();
                     }
                 }
-
-                return new Response('OK', { status: 200, headers: corsHeaders });
+                return json({ received: true });
             }
 
             return json({ error: 'Not Found' }, 404);
-
         } catch (err) {
             return json({ error: err.message, stack: err.stack }, 500);
         }
