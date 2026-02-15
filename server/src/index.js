@@ -105,6 +105,47 @@ export default {
                 return json({ status: 'Barber API Online', time: new Date().toISOString() });
             }
 
+            // Test AI Response
+            if (url.pathname === '/api/test/ai' && request.method === 'GET') {
+                const message = url.searchParams.get('message');
+                const botBarberEmail = url.searchParams.get('email') || MASTER_EMAIL;
+
+                // --- Repetir lógica de busca de contexto aqui para o teste ---
+                const barber = await env.DB.prepare('SELECT name FROM users WHERE email = ?').bind(botBarberEmail).first();
+                const barberName = barber ? barber.name : 'Barber Central';
+                const services = await env.DB.prepare('SELECT * FROM services WHERE id != "block" AND barber_email = ?').bind(botBarberEmail).all();
+                const servicesList = services.results.length > 0
+                    ? services.results.map((s, i) => `✂️ ${s.name}: R$ ${s.price}`).join('\n')
+                    : "Consulte nossos serviços no agendamento.";
+
+                const systemPrompt = `Você é o Leo, o assistente virtual da barbearia ${barberName}. 
+Seu objetivo é ser extremamente educado, eficiente e focado em converter conversas em agendamentos.
+INSTRUÇÕES DE FLUXO:
+- Se o cliente quiser agendar, diga para ele digitar "1".
+- Se ele quiser ver ou cancelar agendamentos existentes, diga para digitar "2".
+- Se ele tiver dúvidas sobre preços, horários ou serviços, responda de forma curta e induza ele a digitar "1" para reservar.
+SERVIÇOS E PREÇOS:
+${servicesList}
+REGRAS DE RESPOSTA:
+1. Seja amigável mas direto. Use no máximo 3 frases.
+2. Use emojis moderadamente: ✂️, 💈, ✅.
+3. SEMPRE termine sua resposta chamando para uma ação numérica, por exemplo: 
+   "Digite *1* para garantir seu horário ou *2* para gerenciar sua agenda."
+4. NUNCA invente serviços ou preços que não estão na lista acima.
+5. Se não souber algo, peça para o cliente digitar "Menu" para falar com um humano ou ver as opções básicas.`;
+
+                const aiResponse = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: message }
+                    ]
+                });
+                return json({
+                    prompt: systemPrompt,
+                    response: aiResponse.response
+                });
+            }
+
             // Subscription Status
             if (url.pathname === '/api/admin/subscription' && request.method === 'GET') {
                 const email = request.headers.get('X-User-Email');
@@ -762,30 +803,24 @@ export default {
                             ? services.results.map((s, i) => `✂️ ${s.name}: R$ ${s.price}`).join('\n')
                             : "Consulte nossos serviços no agendamento.";
 
-                        const systemPrompt = `Você é o Leo, o assistente de elite de ${barberName}. 
-Seu papel é ser um "closer": persuasivo, confiante e focado em fechar o agendamento AGORA.
+                        const systemPrompt = `Você é o Leo, o assistente virtual da barbearia ${barberName}. 
+Seu objetivo é ser extremamente educado, eficiente e focado em converter conversas em agendamentos.
 
-FILOSOFIA:
-- Um homem bem cuidado tem mais confiança. Você não vende apenas cortes, vende autoridade e auto-estima.
-- A agenda de ${barberName} é extremamente concorrida. Se o cliente vacilar, perde o horário.
+INSTRUÇÕES DE FLUXO:
+- Se o cliente quiser agendar, diga para ele digitar "1".
+- Se ele quiser ver ou cancelar agendamentos existentes, diga para digitar "2".
+- Se ele tiver dúvidas sobre preços, horários ou serviços, responda de forma curta e induza ele a digitar "1" para reservar.
 
-CONTEXTO:
-- Local: ${barberName}.
-- Horários: Seg-Sáb, 09h às 19h.
-- Serviços VIP disponíveis:
+SERVIÇOS E PREÇOS:
 ${servicesList}
 
-GATILHOS PARA USAR:
-- Urgência: "Os melhores horários de hoje já estão saindo."
-- Exclusividade: "Tratamento de primeira para quem não aceita menos que o melhor."
-- Fechamento Direto: Sempre termine induzindo o cliente a tomar a decisão.
-
-REGRAS CRÍTICAS:
-1. NUNCA seja passivo. Se ele perguntar o preço, dê o preço e pergunte: "Qual horário reservamos para você?"
-2. Responda em no máximo 2 frases curtas e impactantes. 
-3. Use emojis de autoridade ✂️🔥👑.
-4. O ÚNICO caminho para o sucesso é o cliente digitar "1". Force esse comando em toda resposta.
-5. Estado: ${sessionState}.`;
+REGRAS DE RESPOSTA:
+1. Seja amigável mas direto. Use no máximo 3 frases.
+2. Use emojis moderadamente: ✂️, 💈, ✅.
+3. SEMPRE termine sua resposta chamando para uma ação numérica, por exemplo: 
+   "Digite *1* para garantir seu horário ou *2* para gerenciar sua agenda."
+4. NUNCA invente serviços ou preços que não estão na lista acima.
+5. Se não souber algo, peça para o cliente digitar "Menu" para falar com um humano ou ver as opções básicas.`;
 
                         const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
                             messages: [
@@ -809,10 +844,11 @@ REGRAS CRÍTICAS:
 
                     await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email) VALUES (?, "main_menu", ?)').bind(from, userEmail).run();
 
-                    let msg = "✂️ *Bem-vindo à Barber* \n\nComo posso te ajudar hoje?\n\n";
+                    let msg = "✂️ *Bem-vindo à Barber!* \n\nSua barbearia moderna com agendamento inteligente. 💈\n\nComo posso ajudar você hoje?\n\n";
                     msg += "1️⃣ - Agendar novo horário\n";
                     msg += "2️⃣ - Meus Agendamentos (Ver/Cancelar)\n";
-                    msg += "3️⃣ - Falar com a IA (Dúvidas)\n";
+                    msg += "3️⃣ - Falar com o Leo (Dúvidas/Chat IA)\n";
+                    msg += "\nEnvie sua dúvida ou escolha um número acima!";
 
                     await sendMessage(from, msg);
                     return json({ success: true });
@@ -971,10 +1007,11 @@ REGRAS CRÍTICAS:
                     }
 
                     if (session.user_email) {
+                        const service = await env.DB.prepare('SELECT name FROM services WHERE id = ?').bind(session.service_id).first();
                         await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_confirmation", appointment_time = ? WHERE phone = ?')
                             .bind(time, from).run();
 
-                        await sendMessage(from, `📍 *Quase lá!* \n\n*Serviço:* ${session.service_id}\n*Data:* ${dateStr}\n*Hora:* ${time}\n\nConfirma o agendamento? \n*1* - Sim\n*2* - Não/Cancelar`);
+                        await sendMessage(from, `📍 *Quase lá!* \n\n*Serviço:* ${service?.name || 'Corte'}\n*Data:* ${dateStr}\n*Hora:* ${time}\n\nConfirma o agendamento? \n*1* - Sim ✅\n*2* - Não/Cancelar ❌`);
                         return json({ success: true });
                     } else {
                         // Tenta buscar novamente caso não tenha vindo no início
@@ -986,10 +1023,11 @@ REGRAS CRÍTICAS:
                         });
 
                         if (userFound && userFound.email) {
+                            const service = await env.DB.prepare('SELECT name FROM services WHERE id = ?').bind(session.service_id).first();
                             await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_confirmation", appointment_time = ?, user_email = ? WHERE phone = ?')
                                 .bind(time, userFound.email, from).run();
 
-                            await sendMessage(from, `📍 *Quase lá!* \n\n*Serviço:* ${session.service_id}\n*Data:* ${dateStr}\n*Hora:* ${time}\n\nConfirma o agendamento? \n*1* - Sim\n*2* - Não/Cancelar`);
+                            await sendMessage(from, `📍 *Quase lá!* \n\n*Serviço:* ${service?.name || 'Corte'}\n*Data:* ${dateStr}\n*Hora:* ${time}\n\nConfirma o agendamento? \n*1* - Sim ✅\n*2* - Não/Cancelar ❌`);
                             return json({ success: true });
                         } else {
                             // Se REALMENTE não temos o e-mail
@@ -1013,8 +1051,9 @@ REGRAS CRÍTICAS:
                     // Upsert user
                     await env.DB.prepare('INSERT OR IGNORE INTO users (email, name, phone) VALUES (?, ?, ?)').bind(email, `Cliente ${from}`, from).run();
 
+                    const service = await env.DB.prepare('SELECT name FROM services WHERE id = ?').bind(session.service_id).first();
                     await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_confirmation", user_email = ? WHERE phone = ?').bind(email, from).run();
-                    await sendMessage(from, `📍 *Confirmado e-mail!* \n\nConfirma o agendamento? \n*1* - Sim\n*2* - Não/Cancelar`);
+                    await sendMessage(from, `📍 *E-mail confirmado!* \n\n*Serviço:* ${service?.name || 'Corte'}\n*Data:* ${session.appointment_date}\n*Hora:* ${session.appointment_time}\n\nConfirma o agendamento? \n*1* - Sim ✅\n*2* - Não/Cancelar ❌`);
                     return json({ success: true });
                 }
 
