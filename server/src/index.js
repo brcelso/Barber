@@ -21,6 +21,41 @@ export default {
         }
 
         try {
+            // --- Helper: Notify WhatsApp ---
+            const notifyWhatsApp = async (appointmentId, status) => {
+                try {
+                    const appt = await env.DB.prepare(`
+                        SELECT a.*, s.name as service_name, u.phone, u.name as user_name
+                        FROM appointments a
+                        JOIN services s ON a.service_id = s.id
+                        JOIN users u ON a.user_email = u.email
+                        WHERE a.id = ?
+                    `).bind(appointmentId).first();
+
+                    if (!appt || !appt.phone) return;
+
+                    let message = "";
+                    const dateParts = appt.appointment_date.split('-');
+                    const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+
+                    if (status === 'confirmed') {
+                        message = `✅ *Agendamento Confirmado!* \n\nOlá ${appt.user_name}, seu horário para *${appt.service_name}* no dia *${formattedDate}* às *${appt.appointment_time}* foi confirmado. \n\nTe esperamos lá! ✂️`;
+                    } else if (status === 'cancelled') {
+                        message = `❌ *Agendamento Cancelado* \n\nOlá ${appt.user_name}, informamos que o agendamento para *${appt.service_name}* no dia *${formattedDate}* às *${appt.appointment_time}* foi cancelado.`;
+                    } else if (status === 'pending') {
+                        message = `⏳ *Agendamento Recebido* \n\nOlá ${appt.user_name}, seu agendamento para *${appt.service_name}* no dia *${formattedDate}* às *${appt.appointment_time}* foi recebido e está sendo processado.`;
+                    }
+
+                    if (message) {
+                        console.log(`[WhatsApp Auto-Notify] TO: ${appt.phone} MSG: ${message}`);
+                        // Evolution/Z-API Integration:
+                        // if(env.WA_API_URL) await fetch(`${env.WA_API_URL}/send`, { method: 'POST', body: JSON.stringify({ phone: appt.phone, message }), headers: { 'Authorization': env.WA_TOKEN } });
+                    }
+                } catch (e) {
+                    console.error('[WhatsApp Notify Error]', e);
+                }
+            };
+
             // --- Routes ---
 
             // Health check
@@ -159,6 +194,8 @@ export default {
                 });
 
                 const mpData = await mpResponse.json();
+
+                await notifyWhatsApp(id, 'pending');
                 return json({ paymentUrl: mpData.init_point });
             }
 
@@ -169,10 +206,7 @@ export default {
                 if (!admin || admin.is_admin !== 1) return json({ error: 'Forbidden' }, 403);
 
                 await env.DB.prepare('UPDATE appointments SET status = "confirmed" WHERE id = ?').bind(appointmentId).run();
-
-                // Get user email to simulate notification
-                const appt = await env.DB.prepare('SELECT user_email FROM appointments WHERE id = ?').bind(appointmentId).first();
-                console.log(`[Notification] Sending confirmation email to ${appt.user_email} for appt ${appointmentId}`);
+                await notifyWhatsApp(appointmentId, 'confirmed');
 
                 return json({ success: true });
             }
@@ -190,6 +224,7 @@ export default {
                 }
 
                 await env.DB.prepare('UPDATE appointments SET status = "cancelled" WHERE id = ?').bind(appointmentId).run();
+                await notifyWhatsApp(appointmentId, 'cancelled');
                 return json({ success: true });
             }
 
@@ -218,6 +253,7 @@ export default {
                 }
 
                 await env.DB.prepare('UPDATE appointments SET status = ? WHERE id = ?').bind(status, appointmentId).run();
+                await notifyWhatsApp(appointmentId, status);
                 return json({ success: true });
             }
 
@@ -253,6 +289,7 @@ export default {
                     WHERE id = ?
                 `).bind(serviceId, date, time, appointmentId).run();
 
+                await notifyWhatsApp(appointmentId, 'pending');
                 return json({ success: true });
             }
 
@@ -522,6 +559,7 @@ export default {
                     if (payment.status === 'approved') {
                         const apptId = payment.external_reference;
                         await env.DB.prepare('UPDATE appointments SET status = "confirmed", payment_status = "paid" WHERE id = ?').bind(apptId).run();
+                        await notifyWhatsApp(apptId, 'confirmed');
                     }
                 }
                 return json({ received: true });

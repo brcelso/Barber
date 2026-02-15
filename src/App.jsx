@@ -270,22 +270,7 @@ function App() {
     setLoading(false);
   };
 
-  const handleAdminConfirm = async (appointmentId) => {
-    setLoading(true);
-    try {
-      await fetch(`${API_URL}/admin/appointments/confirm`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appointmentId, adminEmail: user.email })
-      });
-      alert('Agendamento confirmado! Cliente notificado.');
-      handleRefresh();
-    } catch (e) {
-      alert('Erro ao confirmar');
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   const handleCancel = async (appointmentId) => {
     if (!confirm('Tem certeza que deseja cancelar este agendamento?')) return;
@@ -659,9 +644,6 @@ function App() {
                       {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
                     </div>
                     <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
-                      {a.status === 'pending' && (
-                        <button className="btn-icon" style={{ padding: '4px', background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71' }} onClick={() => handleAdminConfirm(a.id)} title="Confirmar"><Check size={14} /></button>
-                      )}
                       <button className="btn-icon" style={{ padding: '4px', background: 'rgba(37, 211, 102, 0.1)', color: '#25D366' }} onClick={() => handleWhatsAppNotify(a)} title="Notificar WhatsApp"><MessageSquare size={14} /></button>
                       <button className="btn-icon" style={{ padding: '4px', background: 'rgba(52, 152, 219, 0.1)', color: '#3498db' }} onClick={() => handleUpdateStatus(a.id)} title="Mudar Status"><Edit2 size={14} /></button>
                       <button className="btn-icon" style={{ padding: '4px', background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c' }} onClick={() => handleDelete(a.id)} title="Excluir"><Trash2 size={14} /></button>
