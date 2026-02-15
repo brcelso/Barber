@@ -108,7 +108,7 @@ export default {
             // Subscription Status
             if (url.pathname === '/api/admin/subscription' && request.method === 'GET') {
                 const email = request.headers.get('X-User-Email');
-                const user = await env.DB.prepare('SELECT is_admin, subscription_expires, trial_used FROM users WHERE email = ?').bind(email).first();
+                const user = await env.DB.prepare('SELECT is_admin, subscription_expires, trial_used, plan FROM users WHERE email = ?').bind(email).first();
                 if (!user || user.is_admin !== 1) return json({ error: 'Permission Denied' }, 403);
 
                 const now = new Date();
@@ -121,7 +121,8 @@ export default {
                     expires: user.subscription_expires,
                     isActive: diffTime > 0,
                     trialUsed: !!user.trial_used,
-                    isMaster: email === MASTER_EMAIL
+                    isMaster: email === MASTER_EMAIL,
+                    plan: user.plan
                 });
             }
 
@@ -151,7 +152,8 @@ export default {
                     totalBarbers: await env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE is_barber = 1').first(),
                     activeAdmins: await env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE is_admin = 1').first(),
                     totalAppointments: await env.DB.prepare('SELECT COUNT(*) as count FROM appointments').first(),
-                    connectedBots: await env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE wa_status = "connected"').first()
+                    connectedBots: await env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE wa_status = "connected"').first(),
+                    planCounts: await env.DB.prepare('SELECT plan, COUNT(*) as count FROM users WHERE plan IS NOT NULL GROUP BY plan').all()
                 };
                 return json(stats);
             }

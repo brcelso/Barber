@@ -957,6 +957,7 @@ function App() {
               marginBottom: '0'
             }}>
               <span style={{ color: subscription.daysLeft < 3 ? '#e74c3c' : '#d4af37', fontWeight: 600 }}>
+                {subscription.plan && <span style={{ marginRight: '5px', textTransform: 'uppercase', fontSize: '0.6rem', background: 'rgba(255,255,255,0.1)', padding: '1px 4px', borderRadius: '3px' }}>{subscription.plan === 'business' ? 'Shop' : subscription.plan}</span>}
                 {subscription.isActive ? `${subscription.daysLeft}d restantes` : 'Expirada!'}
               </span>
               <div style={{ display: 'flex', gap: '4px' }}>
@@ -1108,6 +1109,14 @@ function App() {
                       <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats?.connectedBots?.count || 0}</div>
                       <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>ROBÔS ATIVOS</div>
                     </div>
+                    {/* New Plan Stats */}
+                    {masterStats?.planCounts?.results?.map(p => (
+                      <div key={p.plan} className="glass-card" style={{ padding: '1rem', textAlign: 'center', border: '1px solid rgba(212, 175, 55, 0.2)' }}>
+                        <Shield size={20} className="text-primary" />
+                        <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{p.count}</div>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>PLANO {p.plan === 'business' ? 'SHOP' : p.plan}</div>
+                      </div>
+                    ))}
                     <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
                       <Calendar size={20} className="text-primary" />
                       <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats?.totalAppointments?.count || 0}</div>
@@ -1168,9 +1177,8 @@ function App() {
                                 style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '0.65rem', padding: '2px', borderRadius: '4px' }}
                               >
                                 <option value="">Sem Plano</option>
-                                <option value="starter">Starter</option>
                                 <option value="pro">Pro AI</option>
-                                <option value="business">Business</option>
+                                <option value="business">Barber Shop</option>
                               </select>
                             </td>
                             <td style={{ padding: '10px' }}>
@@ -1648,16 +1656,6 @@ function App() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <div className="action-item" onClick={() => handleSubscriptionPayment('starter')} style={{ cursor: 'pointer', border: '1px solid var(--border)' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>Starter</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Agendamento e Gestão Base</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 59,90</div>
-                  <div style={{ fontSize: '0.7rem' }}>/mês</div>
-                </div>
-              </div>
 
               <div className="action-item" onClick={() => handleSubscriptionPayment('pro')} style={{ cursor: 'pointer', border: '1px solid var(--primary)', background: 'rgba(212, 175, 55, 0.05)' }}>
                 <div style={{ flex: 1 }}>
