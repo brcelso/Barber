@@ -107,6 +107,13 @@ async function connectToWhatsApp(email) {
     });
 
     sock.ev.on('creds.update', saveCreds);
+
+    // Heartbeat to keep status updated in Worker
+    setInterval(() => {
+        if (sessions.get(email) === sock) {
+            axios.post(STATUS_URL, { email, status: 'heartbeat' }).catch(() => { });
+        }
+    }, 30000);
 }
 
 // Carregar sessões existentes ao iniciar

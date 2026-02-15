@@ -115,6 +115,21 @@ function App() {
       });
       if (res.ok) {
         alert('Usuário atualizado com sucesso!');
+        // Se estiver atualizando a si mesmo, sincroniza o estado local imediatamente
+        if (targetEmail === user.email) {
+          const updatedUser = {
+            ...user,
+            isAdmin: updates.is_admin,
+            isBarber: updates.is_barber
+          };
+          setUser(updatedUser);
+          localStorage.setItem('barber_user', JSON.stringify(updatedUser));
+
+          // Se deixou de ser barbeiro, volta para a tela de agendamento
+          if (!updates.is_barber && view === 'admin') {
+            setView('book');
+          }
+        }
         fetchMasterData();
       }
     } catch (e) {
@@ -485,6 +500,11 @@ function App() {
     if (user?.isAdmin) {
       promises.push(fetchAdminAppointments(ts));
       promises.push(fetchSubscription(ts));
+      promises.push(fetchWaStatus());
+    }
+
+    if (user?.isMaster) {
+      promises.push(fetchMasterData());
     }
 
     if (selectedDate && selectedBarber) {
@@ -1128,6 +1148,7 @@ function App() {
                                   <input
                                     type="checkbox"
                                     defaultChecked={u.is_admin}
+                                    disabled={u.email === 'celsosilvajunior90@gmail.com'}
                                     onChange={(e) => handleMasterUpdate(u.email, { is_admin: e.target.checked, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan })}
                                   /> Adm
                                 </label>
@@ -1179,173 +1200,178 @@ function App() {
               </div>
             </div>
           )}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-            <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <History className="text-primary" /> Agendamentos Ativos
-            </h2>
-            <div className="glass-card" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-              Total: <span className="text-primary" style={{ fontWeight: 800 }}>{adminAppointments.filter(a => a.status !== 'blocked').length}</span>
-            </div>
-          </div>
-          {adminAppointments.filter(a => a.status !== 'blocked').length === 0 ? (
-            <div className="glass-card" style={{ padding: '3rem', textAlign: 'center', marginBottom: '2rem' }}>
-              <History size={48} style={{ color: 'var(--border)', marginBottom: '1rem' }} />
-              <p>Nenhum agendamento ativo.</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '3rem' }}>
-              {adminAppointments.filter(a => a.status !== 'blocked').map(a => (
-                <div key={a.id} className="glass-card appointment-item" style={{ borderLeft: a.status === 'confirmed' ? '4px solid var(--success)' : (a.status === 'cancelled' ? '4px solid var(--danger)' : '4px solid var(--primary)') }}>
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
-                    <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: '12px', textAlign: 'center', minWidth: '55px' }}>
-                      <div style={{ fontSize: '0.65rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
-                      <div style={{ fontSize: '1rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
-                    </div>
-                    <div className="user-avatar" style={{ width: '32px', height: '32px' }}>
-                      <img src={a.user_picture} alt={a.user_name} />
-                    </div>
-                    <div>
-                      <h3 style={{ fontSize: '0.95rem' }}>{a.user_name}</h3>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>{a.service_name} às {a.appointment_time}</p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                        {(a.payment_status === 'confirmed' || a.status === 'confirmed') ? (
-                          <span style={{ background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>PAGO</span>
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>⏳ Pagamento pendente</span>
-                            <button
-                              className="btn-primary"
-                              style={{ fontSize: '0.65rem', padding: '2px 8px', height: 'auto', minHeight: 'unset' }}
-                              onClick={() => handlePayment(a)}
-                            >
-                              Pagar
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    <div className={`status-tag status-${a.status}`} style={{ fontSize: '0.7rem' }}>
-                      {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
-                    </div>
-                    <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
-                      <button className="btn-icon" style={{ padding: '4px', background: 'rgba(52, 152, 219, 0.1)', color: '#3498db' }} onClick={() => setSelectedActionAppt(a)} title="Gerenciar Agendamento"><Edit2 size={14} /></button>
-                      <button className="btn-icon" style={{ padding: '4px', background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c' }} onClick={() => handleDelete(a.id)} title="Excluir"><Trash2 size={14} /></button>
-                    </div>
-                  </div>
+
+          {user?.isBarber && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <History className="text-primary" /> Agendamentos Ativos
+                </h2>
+                <div className="glass-card" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                  Total: <span className="text-primary" style={{ fontWeight: 800 }}>{adminAppointments.filter(a => a.status !== 'blocked').length}</span>
                 </div>
-              ))}
-            </div>
-          )}
-
-          <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem', border: waStatus.status === 'connected' ? '1px solid #2ecc71' : '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <MessageSquare className="text-primary" size={24} /> Robô de WhatsApp
-              </h2>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: waStatus.status === 'connected' ? '#2ecc71' : (waStatus.status === 'awaiting_qr' ? '#f1c40f' : '#e74c3c') }} />
-                <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                  {waStatus.status === 'connected' ? 'Conectado' : (waStatus.status === 'awaiting_qr' ? 'Aguardando Escaneamento' : 'Desconectado')}
-                </span>
               </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              {waStatus.status === 'awaiting_qr' && waStatus.qr ? (
-                <div style={{ textAlign: 'center', background: 'white', padding: '1rem', borderRadius: '12px' }}>
-                  <img src={waStatus.qr} alt="WhatsApp QR Code" style={{ width: '200px', height: '200px' }} />
-                  <p style={{ color: 'black', fontSize: '0.7rem', marginTop: '0.5rem', fontWeight: 800 }}>ESCANEIE COM SEU WHATSAPP</p>
+              {adminAppointments.filter(a => a.status !== 'blocked').length === 0 ? (
+                <div className="glass-card" style={{ padding: '3rem', textAlign: 'center', marginBottom: '2rem' }}>
+                  <History size={48} style={{ color: 'var(--border)', marginBottom: '1rem' }} />
+                  <p>Nenhum agendamento ativo.</p>
                 </div>
               ) : (
-                <div style={{ flex: 1, minWidth: '250px' }}>
-                  {waStatus.status === 'connected' ? (
-                    <p style={{ color: 'var(--text-muted)' }}>
-                      ✅ Seu robô está ativo e respondendo aos clientes automaticamente através da IA do Mestre Leo.
-                    </p>
-                  ) : (
-                    <p style={{ color: 'var(--text-muted)' }}>
-                      O robô está desligado. Para ativar, certifique-se que o servidor ponte está rodando em sua máquina. O QR Code aparecerá aqui automaticamente.
-                    </p>
-                  )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '3rem' }}>
+                  {adminAppointments.filter(a => a.status !== 'blocked').map(a => (
+                    <div key={a.id} className="glass-card appointment-item" style={{ borderLeft: a.status === 'confirmed' ? '4px solid var(--success)' : (a.status === 'cancelled' ? '4px solid var(--danger)' : '4px solid var(--primary)') }}>
+                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
+                        <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: '12px', textAlign: 'center', minWidth: '55px' }}>
+                          <div style={{ fontSize: '0.65rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
+                          <div style={{ fontSize: '1rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
+                        </div>
+                        <div className="user-avatar" style={{ width: '32px', height: '32px' }}>
+                          <img src={a.user_picture} alt={a.user_name} />
+                        </div>
+                        <div>
+                          <h3 style={{ fontSize: '0.95rem' }}>{a.user_name}</h3>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>{a.service_name} às {a.appointment_time}</p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                            {(a.payment_status === 'confirmed' || a.status === 'confirmed') ? (
+                              <span style={{ background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>PAGO</span>
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>⏳ Pagamento pendente</span>
+                                <button
+                                  className="btn-primary"
+                                  style={{ fontSize: '0.65rem', padding: '2px 8px', height: 'auto', minHeight: 'unset' }}
+                                  onClick={() => handlePayment(a)}
+                                >
+                                  Pagar
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                        <div className={`status-tag status-${a.status}`} style={{ fontSize: '0.7rem' }}>
+                          {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
+                        </div>
+                        <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
+                          <button className="btn-icon" style={{ padding: '4px', background: 'rgba(52, 152, 219, 0.1)', color: '#3498db' }} onClick={() => setSelectedActionAppt(a)} title="Gerenciar Agendamento"><Edit2 size={14} /></button>
+                          <button className="btn-icon" style={{ padding: '4px', background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c' }} onClick={() => handleDelete(a.id)} title="Excluir"><Trash2 size={14} /></button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              <div style={{ flex: 1, minWidth: '250px' }}>
-                <div className="glass-card" style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)' }}>
-                  <h4 style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Dicas:</h4>
-                  <ul style={{ fontSize: '0.8rem', color: 'var(--text-muted)', paddingLeft: '1.2rem' }}>
-                    <li>Use o WhatsApp Business para melhores resultados.</li>
-                    <li>A IA responde dúvidas sobre preços e horários.</li>
-                    <li>Clientes podem agendar digitando "1".</li>
-                  </ul>
+              <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem', border: waStatus.status === 'connected' ? '1px solid #2ecc71' : '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <MessageSquare className="text-primary" size={24} /> Robô de WhatsApp
+                  </h2>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: waStatus.status === 'connected' ? '#2ecc71' : (waStatus.status === 'awaiting_qr' ? '#f1c40f' : '#e74c3c') }} />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                      {waStatus.status === 'connected' ? 'Conectado' : (waStatus.status === 'awaiting_qr' ? 'Aguardando Escaneamento' : 'Desconectado')}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {waStatus.status === 'awaiting_qr' && waStatus.qr ? (
+                    <div style={{ textAlign: 'center', background: 'white', padding: '1rem', borderRadius: '12px' }}>
+                      <img src={waStatus.qr} alt="WhatsApp QR Code" style={{ width: '200px', height: '200px' }} />
+                      <p style={{ color: 'black', fontSize: '0.7rem', marginTop: '0.5rem', fontWeight: 800 }}>ESCANEIE COM SEU WHATSAPP</p>
+                    </div>
+                  ) : (
+                    <div style={{ flex: 1, minWidth: '250px' }}>
+                      {waStatus.status === 'connected' ? (
+                        <p style={{ color: 'var(--text-muted)' }}>
+                          ✅ Seu robô está ativo e respondendo aos clientes automaticamente através da IA do Mestre Leo.
+                        </p>
+                      ) : (
+                        <p style={{ color: 'var(--text-muted)' }}>
+                          O robô está desligado. Para ativar, certifique-se que o servidor ponte está rodando em sua máquina. O QR Code aparecerá aqui automaticamente.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div style={{ flex: 1, minWidth: '250px' }}>
+                    <div className="glass-card" style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)' }}>
+                      <h4 style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Dicas:</h4>
+                      <ul style={{ fontSize: '0.8rem', color: 'var(--text-muted)', paddingLeft: '1.2rem' }}>
+                        <li>Use o WhatsApp Business para melhores resultados.</li>
+                        <li>A IA responde dúvidas sobre preços e horários.</li>
+                        <li>Clientes podem agendar digitando "1".</li>
+                      </ul>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Lock className="text-primary" size={24} /> Configurar Agenda
-              </h2>
-              <button
-                className="btn-primary"
-                style={{ fontSize: '0.8rem', padding: '0.5rem 1rem', background: busySlots.length >= timeSlots.length ? 'rgba(46, 204, 113, 0.2)' : 'rgba(231, 76, 60, 0.2)', color: busySlots.length >= timeSlots.length ? '#2ecc71' : '#e74c3c', border: '1px solid currentColor' }}
-                onClick={handleToggleFullDay}
-              >
-                {busySlots.length >= timeSlots.length ? 'Liberar Dia Todo' : 'Bloquear Dia Todo'}
-              </button>
-            </div>
-            <div className="date-list">
-              {[...Array(14)].map((_, i) => {
-                const date = addDays(startOfToday(), i);
-                const isActive = isSameDay(selectedDate, date);
-                return (
+              <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Lock className="text-primary" size={24} /> Configurar Agenda
+                  </h2>
                   <button
-                    key={i}
-                    className={`date-card ${isActive ? 'active' : ''}`}
-                    onClick={() => setSelectedDate(date)}
-                    style={isActive && busySlots.length >= timeSlots.length ? { background: 'rgba(231, 76, 60, 0.15)', borderColor: 'var(--danger)' } : {}}
+                    className="btn-primary"
+                    style={{ fontSize: '0.8rem', padding: '0.5rem 1rem', background: busySlots.length >= timeSlots.length ? 'rgba(46, 204, 113, 0.2)' : 'rgba(231, 76, 60, 0.2)', color: busySlots.length >= timeSlots.length ? '#2ecc71' : '#e74c3c', border: '1px solid currentColor' }}
+                    onClick={handleToggleFullDay}
                   >
-                    <div className="day-name">{format(date, 'eee', { locale: ptBR })}</div>
-                    <div className="day-number">{format(date, 'dd')}</div>
+                    {busySlots.length >= timeSlots.length ? 'Liberar Dia Todo' : 'Bloquear Dia Todo'}
                   </button>
-                );
-              })}
-            </div>
-            <div className="time-slots">
-              {timeSlots.map(t => {
-                const isBusy = busySlots.find(b => b.time === t);
-                const isBlocked = isBusy?.status === 'blocked';
-                const isBooked = isBusy && isBusy.status !== 'blocked';
+                </div>
+                <div className="date-list">
+                  {[...Array(14)].map((_, i) => {
+                    const date = addDays(startOfToday(), i);
+                    const isActive = isSameDay(selectedDate, date);
+                    return (
+                      <button
+                        key={i}
+                        className={`date-card ${isActive ? 'active' : ''}`}
+                        onClick={() => setSelectedDate(date)}
+                        style={isActive && busySlots.length >= timeSlots.length ? { background: 'rgba(231, 76, 60, 0.15)', borderColor: 'var(--danger)' } : {}}
+                      >
+                        <div className="day-name">{format(date, 'eee', { locale: ptBR })}</div>
+                        <div className="day-number">{format(date, 'dd')}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="time-slots">
+                  {timeSlots.map(t => {
+                    const isBusy = busySlots.find(b => b.time === t);
+                    const isBlocked = isBusy?.status === 'blocked';
+                    const isBooked = isBusy && isBusy.status !== 'blocked';
 
-                // Ocultar horários passados se for hoje
-                if (isSameDay(selectedDate, startOfToday())) {
-                  const [h, m] = t.split(':').map(Number);
-                  const slotTime = new Date();
-                  slotTime.setHours(h, m, 0, 0);
-                  if (slotTime < new Date()) return null;
-                }
+                    // Ocultar horários passados se for hoje
+                    if (isSameDay(selectedDate, startOfToday())) {
+                      const [h, m] = t.split(':').map(Number);
+                      const slotTime = new Date();
+                      slotTime.setHours(h, m, 0, 0);
+                      if (slotTime < new Date()) return null;
+                    }
 
-                return (
-                  <button
-                    key={t}
-                    className={`time-slot ${isBlocked ? 'selected' : 'available'}`}
-                    style={isBooked ? { opacity: 0.5, cursor: 'not-allowed', background: 'rgba(255,255,255,0.1)' } : {}}
-                    onClick={() => !isBooked && handleToggleBlock(t)}
-                    title={isBooked ? 'Agendado por Cliente' : (isBlocked ? 'Liberar Horário' : 'Bloquear Horário')}
-                  >
-                    {t} {isBlocked && <Lock size={12} />}
-                  </button>
-                );
-              })}
-            </div>
-            <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              * Clique nos horários para bloqueá-los (dourado) ou liberá-los. Horários acinzentados já possuem agendamentos.
-            </p>
-          </div>
+                    return (
+                      <button
+                        key={t}
+                        className={`time-slot ${isBlocked ? 'selected' : 'available'}`}
+                        style={isBooked ? { opacity: 0.5, cursor: 'not-allowed', background: 'rgba(255,255,255,0.1)' } : {}}
+                        onClick={() => !isBooked && handleToggleBlock(t)}
+                        title={isBooked ? 'Agendado por Cliente' : (isBlocked ? 'Liberar Horário' : 'Bloquear Horário')}
+                      >
+                        {t} {isBlocked && <Lock size={12} />}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  * Clique nos horários para bloqueá-los (dourado) ou liberá-los. Horários acinzentados já possuem agendamentos.
+                </p>
+              </div>
+            </>
+          )}
         </main>
       )
       }

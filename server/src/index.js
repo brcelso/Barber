@@ -128,12 +128,15 @@ export default {
             // WhatsApp Bridge Status Update
             if (url.pathname === '/api/whatsapp/status' && request.method === 'POST') {
                 const { email, status, qr } = await request.json();
+                const now = new Date().toISOString();
                 if (status === 'qr') {
-                    await env.DB.prepare('UPDATE users SET wa_status = "awaiting_qr", wa_qr = ? WHERE email = ?').bind(qr, email).run();
+                    await env.DB.prepare('UPDATE users SET wa_status = "awaiting_qr", wa_qr = ?, wa_last_seen = ? WHERE email = ?').bind(qr, now, email).run();
                 } else if (status === 'connected') {
-                    await env.DB.prepare('UPDATE users SET wa_status = "connected", wa_qr = NULL WHERE email = ?').bind(email).run();
+                    await env.DB.prepare('UPDATE users SET wa_status = "connected", wa_qr = NULL, wa_last_seen = ? WHERE email = ?').bind(now, email).run();
+                } else if (status === 'heartbeat') {
+                    await env.DB.prepare('UPDATE users SET wa_last_seen = ? WHERE email = ?').bind(now, email).run();
                 } else {
-                    await env.DB.prepare('UPDATE users SET wa_status = "disconnected", wa_qr = NULL WHERE email = ?').bind(email).run();
+                    await env.DB.prepare('UPDATE users SET wa_status = "disconnected", wa_qr = NULL, wa_last_seen = ? WHERE email = ?').bind(now, email).run();
                 }
                 return json({ success: true });
             }
@@ -158,8 +161,21 @@ export default {
                 const email = request.headers.get('X-User-Email');
                 if (email !== MASTER_EMAIL) return json({ error: 'Unauthorized' }, 401);
 
-                const users = await env.DB.prepare("SELECT email, name, phone, is_admin, is_barber, wa_status, subscription_expires, trial_used, plan FROM users WHERE email != 'sistema@leoai.br' ORDER BY created_at DESC").all();
-                return json(users.results);
+                const usersListing = await env.DB.prepare("SELECT email, name, phone, is_admin, is_barber, wa_status, wa_last_seen, subscription_expires, trial_used, plan FROM users WHERE email != 'sistema@leoai.br' ORDER BY created_at DESC").all();
+
+                const now = new Date();
+                const results = usersListing.results.map(u => {
+                    let finalStatus = u.wa_status;
+                    if (u.wa_status === 'connected' && u.wa_last_seen) {
+                        const lastSeen = new Date(u.wa_last_seen);
+                        if ((now - lastSeen) > 120000) { // 2 minutes
+                            finalStatus = 'disconnected';
+                        }
+                    }
+                    return { ...u, wa_status: finalStatus };
+                });
+
+                return json(results);
             }
 
             // MASTER: Update User Role/Subscription
