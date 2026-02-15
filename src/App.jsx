@@ -94,8 +94,47 @@ function App() {
     }
   };
 
-  // Mock Availability
-  const timeSlots = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00"];
+  // Time Slots 07:00 to 21:00 (every 30m)
+  const timeSlots = [
+    "07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+    "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30",
+    "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00"
+  ];
+
+  const handleToggleFullDay = async () => {
+    if (!user?.isAdmin) return;
+    const isBlocking = busySlots.length < timeSlots.length;
+    const action = isBlocking ? 'bloquear o DIA TODO' : 'liberar o DIA TODO';
+    if (!confirm(`Deseja ${action} para ${format(selectedDate, 'dd/MM/yyyy')}?`)) return;
+
+    setLoading(true);
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      for (const time of timeSlots) {
+        const isBusy = busySlots.find(b => b.time === time);
+        // If blocking, only block if not already busy
+        // If unblocking, only unblock if currently blocked
+        if (isBlocking && !isBusy) {
+          await fetch(`${API_URL}/admin/toggle-block`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date: dateStr, time, adminEmail: user.email })
+          });
+        } else if (!isBlocking && isBusy?.status === 'blocked') {
+          await fetch(`${API_URL}/admin/toggle-block`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date: dateStr, time, adminEmail: user.email })
+          });
+        }
+      }
+      await handleRefresh();
+    } catch (e) {
+      alert('Erro ao alterar o dia');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchServices();
@@ -570,9 +609,18 @@ function App() {
       {view === 'admin' && user.isAdmin && (
         <main className="fade-in">
           <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
-            <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Lock className="text-primary" size={24} /> Configurar Agenda
-            </h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Lock className="text-primary" size={24} /> Configurar Agenda
+              </h2>
+              <button
+                className="btn-primary"
+                style={{ fontSize: '0.8rem', padding: '0.5rem 1rem', background: busySlots.length >= timeSlots.length ? 'rgba(46, 204, 113, 0.2)' : 'rgba(231, 76, 60, 0.2)', color: busySlots.length >= timeSlots.length ? '#2ecc71' : '#e74c3c', border: '1px solid currentColor' }}
+                onClick={handleToggleFullDay}
+              >
+                {busySlots.length >= timeSlots.length ? 'Liberar Dia Todo' : 'Bloquear Dia Todo'}
+              </button>
+            </div>
             <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
               {[...Array(14)].map((_, i) => {
                 const date = addDays(startOfToday(), i);
