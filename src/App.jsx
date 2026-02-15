@@ -280,7 +280,7 @@ function App() {
   };
 
   const handleMockPay = async () => {
-    if (!confirm('Deseja simular o pagamento da assinatura mensal (R$ 97,00)?')) return;
+    if (!confirm('Deseja ativar 3 dias de licença grátis para teste?')) return;
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/admin/subscription/pay`, {
@@ -290,11 +290,32 @@ function App() {
       });
       const data = await res.json();
       if (data.success) {
-        alert('Pagamento aprovado! Sua licença foi renovada por 30 dias.');
-        setSubscription({ ...subscription, daysLeft: subscription.daysLeft + 30, isActive: true });
+        alert('Licença de teste ativada por 3 dias!');
+        fetchSubscription();
       }
     } catch (e) {
-      alert('Erro no pagamento');
+      alert('Erro ao ativar licença');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubscriptionPayment = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/admin/subscription/payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email })
+      });
+      const data = await res.json();
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl;
+      } else {
+        alert('Erro ao gerar link de pagamento Mercado Pago');
+      }
+    } catch (e) {
+      alert('Erro de conexão');
     } finally {
       setLoading(false);
     }
@@ -736,21 +757,42 @@ function App() {
               <span style={{ color: subscription.daysLeft < 3 ? '#e74c3c' : '#d4af37', fontWeight: 700 }}>
                 {subscription.isActive ? `Licença: ${subscription.daysLeft} dias restantes` : 'Licença Vencida!'}
               </span>
-              <button
-                onClick={handleMockPay}
-                style={{
-                  background: 'var(--primary)',
-                  color: 'black',
-                  border: 'none',
-                  padding: '2px 10px',
-                  borderRadius: '10px',
-                  fontSize: '0.7rem',
-                  fontWeight: 800,
-                  cursor: 'pointer'
-                }}
-              >
-                PAGAR CELSO
-              </button>
+              <div style={{ display: 'flex', gap: '5px' }}>
+                <button
+                  onClick={handleMockPay}
+                  style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    color: 'white',
+                    border: '1px solid var(--border)',
+                    padding: '2px 8px',
+                    borderRadius: '8px',
+                    fontSize: '0.65rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                  title="Ativar 3 dias de teste"
+                >
+                  Ativar 3d
+                </button>
+                <button
+                  onClick={handleSubscriptionPayment}
+                  style={{
+                    background: 'var(--primary)',
+                    color: 'black',
+                    border: 'none',
+                    padding: '4px 12px',
+                    borderRadius: '10px',
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}
+                >
+                  <CreditCard size={12} /> Pagar
+                </button>
+              </div>
             </div>
           )}
 
@@ -789,7 +831,7 @@ function App() {
           </div>
           <button className="btn-icon" onClick={handleLogout} title="Sair"><LogOut /></button>
         </div>
-      </header>
+      </header >
 
       {view === 'admin' && user.isAdmin && (
         <main className="fade-in">
@@ -896,168 +938,173 @@ function App() {
             </p>
           </div>
         </main>
-      )}
+      )
+      }
 
-      {view === 'book' && (
-        <main>
-          <section style={{ marginBottom: '3rem' }}>
-            <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Scissors className="text-primary" /> Escolha o Serviço
-            </h2>
-            <div className="service-grid">
-              {services.map(s => (
-                <div
-                  key={s.id}
-                  className={`glass-card service-card ${selectedService?.id === s.id ? 'selected' : ''}`}
-                  onClick={() => setSelectedService(s)}
-                >
-                  <h3 style={{ fontSize: '1.2rem' }}>{s.name}</h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>{s.duration_minutes} min</p>
-                  <div className="price">R$ {s.price}</div>
-                  <div style={{ color: selectedService?.id === s.id ? 'var(--primary)' : 'transparent' }}>
-                    <CheckCircle size={24} />
+      {
+        view === 'book' && (
+          <main>
+            <section style={{ marginBottom: '3rem' }}>
+              <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Scissors className="text-primary" /> Escolha o Serviço
+              </h2>
+              <div className="service-grid">
+                {services.map(s => (
+                  <div
+                    key={s.id}
+                    className={`glass-card service-card ${selectedService?.id === s.id ? 'selected' : ''}`}
+                    onClick={() => setSelectedService(s)}
+                  >
+                    <h3 style={{ fontSize: '1.2rem' }}>{s.name}</h3>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>{s.duration_minutes} min</p>
+                    <div className="price">R$ {s.price}</div>
+                    <div style={{ color: selectedService?.id === s.id ? 'var(--primary)' : 'transparent' }}>
+                      <CheckCircle size={24} />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="glass-card" style={{ padding: '2rem' }}>
-            <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Calendar className="text-primary" /> Data e Horário
-            </h2>
-
-            <div className="date-list">
-              {[...Array(14)].map((_, i) => {
-                const date = addDays(startOfToday(), i);
-                const isActive = isSameDay(selectedDate, date);
-                return (
-                  <button
-                    key={i}
-                    className={`date-card ${isActive ? 'active' : ''}`}
-                    onClick={() => setSelectedDate(date)}
-                  >
-                    <div className="day-name">{format(date, 'eee', { locale: ptBR })}</div>
-                    <div className="day-number">{format(date, 'dd')}</div>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="time-slots">
-              {timeSlots.map(t => {
-                const isBusy = busySlots.find(b => b.time === t);
-                const isSelected = selectedTime === t;
-                return (
-                  <button
-                    key={t}
-                    className={`time-slot ${isSelected ? 'selected' : (isBusy ? 'occupied' : 'available')}`}
-                    onClick={() => !isBusy && setSelectedTime(t)}
-                    disabled={isBusy}
-                    title={isBusy ? 'Horário Ocupado' : 'Horário Disponível'}
-                  >
-                    {t}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div style={{ marginTop: '2.5rem', borderTop: '1px solid var(--border)', paddingTop: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Resumo {editingAppointment && '(Editando)'}:</p>
-                <h3 style={{ fontSize: '1.1rem' }}>
-                  {selectedService ? selectedService.name : 'Selecione um serviço'}
-                  {selectedTime && ` às ${selectedTime}`}
-                </h3>
+                ))}
               </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                {editingAppointment && (
-                  <button className="btn-icon" onClick={() => { setEditingAppointment(null); setView('history'); }} title="Cancelar Edição">
-                    <X size={20} />
-                  </button>
-                )}
-                <button
-                  className="btn-primary"
-                  disabled={!selectedService || !selectedTime || loading}
-                  onClick={handleBooking}
-                  style={user?.isAdmin ? { background: 'linear-gradient(135deg, #2ecc71, #27ae60)', borderColor: '#27ae60' } : {}}
-                >
-                  {loading ? 'Processando...' : (
-                    user?.isAdmin ?
-                      <><CheckCircle size={20} /> Salvar Agendamento (Admin)</> :
-                      <><Calendar size={20} /> {editingAppointment ? 'Salvar Alterações' : 'Agendar Agora'}</>
+            </section>
+
+            <section className="glass-card" style={{ padding: '2rem' }}>
+              <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Calendar className="text-primary" /> Data e Horário
+              </h2>
+
+              <div className="date-list">
+                {[...Array(14)].map((_, i) => {
+                  const date = addDays(startOfToday(), i);
+                  const isActive = isSameDay(selectedDate, date);
+                  return (
+                    <button
+                      key={i}
+                      className={`date-card ${isActive ? 'active' : ''}`}
+                      onClick={() => setSelectedDate(date)}
+                    >
+                      <div className="day-name">{format(date, 'eee', { locale: ptBR })}</div>
+                      <div className="day-number">{format(date, 'dd')}</div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="time-slots">
+                {timeSlots.map(t => {
+                  const isBusy = busySlots.find(b => b.time === t);
+                  const isSelected = selectedTime === t;
+                  return (
+                    <button
+                      key={t}
+                      className={`time-slot ${isSelected ? 'selected' : (isBusy ? 'occupied' : 'available')}`}
+                      onClick={() => !isBusy && setSelectedTime(t)}
+                      disabled={isBusy}
+                      title={isBusy ? 'Horário Ocupado' : 'Horário Disponível'}
+                    >
+                      {t}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div style={{ marginTop: '2.5rem', borderTop: '1px solid var(--border)', paddingTop: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Resumo {editingAppointment && '(Editando)'}:</p>
+                  <h3 style={{ fontSize: '1.1rem' }}>
+                    {selectedService ? selectedService.name : 'Selecione um serviço'}
+                    {selectedTime && ` às ${selectedTime}`}
+                  </h3>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  {editingAppointment && (
+                    <button className="btn-icon" onClick={() => { setEditingAppointment(null); setView('history'); }} title="Cancelar Edição">
+                      <X size={20} />
+                    </button>
                   )}
-                </button>
-              </div>
-            </div>
-          </section>
-        </main>
-      )}
-
-      {view === 'history' && (
-        <main className="fade-in">
-          <h2 style={{ marginBottom: '2rem' }}>Meus Agendamentos</h2>
-          {appointments.length === 0 ? (
-            <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
-              <History size={48} style={{ color: 'var(--border)', marginBottom: '1rem' }} />
-              <p>Você ainda não possui agendamentos.</p>
-              <button className="btn-primary" onClick={() => setView('book')} style={{ margin: '1.5rem auto' }}>Agendar Agora</button>
-            </div>
-          ) : (
-            appointments.map(a => (
-              <div key={a.id} className="glass-card appointment-item" style={{ flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <div style={{ background: 'var(--accent)', padding: '0.6rem', borderRadius: '12px', textAlign: 'center', minWidth: '55px' }}>
-                      <div style={{ fontSize: '0.65rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
-                      <div style={{ fontSize: '1rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
-                    </div>
-                    <div className="user-avatar" style={{ width: '32px', height: '32px' }}>
-                      <img src={user.picture} alt={user.name} />
-                    </div>
-                    <div>
-                      <h3 style={{ color: 'var(--primary)', fontSize: '0.95rem' }}>{a.service_name}</h3>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{a.appointment_time} - Barber Central</p>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div className={`status-tag status-${a.status}`}>
-                      {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
-                    </div>
-                    <div style={{ display: 'flex', gap: '5px' }}>
-                      <button className="btn-icon" style={{ padding: '4px', opacity: 0.8 }} onClick={() => setSelectedActionAppt(a)} title="Gerenciar"><Edit2 size={14} /></button>
-                      <button className="btn-icon" style={{ padding: '4px', opacity: 0.6, color: 'var(--danger)' }} onClick={() => handleDelete(a.id)} title="Excluir do Histórico"><Trash2 size={14} /></button>
-                    </div>
-                  </div>
+                  <button
+                    className="btn-primary"
+                    disabled={!selectedService || !selectedTime || loading}
+                    onClick={handleBooking}
+                    style={user?.isAdmin ? { background: 'linear-gradient(135deg, #2ecc71, #27ae60)', borderColor: '#27ae60' } : {}}
+                  >
+                    {loading ? 'Processando...' : (
+                      user?.isAdmin ?
+                        <><CheckCircle size={20} /> Salvar Agendamento (Admin)</> :
+                        <><Calendar size={20} /> {editingAppointment ? 'Salvar Alterações' : 'Agendar Agora'}</>
+                    )}
+                  </button>
                 </div>
-
-                {a.status === 'pending' && (
-                  <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', gap: '10px' }}>
-                    <button
-                      className="btn-primary"
-                      style={{ flex: 2, padding: '0.6rem' }}
-                      onClick={() => handlePayment(a._id || a.id)} // Garante que pega o ID correto
-                      disabled={loading}
-                    >
-                      <CreditCard size={18} /> Pagar Agora (R$ {a.price})
-                    </button>
-                    <button
-                      className="btn-icon"
-                      style={{ flex: 1, padding: '0.6rem', background: 'rgba(231, 76, 60, 0.2)', color: '#e74c3c', borderRadius: '12px' }}
-                      onClick={() => handleCancel(a.id)}
-                      disabled={loading}
-                    >
-                      <X size={18} /> Cancelar
-                    </button>
-                  </div>
-                )}
               </div>
-            ))
-          )}
-        </main>
-      )}
+            </section>
+          </main>
+        )
+      }
+
+      {
+        view === 'history' && (
+          <main className="fade-in">
+            <h2 style={{ marginBottom: '2rem' }}>Meus Agendamentos</h2>
+            {appointments.length === 0 ? (
+              <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
+                <History size={48} style={{ color: 'var(--border)', marginBottom: '1rem' }} />
+                <p>Você ainda não possui agendamentos.</p>
+                <button className="btn-primary" onClick={() => setView('book')} style={{ margin: '1.5rem auto' }}>Agendar Agora</button>
+              </div>
+            ) : (
+              appointments.map(a => (
+                <div key={a.id} className="glass-card appointment-item" style={{ flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                      <div style={{ background: 'var(--accent)', padding: '0.6rem', borderRadius: '12px', textAlign: 'center', minWidth: '55px' }}>
+                        <div style={{ fontSize: '0.65rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
+                        <div style={{ fontSize: '1rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
+                      </div>
+                      <div className="user-avatar" style={{ width: '32px', height: '32px' }}>
+                        <img src={user.picture} alt={user.name} />
+                      </div>
+                      <div>
+                        <h3 style={{ color: 'var(--primary)', fontSize: '0.95rem' }}>{a.service_name}</h3>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{a.appointment_time} - Barber Central</p>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div className={`status-tag status-${a.status}`}>
+                        {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
+                      </div>
+                      <div style={{ display: 'flex', gap: '5px' }}>
+                        <button className="btn-icon" style={{ padding: '4px', opacity: 0.8 }} onClick={() => setSelectedActionAppt(a)} title="Gerenciar"><Edit2 size={14} /></button>
+                        <button className="btn-icon" style={{ padding: '4px', opacity: 0.6, color: 'var(--danger)' }} onClick={() => handleDelete(a.id)} title="Excluir do Histórico"><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {a.status === 'pending' && (
+                    <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', gap: '10px' }}>
+                      <button
+                        className="btn-primary"
+                        style={{ flex: 2, padding: '0.6rem' }}
+                        onClick={() => handlePayment(a._id || a.id)} // Garante que pega o ID correto
+                        disabled={loading}
+                      >
+                        <CreditCard size={18} /> Pagar Agora (R$ {a.price})
+                      </button>
+                      <button
+                        className="btn-icon"
+                        style={{ flex: 1, padding: '0.6rem', background: 'rgba(231, 76, 60, 0.2)', color: '#e74c3c', borderRadius: '12px' }}
+                        onClick={() => handleCancel(a.id)}
+                        disabled={loading}
+                      >
+                        <X size={18} /> Cancelar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </main>
+        )
+      }
       {renderActionSheet()}
-    </div>
+    </div >
   );
 }
 
