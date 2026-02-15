@@ -1,0 +1,14 @@
+name = "barber-server"
+main = "src/index.js"
+compatibility_date = "2024-02-07"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "barber-db"
+database_id = "PASTE_YOUR_D1_ID_HERE"
+
+[vars]
+GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"
+MP_ACCESS_TOKEN = "YOUR_MERCADO_PAGO_TOKEN"
+FRONTEND_URL = "http://localhost:5173"
