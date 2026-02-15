@@ -16,6 +16,8 @@ export default {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
 
+        const MASTER_EMAIL = env.SUPER_ADMIN_EMAIL || 'celsosilvajunior90@gmail.com';
+
         if (request.method === 'OPTIONS') {
             return new Response(null, { headers: corsHeaders });
         }
@@ -135,9 +137,46 @@ export default {
                 return json({ success: true });
             }
 
+            // MASTER: Global Stats
+            if (url.pathname === '/api/master/stats' && request.method === 'GET') {
+                const email = request.headers.get('X-User-Email');
+                if (email !== MASTER_EMAIL) return json({ error: 'Unauthorized' }, 401);
+
+                const stats = {
+                    totalUsers: await env.DB.prepare('SELECT COUNT(*) as count FROM users').first(),
+                    totalBarbers: await env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE is_barber = 1').first(),
+                    activeAdmins: await env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE is_admin = 1').first(),
+                    totalAppointments: await env.DB.prepare('SELECT COUNT(*) as count FROM appointments').first(),
+                    connectedBots: await env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE wa_status = "connected"').first()
+                };
+                return json(stats);
+            }
+
+            // MASTER: List All Barbers/Admins
+            if (url.pathname === '/api/master/users' && request.method === 'GET') {
+                const email = request.headers.get('X-User-Email');
+                if (email !== MASTER_EMAIL) return json({ error: 'Unauthorized' }, 401);
+
+                const users = await env.DB.prepare('SELECT email, name, phone, is_admin, is_barber, wa_status, subscription_expires, trial_used FROM users ORDER BY created_at DESC').all();
+                return json(users.results);
+            }
+
             // Get WhatsApp Bridge Status (for Frontend)
             if (url.pathname === '/api/whatsapp/status' && request.method === 'GET') {
                 const email = request.headers.get('X-User-Email');
+
+                // Aproveitar a chamada do admin para limpar dados velhos (> 60 dias)
+                // Isso mantém o banco leve e dentro do plano gratuito da Cloudflare
+                try {
+                    const sixtyDaysAgo = new Date();
+                    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+                    const dateStr = sixtyDaysAgo.toISOString().split('T')[0];
+
+                    await env.DB.prepare('DELETE FROM appointments WHERE appointment_date < ?').bind(dateStr).run();
+                } catch (e) {
+                    console.error('[Cleanup Error]', e.message);
+                }
+
                 const user = await env.DB.prepare('SELECT wa_status, wa_qr FROM users WHERE email = ?').bind(email).first();
                 if (!user) return json({ error: 'User not found' }, 404);
                 return json({ status: user.wa_status || 'disconnected', qr: user.wa_qr });
@@ -230,7 +269,7 @@ export default {
                 `).bind(userData.email, userData.name, userData.picture, userData.phone || null).run();
 
                 const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(userData.email).first();
-                return json({ user: { ...user, isAdmin: user.is_admin === 1 } });
+                return json({ user: { ...user, isAdmin: user.is_admin === 1, isMaster: user.email === MASTER_EMAIL } });
             }
 
             // Get Styles/Services (exclude internal 'block' service)

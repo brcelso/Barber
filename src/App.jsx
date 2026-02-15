@@ -50,6 +50,8 @@ function App() {
   const [selectedActionAppt, setSelectedActionAppt] = useState(null);
   const [showPlanSelection, setShowPlanSelection] = useState(false);
   const [waStatus, setWaStatus] = useState({ status: 'disconnected', qr: null });
+  const [masterStats, setMasterStats] = useState(null);
+  const [masterUsers, setMasterUsers] = useState([]);
 
   // Set default view on login/load
   useEffect(() => {
@@ -65,11 +67,29 @@ function App() {
   useEffect(() => {
     let interval;
     if (view === 'admin' && user?.isAdmin) {
-      interval = setInterval(fetchWaStatus, 5000);
+      interval = setInterval(() => {
+        fetchWaStatus();
+        if (user.isMaster) fetchMasterData();
+      }, 5000);
       fetchWaStatus();
+      if (user.isMaster) fetchMasterData();
     }
     return () => clearInterval(interval);
   }, [view, user]);
+
+  const fetchMasterData = async () => {
+    try {
+      const statsRes = await fetch(`${API_URL}/master/stats`, { headers: { 'X-User-Email': user.email } });
+      const statsData = await statsRes.json();
+      setMasterStats(statsData);
+
+      const usersRes = await fetch(`${API_URL}/master/users`, { headers: { 'X-User-Email': user.email } });
+      const usersData = await usersRes.json();
+      setMasterUsers(usersData);
+    } catch (e) {
+      console.error('Erro ao buscar dados master:', e);
+    }
+  };
 
   const fetchWaStatus = async () => {
     try {
@@ -120,6 +140,7 @@ function App() {
           email: data.user.email,
           picture: data.user.picture,
           isAdmin: data.user.isAdmin,
+          isMaster: data.user.isMaster,
           phone: data.user.phone
         };
         setUser(finalUser);
@@ -1393,7 +1414,85 @@ function App() {
           </div>
         </div>
       )}
-      {/* Modal de Seleção de Planos */}
+      {/* MASTER PANEL: Painel de Controle Global */}
+      {view === 'admin' && user?.isMaster && (
+        <div style={{ padding: '0 1rem 5rem 1rem' }}>
+          <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem', border: '1px solid var(--primary)' }}>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
+              <Activity className="text-primary" size={24} /> Centro de Controle Master
+            </h2>
+
+            {masterStats && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+                <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
+                  <Users size={20} className="text-primary" />
+                  <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats.totalUsers.count}</div>
+                  <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>USUÁRIOS</div>
+                </div>
+                <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
+                  <Shield size={20} className="text-primary" />
+                  <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats.activeAdmins.count}</div>
+                  <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>ASSINANTES</div>
+                </div>
+                <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
+                  <MessageSquare size={20} className="text-primary" />
+                  <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats.connectedBots.count}</div>
+                  <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>ROBÔS ATIVOS</div>
+                </div>
+                <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
+                  <Calendar size={20} className="text-primary" />
+                  <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats.totalAppointments.count}</div>
+                  <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>AGENDAMENTOS</div>
+                </div>
+              </div>
+            )}
+
+            <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>📊 Gestão de Barbeiros</h3>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
+                    <th style={{ padding: '10px' }}>Nome / Email</th>
+                    <th style={{ padding: '10px' }}>Status Robô</th>
+                    <th style={{ padding: '10px' }}>Assinatura</th>
+                    <th style={{ padding: '10px' }}>Teste</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {masterUsers.filter(u => u.is_admin).map(u => (
+                    <tr key={u.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <td style={{ padding: '10px' }}>
+                        <div style={{ fontWeight: 700 }}>{u.name}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{u.email}</div>
+                      </td>
+                      <td style={{ padding: '10px' }}>
+                        <span style={{
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                          background: u.wa_status === 'connected' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(231, 76, 60, 0.1)',
+                          color: u.wa_status === 'connected' ? '#2ecc71' : '#e74c3c',
+                          fontSize: '0.65rem',
+                          fontWeight: 800
+                        }}>
+                          {u.wa_status === 'connected' ? 'ONLINE' : 'OFFLINE'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px' }}>
+                        <div style={{ fontSize: '0.7rem' }}>
+                          {u.subscription_expires ? new Date(u.subscription_expires).toLocaleDateString() : 'Sem Assinatura'}
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px' }}>
+                        {u.trial_used ? '✅ Usado' : '❌ Disp.'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
       {showPlanSelection && (
         <div className="modal-overlay" onClick={() => setShowPlanSelection(false)}>
           <div className="glass-card fade-in" style={{ width: '90%', maxWidth: '450px', padding: '2rem' }} onClick={e => e.stopPropagation()}>
