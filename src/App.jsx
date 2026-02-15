@@ -110,24 +110,18 @@ function App() {
     setLoading(true);
     try {
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      for (const time of timeSlots) {
-        const isBusy = busySlots.find(b => b.time === time);
-        // If blocking, only block if not already busy
-        // If unblocking, only unblock if currently blocked
-        if (isBlocking && !isBusy) {
-          await fetch(`${API_URL}/admin/toggle-block`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ date: dateStr, time, adminEmail: user.email })
-          });
-        } else if (!isBlocking && isBusy?.status === 'blocked') {
-          await fetch(`${API_URL}/admin/toggle-block`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ date: dateStr, time, adminEmail: user.email })
-          });
-        }
-      }
+      const res = await fetch(`${API_URL}/admin/bulk-toggle-block`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: dateStr,
+          action: isBlocking ? 'block' : 'unblock',
+          adminEmail: user.email,
+          times: timeSlots
+        })
+      });
+      const data = await res.json();
+      if (data.error) alert(data.error);
       await handleRefresh();
     } catch (e) {
       alert('Erro ao alterar o dia');

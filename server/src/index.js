@@ -342,6 +342,36 @@ export default {
                 }
             }
 
+            // Admin: Bulk Toggle Block Day
+            if (url.pathname === '/api/admin/bulk-toggle-block' && request.method === 'POST') {
+                const { date, action, adminEmail, times } = await request.json();
+                const admin = await env.DB.prepare('SELECT is_admin FROM users WHERE email = ?').bind(adminEmail).first();
+                if (!admin || admin.is_admin !== 1) return json({ error: 'Forbidden' }, 403);
+
+                if (action === 'block') {
+                    // Block all available times that don't have an appointment
+                    const existingTimes = await env.DB.prepare('SELECT appointment_time FROM appointments WHERE appointment_date = ? AND status != "cancelled"').bind(date).all();
+                    const busySet = new Set(existingTimes.results.map(r => r.appointment_time));
+
+                    const statements = [];
+                    for (const time of times) {
+                        if (!busySet.has(time)) {
+                            const id = `block-${crypto.randomUUID()}`;
+                            statements.push(env.DB.prepare(`
+                                INSERT INTO appointments (id, user_email, service_id, appointment_date, appointment_time, status)
+                                VALUES (?, 'system', 'block', ?, ?, 'blocked')
+                            `).bind(id, date, time));
+                        }
+                    }
+                    if (statements.length > 0) await env.DB.batch(statements);
+                    return json({ status: 'blocked' });
+                } else {
+                    // Unblock all previously blocked slots
+                    await env.DB.prepare('DELETE FROM appointments WHERE appointment_date = ? AND status = "blocked"').bind(date).run();
+                    return json({ status: 'unblocked' });
+                }
+            }
+
             // Public: Get Busy Slots for a Date
             if (url.pathname === '/api/appointments/busy-slots' && request.method === 'GET') {
                 const date = url.searchParams.get('date');
