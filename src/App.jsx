@@ -32,14 +32,26 @@ function App() {
   const [adminAppointments, setAdminAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // Set default view on login/load
+  useEffect(() => {
+    if (user?.isAdmin) {
+      setView('admin');
+    } else if (user) {
+      setView('book');
+    }
+  }, [user]);
+
   // Mock Availability
   const timeSlots = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00"];
 
   useEffect(() => {
     fetchServices();
     if (user) {
-      fetchAppointments();
-      if (user.isAdmin) fetchAdminAppointments();
+      if (user.isAdmin) {
+        fetchAdminAppointments();
+      } else {
+        fetchAppointments();
+      }
     }
   }, [user, view]);
 
@@ -59,7 +71,7 @@ function App() {
   };
 
   const fetchAppointments = async () => {
-    if (!user) return;
+    if (!user || user.isAdmin) return;
     try {
       const res = await fetch(`${API_URL}/appointments`, {
         headers: { 'X-User-Email': user.email }
@@ -189,22 +201,23 @@ function App() {
       <header className="header">
         <div>
           <h1 className="logo-text">Barber</h1>
-          <p style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>Premium Experience</p>
+          <p style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>{user.isAdmin ? 'Relatórios & Gestão' : 'Premium Experience'}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
-          {user.isAdmin && (
+          {!user.isAdmin ? (
             <>
-              <button className={`btn-icon ${view === 'admin' ? 'active-admin' : ''}`} onClick={() => setView('admin')} title="Painel Admin">
-                <Shield className={view === 'admin' ? 'text-primary' : ''} />
-              </button>
+              <button className="btn-icon" onClick={() => setView('book')} title="Agendar"><Plus /></button>
+              <button className="btn-icon" onClick={() => setView('history')} title="Meus Agendamentos"><History /></button>
             </>
+          ) : (
+            <button className="btn-icon active-admin" onClick={() => setView('admin')} title="Painel Admin">
+              <Shield className="text-primary" />
+            </button>
           )}
-          <button className="btn-icon" onClick={() => setView('book')} title="Agendar"><Plus /></button>
-          <button className="btn-icon" onClick={() => setView('history')} title="Meus Agendamentos"><History /></button>
           <div className="user-avatar" style={{ border: '1px solid var(--primary)', width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden' }}>
             <img src={user.picture} alt={user.name} style={{ width: '100%' }} />
           </div>
-          <button className="btn-icon" onClick={handleLogout}><LogOut /></button>
+          <button className="btn-icon" onClick={handleLogout} title="Sair"><LogOut /></button>
         </div>
       </header>
 
