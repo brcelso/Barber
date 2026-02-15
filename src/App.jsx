@@ -12,7 +12,9 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
-  Settings,
+  RefreshCw,
+  X,
+  Check,
   Shield
 } from 'lucide-react';
 import { format, addDays, startOfToday, isSameDay, parseISO } from 'date-fns';
@@ -152,6 +154,47 @@ function App() {
     localStorage.removeItem('barber_user');
   };
 
+  const handleRefresh = () => {
+    fetchServices();
+    fetchAppointments();
+    if (user?.isAdmin) fetchAdminAppointments();
+  };
+
+  const handleAdminConfirm = async (appointmentId) => {
+    setLoading(true);
+    try {
+      await fetch(`${API_URL}/admin/appointments/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId, adminEmail: user.email })
+      });
+      alert('Agendamento confirmado! Cliente notificado.');
+      handleRefresh();
+    } catch (e) {
+      alert('Erro ao confirmar');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancel = async (appointmentId) => {
+    if (!confirm('Tem certeza que deseja cancelar este agendamento?')) return;
+    setLoading(true);
+    try {
+      await fetch(`${API_URL}/appointments/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId, userEmail: user.email })
+      });
+      alert('Agendamento cancelado.');
+      handleRefresh();
+    } catch (e) {
+      alert('Erro ao cancelar');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleBooking = async () => {
     if (!selectedService || !selectedTime || !user) return;
     setLoading(true);
@@ -226,6 +269,7 @@ function App() {
           <p style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>{user.isAdmin ? 'Relatórios & Gestão' : 'Premium Experience'}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
+          <button className="btn-icon" onClick={handleRefresh} title="Atualizar Dados"><RefreshCw size={20} /></button>
           {!user.isAdmin ? (
             <>
               <button className="btn-icon" onClick={() => setView('book')} title="Agendar"><Plus /></button>
@@ -246,7 +290,7 @@ function App() {
       {view === 'admin' && user.isAdmin && (
         <main className="fade-in">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-            <h2>Painel do Barbeiro (Todos os Agendamentos)</h2>
+            <h2>Painel do Barbeiro</h2>
             <div className="glass-card" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
               Total: <span className="text-primary" style={{ fontWeight: 800 }}>{adminAppointments.length}</span>
             </div>
@@ -259,25 +303,30 @@ function App() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {adminAppointments.map(a => (
-                <div key={a.id} className="glass-card appointment-item" style={{ borderLeft: a.status === 'confirmed' ? '4px solid var(--success)' : '4px solid var(--primary)' }}>
-                  <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flex: 1 }}>
-                    <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: '12px', textAlign: 'center', minWidth: '60px' }}>
-                      <div style={{ fontSize: '0.7rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
+                <div key={a.id} className="glass-card appointment-item" style={{ borderLeft: a.status === 'confirmed' ? '4px solid var(--success)' : (a.status === 'cancelled' ? '4px solid var(--danger)' : '4px solid var(--primary)') }}>
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
+                    <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: '12px', textAlign: 'center', minWidth: '55px' }}>
+                      <div style={{ fontSize: '0.65rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
                     </div>
-                    <div className="user-avatar" style={{ width: '45px', height: '45px' }}>
+                    <div className="user-avatar" style={{ width: '32px', height: '32px' }}>
                       <img src={a.user_picture} alt={a.user_name} />
                     </div>
                     <div>
-                      <h3 style={{ fontSize: '1.1rem' }}>{a.user_name}</h3>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 600 }}>{a.service_name} às {a.appointment_time}</p>
+                      <h3 style={{ fontSize: '0.95rem' }}>{a.user_name}</h3>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>{a.service_name} às {a.appointment_time}</p>
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div className={`status-tag status-${a.status}`} style={{ marginBottom: '0.5rem' }}>
-                      {a.status === 'confirmed' ? 'Pago' : 'Pendente'}
+                  <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    <div className={`status-tag status-${a.status}`} style={{ fontSize: '0.7rem' }}>
+                      {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
                     </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ref: {a.id.split('-')[0]}</div>
+                    {a.status === 'pending' && (
+                      <div style={{ display: 'flex', gap: '5px' }}>
+                        <button className="btn-icon" style={{ padding: '4px', background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71' }} onClick={() => handleAdminConfirm(a.id)} title="Confirmar"><Check size={14} /></button>
+                        <button className="btn-icon" style={{ padding: '4px', background: 'rgba(231, 76, 60, 0.2)', color: '#e74c3c' }} onClick={() => handleCancel(a.id)} title="Cancelar"><X size={14} /></button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -402,15 +451,23 @@ function App() {
                   </div>
                 </div>
 
-                {a.status !== 'confirmed' && (
-                  <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                {a.status === 'pending' && (
+                  <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', gap: '10px' }}>
                     <button
                       className="btn-primary"
-                      style={{ width: '100%', padding: '0.6rem' }}
+                      style={{ flex: 2, padding: '0.6rem' }}
                       onClick={() => handlePayment(a.id)}
                       disabled={loading}
                     >
                       <CreditCard size={18} /> Pagar Agora (R$ {a.price})
+                    </button>
+                    <button
+                      className="btn-icon"
+                      style={{ flex: 1, padding: '0.6rem', background: 'rgba(231, 76, 60, 0.2)', color: '#e74c3c', borderRadius: '12px' }}
+                      onClick={() => handleCancel(a.id)}
+                      disabled={loading}
+                    >
+                      <X size={18} /> Cancelar
                     </button>
                   </div>
                 )}
