@@ -114,7 +114,7 @@ function App() {
         body: JSON.stringify({ targetEmail, ...updates })
       });
       if (res.ok) {
-        alert('Usuário atualizado com sucesso!');
+        // Silently update or show a tiny indicator. Removing alert to avoid interruptions.
         // Se estiver atualizando a si mesmo, sincroniza o estado local imediatamente
         if (targetEmail === user.email) {
           const updatedUser = {
@@ -1240,41 +1240,45 @@ function App() {
                         masterUsers.map(u => (
                           <tr key={u.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <td style={{ padding: '10px' }}>
-                              <input
-                                type="text"
-                                value={u.name || ''}
-                                onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: e.target.value, newEmail: u.email })}
-                                style={{
-                                  background: 'transparent',
-                                  border: 'none',
-                                  color: 'white',
-                                  fontWeight: 700,
-                                  fontSize: '0.85rem',
-                                  width: '100%',
-                                  outline: 'none',
-                                  padding: '2px 0'
-                                }}
-                              />
-                              <input
-                                type="email"
-                                value={u.email || ''}
-                                onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: u.name, newEmail: e.target.value })}
-                                style={{
-                                  background: 'transparent',
-                                  border: 'none',
-                                  color: 'var(--text-muted)',
-                                  fontSize: '0.7rem',
-                                  width: '100%',
-                                  outline: 'none',
-                                  padding: '2px 0'
-                                }}
-                              />
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                <input
+                                  type="text"
+                                  defaultValue={u.name || ''}
+                                  onBlur={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: e.target.value, newEmail: u.email })}
+                                  style={{
+                                    background: 'rgba(255,255,255,0.03)',
+                                    border: '1px solid var(--border)',
+                                    color: 'white',
+                                    fontWeight: 700,
+                                    fontSize: '0.8rem',
+                                    width: '100%',
+                                    outline: 'none',
+                                    padding: '6px 10px',
+                                    borderRadius: '8px'
+                                  }}
+                                />
+                                <input
+                                  type="email"
+                                  defaultValue={u.email || ''}
+                                  onBlur={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: u.name, newEmail: e.target.value })}
+                                  style={{
+                                    background: 'rgba(255,255,255,0.02)',
+                                    border: '1px solid var(--border)',
+                                    color: 'var(--text-muted)',
+                                    fontSize: '0.7rem',
+                                    width: '100%',
+                                    outline: 'none',
+                                    padding: '4px 10px',
+                                    borderRadius: '8px'
+                                  }}
+                                />
+                              </div>
                             </td>
                             <td style={{ padding: '10px' }}>
                               <input
                                 type="text"
-                                value={u.phone || ''}
-                                onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: e.target.value })}
+                                defaultValue={u.phone || ''}
+                                onBlur={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: e.target.value })}
                                 placeholder="Sem tel"
                                 style={{
                                   background: 'rgba(255,255,255,0.03)',
