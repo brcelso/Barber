@@ -79,18 +79,27 @@ function App() {
     return () => clearInterval(interval);
   }, [view, user]);
 
+  const [masterError, setMasterError] = useState(null);
+
   const fetchMasterData = async () => {
     try {
       if (!user?.email) return;
+      setMasterError(null);
+
       const statsRes = await fetch(`${API_URL}/master/stats`, { headers: { 'X-User-Email': user.email } });
       const statsData = await statsRes.json();
+      if (statsData.error) throw new Error(statsData.error);
       setMasterStats(statsData);
 
       const usersRes = await fetch(`${API_URL}/master/users`, { headers: { 'X-User-Email': user.email } });
       const usersData = await usersRes.json();
+      if (usersData.error) throw new Error(usersData.error);
+
+      console.log('[Master] Users fetched:', usersData);
       setMasterUsers(Array.isArray(usersData) ? usersData : []);
     } catch (e) {
       console.error('Erro ao buscar dados master:', e);
+      setMasterError(e.message);
     }
   };
 
@@ -342,6 +351,7 @@ function App() {
           email: data.user.email,
           picture: data.user.picture,
           isAdmin: data.user.isAdmin,
+          isMaster: data.user.isMaster,
           phone: data.user.phone
         };
         setUser(finalUser);
@@ -1099,56 +1109,70 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {masterUsers?.map(u => (
-                        <tr key={u.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                          <td style={{ padding: '10px' }}>
-                            <div style={{ fontWeight: 700 }}>{u.name}</div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{u.email}</div>
-                          </td>
-                          <td style={{ padding: '10px' }}>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.65rem' }}>
-                                <input
-                                  type="checkbox"
-                                  defaultChecked={u.is_admin}
-                                  onChange={(e) => handleMasterUpdate(u.email, { is_admin: e.target.checked, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan })}
-                                /> Adm
-                              </label>
-                              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.65rem' }}>
-                                <input
-                                  type="checkbox"
-                                  defaultChecked={u.is_barber}
-                                  onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: e.target.checked, expires: u.subscription_expires, plan: u.plan })}
-                                /> Barb
-                              </label>
-                            </div>
-                          </td>
-                          <td style={{ padding: '10px' }}>
-                            <select
-                              defaultValue={u.plan || ''}
-                              onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: e.target.value })}
-                              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '0.65rem', padding: '2px', borderRadius: '4px' }}
-                            >
-                              <option value="">Sem Plano</option>
-                              <option value="starter">Starter</option>
-                              <option value="pro">Pro AI</option>
-                              <option value="business">Business</option>
-                            </select>
-                          </td>
-                          <td style={{ padding: '10px' }}>
-                            <input
-                              type="date"
-                              defaultValue={u.subscription_expires ? u.subscription_expires.split('T')[0] : ''}
-                              onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: e.target.value ? new Date(e.target.value).toISOString() : null, plan: u.plan })}
-                              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '0.65rem', padding: '2px', borderRadius: '4px', width: '90px' }}
-                            />
-                          </td>
-                          <td style={{ padding: '10px' }}>
-                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: u.wa_status === 'connected' ? '#2ecc71' : '#e74c3c', display: 'inline-block', marginRight: '4px' }}></div>
-                            <span style={{ fontSize: '0.65rem' }}>{u.wa_status === 'connected' ? 'ON' : 'OFF'}</span>
+                      {masterError ? (
+                        <tr>
+                          <td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: '#e74c3c' }}>
+                            ❌ Erro: {masterError}
                           </td>
                         </tr>
-                      ))}
+                      ) : masterUsers?.length > 0 ? (
+                        masterUsers.map(u => (
+                          <tr key={u.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                            <td style={{ padding: '10px' }}>
+                              <div style={{ fontWeight: 700 }}>{u.name}</div>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{u.email}</div>
+                            </td>
+                            <td style={{ padding: '10px' }}>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.65rem' }}>
+                                  <input
+                                    type="checkbox"
+                                    defaultChecked={u.is_admin}
+                                    onChange={(e) => handleMasterUpdate(u.email, { is_admin: e.target.checked, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan })}
+                                  /> Adm
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.65rem' }}>
+                                  <input
+                                    type="checkbox"
+                                    defaultChecked={u.is_barber}
+                                    onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: e.target.checked, expires: u.subscription_expires, plan: u.plan })}
+                                  /> Barb
+                                </label>
+                              </div>
+                            </td>
+                            <td style={{ padding: '10px' }}>
+                              <select
+                                defaultValue={u.plan || ''}
+                                onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: e.target.value })}
+                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '0.65rem', padding: '2px', borderRadius: '4px' }}
+                              >
+                                <option value="">Sem Plano</option>
+                                <option value="starter">Starter</option>
+                                <option value="pro">Pro AI</option>
+                                <option value="business">Business</option>
+                              </select>
+                            </td>
+                            <td style={{ padding: '10px' }}>
+                              <input
+                                type="date"
+                                defaultValue={u.subscription_expires ? u.subscription_expires.split('T')[0] : ''}
+                                onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: e.target.value ? new Date(e.target.value).toISOString() : null, plan: u.plan })}
+                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '0.65rem', padding: '2px', borderRadius: '4px', width: '90px' }}
+                              />
+                            </td>
+                            <td style={{ padding: '10px' }}>
+                              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: u.wa_status === 'connected' ? '#2ecc71' : '#e74c3c', display: 'inline-block', marginRight: '4px' }}></div>
+                              <span style={{ fontSize: '0.65rem' }}>{u.wa_status === 'connected' ? 'ON' : 'OFF'}</span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            Nenhum usuário encontrado.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
