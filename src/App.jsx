@@ -355,6 +355,11 @@ function App() {
                     <div>
                       <h3 style={{ fontSize: '0.95rem' }}>{a.user_name}</h3>
                       <p style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>{a.service_name} às {a.appointment_time}</p>
+                      {a.payment_status === 'paid' ? (
+                        <p style={{ fontSize: '0.7rem', color: 'var(--success)', fontWeight: 700 }}>💰 PAGAMENTO CONFIRMADO</p>
+                      ) : (
+                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>⏳ Pagamento pendente</p>
+                      )}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '5px' }}>
@@ -478,13 +483,16 @@ function App() {
               <div key={a.id} className="glass-card appointment-item" style={{ flexDirection: 'column', gap: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                   <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <div style={{ background: 'var(--accent)', padding: '0.8rem', borderRadius: '12px', textAlign: 'center', minWidth: '60px' }}>
-                      <div style={{ fontSize: '0.7rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
+                    <div style={{ background: 'var(--accent)', padding: '0.6rem', borderRadius: '12px', textAlign: 'center', minWidth: '55px' }}>
+                      <div style={{ fontSize: '0.65rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
+                    </div>
+                    <div className="user-avatar" style={{ width: '32px', height: '32px', flexShrink: 0 }}>
+                      <img src={user.picture} alt={user.name} />
                     </div>
                     <div>
-                      <h3 style={{ color: 'var(--primary)', fontSize: '1.1rem' }}>{a.service_name}</h3>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{a.appointment_time} - Barber Central</p>
+                      <h3 style={{ color: 'var(--primary)', fontSize: '0.95rem' }}>{a.service_name}</h3>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{a.appointment_time} - Barber Central</p>
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
