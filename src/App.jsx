@@ -1021,6 +1021,14 @@ function App() {
                 const isBlocked = isBusy?.status === 'blocked';
                 const isBooked = isBusy && isBusy.status !== 'blocked';
 
+                // Ocultar horários passados se for hoje
+                if (isSameDay(selectedDate, startOfToday())) {
+                  const [h, m] = t.split(':').map(Number);
+                  const slotTime = new Date();
+                  slotTime.setHours(h, m, 0, 0);
+                  if (slotTime < new Date()) return null;
+                }
+
                 return (
                   <button
                     key={t}
@@ -1123,6 +1131,15 @@ function App() {
                     {timeSlots.map(t => {
                       const isBusy = busySlots.find(b => b.time === t);
                       const isSelected = selectedTime === t;
+
+                      // Ocultar horários passados se for hoje
+                      if (isSameDay(selectedDate, startOfToday())) {
+                        const [h, m] = t.split(':').map(Number);
+                        const slotTime = new Date();
+                        slotTime.setHours(h, m, 0, 0);
+                        if (slotTime < new Date()) return null;
+                      }
+
                       return (
                         <button
                           key={t}
