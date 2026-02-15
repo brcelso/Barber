@@ -357,9 +357,21 @@ export default {
                 });
 
                 const mpData = await mpResponse.json();
-
-                await notifyWhatsApp(appointmentId, 'pending');
+                console.log('[MP] Preference Created:', { id: mpData.id, url: mpData.init_point });
                 return json({ paymentUrl: mpData.init_point });
+            }
+
+            // Mock Appointment Payment
+            if (url.pathname === '/api/payments/mock' && request.method === 'POST') {
+                const { appointmentId, email } = await request.json();
+
+                await env.DB.prepare(`
+                    UPDATE appointments 
+                    SET payment_status = 'confirmed', status = 'confirmed', payment_id = 'mock_' || ?
+                    WHERE id = ? AND user_email = ?
+                `).bind(appointmentId, appointmentId, email).run();
+
+                return json({ success: true, message: 'Pagamento simulado com sucesso!' });
             }
 
             // Admin: Confirm Appointment (Manual)

@@ -580,21 +580,50 @@ function App() {
   };
 
   const handlePayment = async (appointmentId) => {
+    const choice = prompt("Escolha o tipo de pagamento:\n1 - Real (Mercado Pago)\n2 - Teste (Simular Sucesso)");
+    if (!choice) return;
+
+    if (choice === '1') {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_URL}/payments/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appointmentId, email: user.email })
+        });
+        const data = await res.json();
+        if (data.paymentUrl) {
+          window.location.href = data.paymentUrl;
+        } else {
+          alert('Erro ao gerar link de pagamento: ' + (data.error || 'Erro desconhecido'));
+        }
+      } catch (e) {
+        alert('Erro de conexão: ' + e.message);
+      } finally {
+        setLoading(false);
+      }
+    } else if (choice === '2') {
+      handleMockPayment(appointmentId);
+    }
+  };
+
+  const handleMockPayment = async (appointmentId) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/payments/create`, {
+      const res = await fetch(`${API_URL}/payments/mock`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ appointmentId, email: user.email })
       });
       const data = await res.json();
-      if (data.paymentUrl) {
-        window.location.href = data.paymentUrl;
+      if (data.success) {
+        alert('✅ Pagamento simulado com sucesso! O agendamento agora está confirmado.');
+        handleRefresh();
       } else {
-        alert('Erro ao gerar link de pagamento: ' + (data.error || 'Erro desconhecido'));
+        alert('Erro ao simular pagamento: ' + (data.error || 'Erro desconhecido'));
       }
     } catch (e) {
-      alert('Erro de conexão: ' + e.message);
+      alert('Erro de conexão');
     } finally {
       setLoading(false);
     }
@@ -1162,7 +1191,12 @@ function App() {
                           <img src={displayPicture || user.picture} alt="Avatar" />
                         </div>
                         <div>
-                          <h3 style={{ color: 'var(--primary)', fontSize: '0.95rem' }}>{displayTitle}</h3>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <h3 style={{ color: 'var(--primary)', fontSize: '0.95rem' }}>{displayTitle}</h3>
+                            {(a.payment_status === 'confirmed' || a.status === 'confirmed') && (
+                              <span style={{ background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>PAGO</span>
+                            )}
+                          </div>
                           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{displaySubtitle}</p>
                         </div>
                       </div>
@@ -1177,7 +1211,7 @@ function App() {
                       </div>
                     </div>
 
-                    {a.status === 'pending' && !isProfessional && (
+                    {a.status === 'pending' && (!isProfessional || user.isAdmin) && (
                       <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', gap: '10px' }}>
                         <button
                           className="btn-primary"
