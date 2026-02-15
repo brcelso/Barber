@@ -1243,7 +1243,11 @@ function App() {
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                                 <input
                                   type="text"
-                                  defaultValue={u.name || ''}
+                                  value={u.name || ''}
+                                  onChange={(e) => {
+                                    const newVal = e.target.value;
+                                    setMasterUsers(prev => prev.map(item => item.email === u.email ? { ...item, name: newVal } : item));
+                                  }}
                                   onBlur={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: e.target.value, newEmail: u.email })}
                                   style={{
                                     background: 'rgba(255,255,255,0.03)',
@@ -1259,7 +1263,11 @@ function App() {
                                 />
                                 <input
                                   type="email"
-                                  defaultValue={u.email || ''}
+                                  value={u.email || ''}
+                                  onChange={(e) => {
+                                    const newVal = e.target.value;
+                                    setMasterUsers(prev => prev.map(item => item.email === u.email ? { ...item, email: newVal } : item));
+                                  }}
                                   onBlur={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: u.name, newEmail: e.target.value })}
                                   style={{
                                     background: 'rgba(255,255,255,0.02)',
