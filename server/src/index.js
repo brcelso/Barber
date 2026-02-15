@@ -274,21 +274,29 @@ export default {
                     if (conflict) return json({ error: 'Já existe um agendamento neste horário' }, 409);
 
                     const id = `block-${crypto.randomUUID()}`;
-                    // Ensure 'system' user and 'block' service exist to satisfy FK constraints
-                    await env.DB.prepare(`
-                        INSERT OR IGNORE INTO users (email, name, is_admin, created_at)
-                        VALUES ('system', 'System', 0, CURRENT_TIMESTAMP)
-                    `).run();
-                    await env.DB.prepare(`
-                        INSERT OR IGNORE INTO services (id, name, price, duration_minutes, description)
-                        VALUES ('block', 'Blocked Slot', 0.0, 0, 'Reserved by admin')
-                    `).run();
+                    try {
+                        // Ensure 'system' user and 'block' service exist to satisfy FK constraints
+                        await env.DB.prepare(`
+                            INSERT OR IGNORE INTO users (email, name, is_admin, created_at)
+                            VALUES ('system', 'System', 0, CURRENT_TIMESTAMP)
+                        `).run();
+                        await env.DB.prepare(`
+                            INSERT OR IGNORE INTO services (id, name, price, duration_minutes, description)
+                            VALUES ('block', 'Blocked Slot', 0.0, 0, 'Reserved by admin')
+                        `).run();
 
-                    await env.DB.prepare(`
-                        INSERT INTO appointments (id, user_email, service_id, appointment_date, appointment_time, status)
-                        VALUES (?, 'system', 'block', ?, ?, 'blocked')
-                    `).bind(id, date, time).run();
-                    return json({ status: 'blocked' });
+                        // Debug logging to help diagnose FK issues
+                        console.log('[toggle-block] inserting block', { id, date, time });
+
+                        await env.DB.prepare(`
+                            INSERT INTO appointments (id, user_email, service_id, appointment_date, appointment_time, status)
+                            VALUES (?, 'system', 'block', ?, ?, 'blocked')
+                        `).bind(id, date, time).run();
+                        return json({ status: 'blocked' });
+                    } catch (e) {
+                        console.error('[toggle-block] failed to insert block', e && e.message, e && e.stack);
+                        return json({ error: 'DB Insert failed: ' + (e && e.message) }, 500);
+                    }
                 }
             }
 
