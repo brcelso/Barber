@@ -46,6 +46,8 @@ function App() {
   const [showPhoneSetup, setShowPhoneSetup] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
   const [showManualLogin, setShowManualLogin] = useState(false);
+  const [paymentSelectionAppt, setPaymentSelectionAppt] = useState(null);
+  const [selectedActionAppt, setSelectedActionAppt] = useState(null);
 
   // Set default view on login/load
   useEffect(() => {
@@ -155,11 +157,11 @@ function App() {
     }
   }, [selectedBarber, selectedDate]);
 
-  const fetchBusySlots = async (date) => {
-    if (!selectedBarber) return;
+  const fetchBusySlots = async (date, barber = selectedBarber, ts = Date.now()) => {
+    if (!barber) return;
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
-      const res = await fetch(`${API_URL}/appointments/busy-slots?date=${dateStr}&barber_email=${selectedBarber.email}&t=${Date.now()}`);
+      const res = await fetch(`${API_URL}/appointments/busy-slots?date=${dateStr}&barber_email=${barber.email}&t=${ts}`);
       const data = await res.json();
       setBusySlots(data || []);
     } catch (e) {
@@ -177,12 +179,11 @@ function App() {
     } catch (e) { console.error('Failed to fetch barbers'); }
   };
 
-  const [selectedActionAppt, setSelectedActionAppt] = useState(null);
   const [sheetView, setSheetView] = useState('main'); // 'main' or 'status'
 
-  const fetchServices = async () => {
+  const fetchServices = async (ts = '') => {
     try {
-      const url = selectedBarber ? `${API_URL}/services?barber_email=${selectedBarber.email}` : `${API_URL}/services`;
+      const url = selectedBarber ? `${API_URL}/services?barber_email=${selectedBarber.email}&t=${ts}` : `${API_URL}/services?t=${ts}`;
       const res = await fetch(url);
       const data = await res.json();
       setServices(data || []);
@@ -196,10 +197,10 @@ function App() {
     }
   };
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = async (ts = '') => {
     if (!user) return;
     try {
-      const res = await fetch(`${API_URL}/appointments`, {
+      const res = await fetch(`${API_URL}/appointments?_t=${ts || Date.now()}`, {
         headers: { 'X-User-Email': user.email }
       });
       const data = await res.json();
@@ -209,10 +210,10 @@ function App() {
     }
   };
 
-  const fetchAdminAppointments = async () => {
+  const fetchAdminAppointments = async (ts = '') => {
     if (!user?.isAdmin) return;
     try {
-      const res = await fetch(`${API_URL}/admin/appointments`, {
+      const res = await fetch(`${API_URL}/admin/appointments?_t=${ts || Date.now()}`, {
         headers: { 'X-User-Email': user.email }
       });
       const data = await res.json();
@@ -285,10 +286,10 @@ function App() {
     localStorage.removeItem('barber_user');
   };
 
-  const fetchSubscription = async () => {
+  const fetchSubscription = async (ts = '') => {
     if (!user?.isAdmin) return;
     try {
-      const res = await fetch(`${API_URL}/admin/subscription`, {
+      const res = await fetch(`${API_URL}/admin/subscription?t=${ts}`, {
         headers: { 'X-User-Email': user.email }
       });
       const data = await res.json();
@@ -363,22 +364,30 @@ function App() {
 
   const handleRefresh = async () => {
     setLoading(true);
+    const ts = Date.now(); // Cache-busting timestamp
     const promises = [
-      fetchServices(),
-      fetchAppointments(),
+      fetchServices(ts),
+      fetchAppointments(ts),
     ];
 
     if (user?.isAdmin) {
-      promises.push(fetchAdminAppointments());
-      promises.push(fetchSubscription());
+      promises.push(fetchAdminAppointments(ts));
+      promises.push(fetchSubscription(ts));
     }
 
-    if (selectedDate) {
-      promises.push(fetchBusySlots(selectedDate));
+    if (selectedDate && selectedBarber) {
+      promises.push(fetchBusySlots(selectedDate, selectedBarber, ts));
     }
 
-    await Promise.all(promises);
-    setLoading(false);
+    try {
+      await Promise.all(promises);
+      console.log('Dados atualizados:', new Date().toLocaleTimeString());
+    } catch (e) {
+      console.error('Erro na sincronização:', e);
+      // Fallback option: window.location.reload();
+    } finally {
+      setLoading(false);
+    }
   };
 
 
@@ -579,17 +588,21 @@ function App() {
     }
   };
 
-  const handlePayment = async (appointmentId) => {
-    const choice = prompt("Escolha o tipo de pagamento:\n1 - Real (Mercado Pago)\n2 - Teste (Simular Sucesso)");
-    if (!choice) return;
+  const handlePayment = (appt) => {
+    setPaymentSelectionAppt(appt);
+  };
 
-    if (choice === '1') {
-      setLoading(true);
-      try {
+  const processPayment = async (type) => {
+    const apptId = paymentSelectionAppt.id;
+    setPaymentSelectionAppt(null);
+
+    setLoading(true);
+    try {
+      if (type === 'real') {
         const res = await fetch(`${API_URL}/payments/create`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ appointmentId, email: user.email })
+          body: JSON.stringify({ appointmentId: apptId, email: user.email })
         });
         const data = await res.json();
         if (data.paymentUrl) {
@@ -597,30 +610,20 @@ function App() {
         } else {
           alert('Erro ao gerar link de pagamento: ' + (data.error || 'Erro desconhecido'));
         }
-      } catch (e) {
-        alert('Erro de conexão: ' + e.message);
-      } finally {
-        setLoading(false);
-      }
-    } else if (choice === '2') {
-      handleMockPayment(appointmentId);
-    }
-  };
-
-  const handleMockPayment = async (appointmentId) => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/payments/mock`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appointmentId, email: user.email })
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert('✅ Pagamento simulado com sucesso! O agendamento agora está confirmado.');
-        handleRefresh();
       } else {
-        alert('Erro ao simular pagamento: ' + (data.error || 'Erro desconhecido'));
+        const res = await fetch(`${API_URL}/payments/mock`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appointmentId: apptId, email: user.email })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('✅ Pagamento de teste confirmado!');
+          // Forçar atualização total
+          await handleRefresh();
+        } else {
+          alert('Erro ao simular pagamento: ' + (data.error || 'Erro desconhecido'));
+        }
       }
     } catch (e) {
       alert('Erro de conexão');
@@ -959,7 +962,7 @@ function App() {
                             <button
                               className="btn-primary"
                               style={{ fontSize: '0.65rem', padding: '2px 8px', height: 'auto', minHeight: 'unset' }}
-                              onClick={() => handlePayment(a.id)}
+                              onClick={() => handlePayment(a)}
                             >
                               Pagar
                             </button>
@@ -1227,7 +1230,7 @@ function App() {
                         <button
                           className="btn-primary"
                           style={{ flex: 2, padding: '0.6rem' }}
-                          onClick={() => handlePayment(a._id || a.id)}
+                          onClick={() => handlePayment(a)}
                           disabled={loading}
                         >
                           <CreditCard size={18} /> Pagar Agora (R$ {a.price})
@@ -1255,7 +1258,43 @@ function App() {
           </main>
         )
       }
+
       {renderActionSheet()}
+
+      {/* Menu de Opções de Pagamento (Control List style) */}
+      {paymentSelectionAppt && (
+        <div className="bottom-sheet-overlay" onClick={() => setPaymentSelectionAppt(null)}>
+          <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
+            <div className="sheet-header"></div>
+            <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--primary)' }}>Como deseja pagar?</h3>
+            <div className="action-list">
+              <button className="action-item" onClick={() => processPayment('real')}>
+                <div style={{ background: 'rgba(212, 175, 55, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                  <CreditCard size={24} color="var(--primary)" />
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontWeight: 800 }}>Pagamento Real</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>PIX ou Cartão via Mercado Pago</div>
+                </div>
+              </button>
+
+              <button className="action-item" style={{ borderColor: 'rgba(46, 204, 113, 0.2)' }} onClick={() => processPayment('mock')}>
+                <div style={{ background: 'rgba(46, 204, 113, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                  <Shield size={24} color="#2ecc71" />
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontWeight: 800, color: '#2ecc71' }}>Simular Sucesso</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Apenas para teste (Liberação imediata)</div>
+                </div>
+              </button>
+
+              <button className="btn-close-sheet" onClick={() => setPaymentSelectionAppt(null)}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
