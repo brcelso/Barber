@@ -347,6 +347,13 @@ function App() {
       });
       const data = await res.json();
       setSubscription(data);
+
+      // Auto-update isMaster if server says so (fixes old sessions)
+      if (data.isMaster && !user.isMaster) {
+        const updated = { ...user, isMaster: true };
+        setUser(updated);
+        localStorage.setItem('barber_user', JSON.stringify(updated));
+      }
     } catch (e) {
       console.error('Falha ao buscar assinatura');
     }

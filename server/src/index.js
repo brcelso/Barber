@@ -120,7 +120,8 @@ export default {
                     daysLeft: Math.max(0, diffDays),
                     expires: user.subscription_expires,
                     isActive: diffTime > 0,
-                    trialUsed: !!user.trial_used
+                    trialUsed: !!user.trial_used,
+                    isMaster: email === MASTER_EMAIL
                 });
             }
 
