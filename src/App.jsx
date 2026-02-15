@@ -39,7 +39,8 @@ function App() {
   const [adminAppointments, setAdminAppointments] = useState([]);
   const [busySlots, setBusySlots] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [isAdminMode, setIsAdminMode] = useState(true);
+  const [isAdminMode, setIsAdminMode] = useState(false); // Changed default to false
+  const [subscription, setSubscription] = useState({ daysLeft: 0, isActive: false, expires: null }); // New state
   const [showPhoneSetup, setShowPhoneSetup] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
   const [showManualLogin, setShowManualLogin] = useState(false);
@@ -47,7 +48,9 @@ function App() {
   // Set default view on login/load
   useEffect(() => {
     if (user?.isAdmin) {
+      setIsAdminMode(true); // Set isAdminMode to true for admins
       setView('admin');
+      fetchSubscription(); // Fetch subscription for admins
     } else if (user) {
       setView('book');
     }
@@ -260,12 +263,47 @@ function App() {
     localStorage.removeItem('barber_user');
   };
 
+  const fetchSubscription = async () => {
+    if (!user?.isAdmin) return;
+    try {
+      const res = await fetch(`${API_URL}/admin/subscription`, {
+        headers: { 'X-User-Email': user.email }
+      });
+      const data = await res.json();
+      setSubscription(data);
+    } catch (e) {
+      console.error('Falha ao buscar assinatura');
+    }
+  };
+
+  const handleMockPay = async () => {
+    if (!confirm('Deseja simular o pagamento da assinatura mensal (R$ 97,00)?')) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/admin/subscription/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Pagamento aprovado! Sua licença foi renovada por 30 dias.');
+        setSubscription({ ...subscription, daysLeft: subscription.daysLeft + 30, isActive: true });
+      }
+    } catch (e) {
+      alert('Erro no pagamento');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRefresh = async () => {
     setLoading(true);
     await Promise.all([
       fetchServices(),
       user?.isAdmin ? fetchAdminAppointments() : fetchAppointments(),
-      selectedDate ? fetchBusySlots(selectedDate) : Promise.resolve()
+      selectedDate ? fetchBusySlots(selectedDate) : Promise.resolve(),
+      user?.isAdmin ? fetchSubscription() : Promise.resolve()
     ]);
     setLoading(false);
   };
@@ -590,6 +628,39 @@ function App() {
         </div>
 
         <div className="user-nav-group">
+          {user.isAdmin && (
+            <div className="subscription-badge" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '0.4rem 1rem',
+              background: subscription.daysLeft < 3 ? 'rgba(231, 76, 60, 0.1)' : 'rgba(212, 175, 55, 0.1)',
+              borderRadius: '20px',
+              fontSize: '0.8rem',
+              border: `1px solid ${subscription.daysLeft < 3 ? '#e74c3c' : '#d4af37'}`,
+              marginBottom: '10px'
+            }}>
+              <span style={{ color: subscription.daysLeft < 3 ? '#e74c3c' : '#d4af37', fontWeight: 700 }}>
+                {subscription.isActive ? `Licença: ${subscription.daysLeft} dias restantes` : 'Licença Vencida!'}
+              </span>
+              <button
+                onClick={handleMockPay}
+                style={{
+                  background: 'var(--primary)',
+                  color: 'black',
+                  border: 'none',
+                  padding: '2px 10px',
+                  borderRadius: '10px',
+                  fontSize: '0.7rem',
+                  fontWeight: 800,
+                  cursor: 'pointer'
+                }}
+              >
+                PAGAR CELSO
+              </button>
+            </div>
+          )}
+
           <nav className="nav-segmented">
             <button
               className={`nav-item-fluid ${view === 'book' ? 'active' : ''}`}

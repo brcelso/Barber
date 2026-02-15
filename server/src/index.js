@@ -31,6 +31,16 @@ export default {
                 }
 
                 try {
+                    // Check Subscription
+                    const adminUser = await env.DB.prepare('SELECT subscription_expires FROM users WHERE is_admin = 1 LIMIT 1').first();
+                    const now = new Date();
+                    const expires = adminUser?.subscription_expires ? new Date(adminUser.subscription_expires) : null;
+
+                    if (!expires || expires < now) {
+                        console.log('[WhatsApp] AVISO: Assinatura vencida. Mensagem não enviada.');
+                        return;
+                    }
+
                     const appt = await env.DB.prepare(`
                         SELECT a.*, s.name as service_name, u.phone, u.name as user_name
                         FROM appointments a
@@ -88,6 +98,40 @@ export default {
             // Health check
             if (url.pathname === '/') {
                 return json({ status: 'Barber API Online', time: new Date().toISOString() });
+            }
+
+            // Subscription Status
+            if (url.pathname === '/api/admin/subscription' && request.method === 'GET') {
+                const email = request.headers.get('X-User-Email');
+                const user = await env.DB.prepare('SELECT is_admin, subscription_expires FROM users WHERE email = ?').bind(email).first();
+                if (!user || user.is_admin !== 1) return json({ error: 'Permission Denied' }, 403);
+
+                const now = new Date();
+                const expires = user.subscription_expires ? new Date(user.subscription_expires) : new Date();
+                const diffTime = expires - now;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                return json({
+                    daysLeft: Math.max(0, diffDays),
+                    expires: user.subscription_expires,
+                    isActive: diffTime > 0
+                });
+            }
+
+            // Mock Payment
+            if (url.pathname === '/api/admin/subscription/pay' && request.method === 'POST') {
+                const { email } = await request.json();
+                const user = await env.DB.prepare('SELECT is_admin, subscription_expires FROM users WHERE email = ?').bind(email).first();
+                if (!user || user.is_admin !== 1) return json({ error: 'Permission Denied' }, 403);
+
+                // Add 30 days to existing or now
+                const currentExpires = user.subscription_expires ? new Date(user.subscription_expires) : new Date();
+                const base = currentExpires > new Date() ? currentExpires : new Date();
+                base.setDate(base.getDate() + 30);
+                const newExpires = base.toISOString();
+
+                await env.DB.prepare('UPDATE users SET subscription_expires = ? WHERE email = ?').bind(newExpires, email).run();
+                return json({ success: true, newExpires, daysLeft: 30 });
             }
 
             // Authentication / Login
