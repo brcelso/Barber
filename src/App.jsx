@@ -1032,9 +1032,33 @@ function App() {
           {user?.isMaster && (
             <div style={{ marginBottom: '2rem' }}>
               <div className="glass-card" style={{ padding: '2rem', border: '1px solid var(--primary)' }}>
-                <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
-                  <Activity className="text-primary" size={24} /> Centro de Controle Master
-                </h2>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Activity className="text-primary" size={24} /> Centro de Controle Master
+                  </h2>
+                  <button
+                    style={{
+                      padding: '8px 15px',
+                      fontSize: '0.75rem',
+                      background: 'rgba(231, 76, 60, 0.1)',
+                      color: '#e74c3c',
+                      border: '1px solid rgba(231, 76, 60, 0.3)',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontWeight: 700
+                    }}
+                    onClick={() => {
+                      if (confirm('Isso reiniciará todos os robôs ativos. Continuar?')) {
+                        handleMasterRestartBot('ALL');
+                      }
+                    }}
+                  >
+                    <RefreshCw size={14} /> Reiniciar Sistema Geral
+                  </button>
+                </div>
 
                 {masterStats && (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
@@ -1070,7 +1094,6 @@ function App() {
                         <th style={{ padding: '10px' }}>Papéis</th>
                         <th style={{ padding: '10px' }}>Expiração</th>
                         <th style={{ padding: '10px' }}>Bot</th>
-                        <th style={{ padding: '10px' }}>Ações</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1083,10 +1106,18 @@ function App() {
                           <td style={{ padding: '10px' }}>
                             <div style={{ display: 'flex', gap: '8px' }}>
                               <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.65rem' }}>
-                                <input type="checkbox" defaultChecked={u.is_admin} id={`admin-${u.email}`} /> Adm
+                                <input
+                                  type="checkbox"
+                                  defaultChecked={u.is_admin}
+                                  onChange={(e) => handleMasterUpdate(u.email, { is_admin: e.target.checked, is_barber: u.is_barber, expires: u.subscription_expires })}
+                                /> Adm
                               </label>
                               <label style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.65rem' }}>
-                                <input type="checkbox" defaultChecked={u.is_barber} id={`barber-${u.email}`} /> Barb
+                                <input
+                                  type="checkbox"
+                                  defaultChecked={u.is_barber}
+                                  onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: e.target.checked, expires: u.subscription_expires })}
+                                /> Barb
                               </label>
                             </div>
                           </td>
@@ -1094,50 +1125,13 @@ function App() {
                             <input
                               type="date"
                               defaultValue={u.subscription_expires ? u.subscription_expires.split('T')[0] : ''}
-                              id={`expiry-${u.email}`}
+                              onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: e.target.value ? new Date(e.target.value).toISOString() : null })}
                               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '0.65rem', padding: '2px', borderRadius: '4px', width: '90px' }}
                             />
                           </td>
                           <td style={{ padding: '10px' }}>
                             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: u.wa_status === 'connected' ? '#2ecc71' : '#e74c3c', display: 'inline-block', marginRight: '4px' }}></div>
                             <span style={{ fontSize: '0.65rem' }}>{u.wa_status === 'connected' ? 'ON' : 'OFF'}</span>
-                          </td>
-                          <td style={{ padding: '10px' }}>
-                            <div style={{ display: 'flex', gap: '5px' }}>
-                              <button
-                                className="btn-primary"
-                                style={{ padding: '3px 8px', fontSize: '0.6rem', height: 'auto' }}
-                                onClick={() => {
-                                  const expiresDate = document.getElementById(`expiry-${u.email}`).value;
-                                  handleMasterUpdate(u.email, {
-                                    is_admin: document.getElementById(`admin-${u.email}`).checked,
-                                    is_barber: document.getElementById(`barber-${u.email}`).checked,
-                                    expires: expiresDate ? new Date(expiresDate).toISOString() : null
-                                  });
-                                }}
-                              >
-                                Salvar
-                              </button>
-                              <button
-                                style={{
-                                  padding: '3px 8px',
-                                  fontSize: '0.6rem',
-                                  height: 'auto',
-                                  background: 'rgba(52, 152, 219, 0.1)',
-                                  color: '#3498db',
-                                  border: '1px solid rgba(52, 152, 219, 0.2)',
-                                  borderRadius: '6px',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '2px'
-                                }}
-                                onClick={() => handleMasterRestartBot(u.email)}
-                                title="Reiniciar Instância do Robô"
-                              >
-                                <RefreshCw size={10} /> Reiniciar
-                              </button>
-                            </div>
                           </td>
                         </tr>
                       ))}

@@ -134,6 +134,19 @@ app.post('/api/restart', async (req, res) => {
     if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });
     if (!email) return res.status(400).json({ error: 'Email necessário' });
 
+    if (email === 'ALL') {
+        console.log('[Global Restart] Reiniciando TODOS os robôs...');
+        for (const [id, sock] of sessions.entries()) {
+            try {
+                sock.ev.removeAllListeners('connection.update');
+                sock.end();
+            } catch (e) { }
+        }
+        sessions.clear();
+        setTimeout(() => loadExistingSessions(), 1000);
+        return res.json({ success: true, message: 'Reiniciando todos os robôs do sistema' });
+    }
+
     if (sessions.has(email)) {
         console.log(`[Restart] Terminando sessão antiga para ${email}...`);
         try {
