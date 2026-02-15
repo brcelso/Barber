@@ -29,6 +29,7 @@ function App() {
   const [selectedDate, setSelectedDate] = useState(startOfToday());
   const [selectedTime, setSelectedTime] = useState(null);
   const [appointments, setAppointments] = useState([]);
+  const [adminAppointments, setAdminAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Mock Availability
@@ -36,8 +37,11 @@ function App() {
 
   useEffect(() => {
     fetchServices();
-    if (user) fetchAppointments();
-  }, [user]);
+    if (user) {
+      fetchAppointments();
+      if (user.isAdmin) fetchAdminAppointments();
+    }
+  }, [user, view]);
 
   const fetchServices = async () => {
     try {
@@ -67,13 +71,26 @@ function App() {
     }
   };
 
+  const fetchAdminAppointments = async () => {
+    if (!user?.isAdmin) return;
+    try {
+      const res = await fetch(`${API_URL}/admin/appointments`, {
+        headers: { 'X-User-Email': user.email }
+      });
+      const data = await res.json();
+      setAdminAppointments(data || []);
+    } catch (e) {
+      console.error('Failed to fetch admin appointments');
+    }
+  };
+
   const handleLogin = (mock = true) => {
     // Simple mock login for demo, similar to what Leca does but with a button
     const mockUser = {
-      name: 'Cliente Vip',
-      email: 'cliente@exemplo.com',
-      picture: 'https://cdn-icons-png.flaticon.com/512/147/147144.png',
-      isAdmin: false
+      name: 'Celso Junior',
+      email: 'celsosilvajunior90@gmail.com',
+      picture: 'https://lh3.googleusercontent.com/a/ACg8ocL8vXG_JqXnZwGZz_X_lY9vjWJzJ0_X_lY9vjWJzJ0_X_lY9vjWJzJ0_X_lY9vjWJzJ0_X_lY9vjWZ=s96-c',
+      isAdmin: true
     };
     setUser(mockUser);
     localStorage.setItem('barber_user', JSON.stringify(mockUser));
@@ -138,7 +155,13 @@ function App() {
           <p style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>Premium Experience</p>
         </div>
         <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
-          {user.isAdmin && <span className="admin-badge">ADMIN</span>}
+          {user.isAdmin && (
+            <>
+              <button className={`btn-icon ${view === 'admin' ? 'active-admin' : ''}`} onClick={() => setView('admin')} title="Painel Admin">
+                <Shield className={view === 'admin' ? 'text-primary' : ''} />
+              </button>
+            </>
+          )}
           <button className="btn-icon" onClick={() => setView('book')} title="Agendar"><Plus /></button>
           <button className="btn-icon" onClick={() => setView('history')} title="Meus Agendamentos"><History /></button>
           <div className="user-avatar" style={{ border: '1px solid var(--primary)', width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden' }}>
@@ -147,6 +170,49 @@ function App() {
           <button className="btn-icon" onClick={handleLogout}><LogOut /></button>
         </div>
       </header>
+
+      {view === 'admin' && user.isAdmin && (
+        <main className="fade-in">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+            <h2>Painel do Barbeiro (Todos os Agendamentos)</h2>
+            <div className="glass-card" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+              Total: <span className="text-primary" style={{ fontWeight: 800 }}>{adminAppointments.length}</span>
+            </div>
+          </div>
+          {adminAppointments.length === 0 ? (
+            <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
+              <History size={48} style={{ color: 'var(--border)', marginBottom: '1rem' }} />
+              <p>Nenhum agendamento encontrado no sistema.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {adminAppointments.map(a => (
+                <div key={a.id} className="glass-card appointment-item" style={{ borderLeft: a.status === 'confirmed' ? '4px solid var(--success)' : '4px solid var(--primary)' }}>
+                  <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flex: 1 }}>
+                    <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: '12px', textAlign: 'center', minWidth: '60px' }}>
+                      <div style={{ fontSize: '0.7rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
+                    </div>
+                    <div className="user-avatar" style={{ width: '45px', height: '45px' }}>
+                      <img src={a.user_picture} alt={a.user_name} />
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: '1.1rem' }}>{a.user_name}</h3>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 600 }}>{a.service_name} às {a.appointment_time}</p>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div className={`status-tag status-${a.status}`} style={{ marginBottom: '0.5rem' }}>
+                      {a.status === 'confirmed' ? 'Pago' : 'Pendente'}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ref: {a.id.split('-')[0]}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </main>
+      )}
 
       {view === 'book' && (
         <main>

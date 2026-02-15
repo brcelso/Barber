@@ -46,13 +46,33 @@ export default {
                 `).bind(userData.email, userData.name, userData.picture).run();
 
                 const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(userData.email).first();
-                return json({ user });
+                return json({ user: { ...user, isAdmin: user.is_admin === 1 } });
             }
 
             // Get Styles/Services
             if (url.pathname === '/api/services' && request.method === 'GET') {
                 const services = await env.DB.prepare('SELECT * FROM services').all();
                 return json(services.results);
+            }
+
+            // Admin: Get ALL Appointments
+            if (url.pathname === '/api/admin/appointments' && request.method === 'GET') {
+                const email = request.headers.get('X-User-Email');
+                const user = await env.DB.prepare('SELECT is_admin FROM users WHERE email = ?').bind(email).first();
+
+                if (!user || user.is_admin !== 1) {
+                    return json({ error: 'Permission Denied' }, 403);
+                }
+
+                const allAppointments = await env.DB.prepare(`
+                    SELECT a.*, s.name as service_name, s.price, u.name as user_name, u.picture as user_picture
+                    FROM appointments a
+                    JOIN services s ON a.service_id = s.id
+                    JOIN users u ON a.user_email = u.email
+                    ORDER BY a.appointment_date DESC, a.appointment_time DESC
+                `).all();
+
+                return json(allAppointments.results);
             }
 
             // Get Appointments for a user

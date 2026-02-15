@@ -6,9 +6,9 @@ workers_dev = true
 [[d1_databases]]
 binding = "DB"
 database_name = "barber-db"
-database_id = "PASTE_YOUR_D1_ID_HERE"
+database_id = "833f15c1-bda9-43fa-a890-0dbaf04514e8"
 
 [vars]
-GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"
-MP_ACCESS_TOKEN = "YOUR_MERCADO_PAGO_TOKEN"
-FRONTEND_URL = "http://localhost:5173"
+GOOGLE_CLIENT_ID = "694887187195-kf7r52e37jec4ibkk33f8l06rq7tojq0.apps.googleusercontent.com"
+MP_ACCESS_TOKEN = "APP_USR-1253235899009881-021420-881c35d24b04f32cf875035eeb71fe77-124280008"
+FRONTEND_URL = "https://brcelso.github.io/Barber"
