@@ -12,12 +12,13 @@ let whatsappProcess = null;
 async function checkLicense() {
     try {
         const res = await axios.get(`${API_URL}/admin/subscription`, {
-            headers: { 'X-User-Email': ADMIN_EMAIL }
+            headers: { 'X-User-Email': ADMIN_EMAIL },
+            timeout: 10000
         });
         return res.data;
     } catch (e) {
-        console.error('❌ Falha ao verificar licença:', e.message);
-        return { isActive: false, daysLeft: 0 };
+        console.error(`❌ Falha na conexão (${new Date().toLocaleTimeString()}):`, e.code === 'ENOTFOUND' ? 'Servidor Offline ou Sem Internet' : e.message);
+        return null;
     }
 }
 
@@ -76,6 +77,12 @@ async function run() {
     while (true) {
         const license = await checkLicense();
 
+        // Se falhou a rede, não faz nada e tenta de novo no próximo ciclo
+        if (license === null) {
+            await new Promise(r => setTimeout(r, 10000));
+            continue;
+        }
+
         if (license.isActive) {
             if (!isActive) {
                 console.log(`\n✅ Assinatura Ativada! (Restam ${license.daysLeft} dias)`);
@@ -85,14 +92,13 @@ async function run() {
                 isActive = true;
             }
         } else {
-            if (isActive || !license.isActive) {
-                if (isActive) {
-                    console.log('\n⚠️ Assinatura expirou ou foi cancelada. Desligando...');
-                    if (ngrokProcess) ngrokProcess.kill();
-                    if (whatsappProcess) whatsappProcess.kill();
-                    isActive = false;
-                }
-                console.log(`\r⏳ Aguardando assinatura ativa... [${new Date().toLocaleTimeString()}]`,);
+            if (isActive) {
+                console.log('\n⚠️ Assinatura expirou ou foi cancelada no servidor. Desligando...');
+                if (ngrokProcess) ngrokProcess.kill();
+                if (whatsappProcess) whatsappProcess.kill();
+                isActive = false;
+            } else {
+                process.stdout.write(`\r⏳ Aguardando assinatura ativa... [${new Date().toLocaleTimeString()}]`);
             }
         }
 
