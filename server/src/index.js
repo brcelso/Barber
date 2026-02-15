@@ -305,7 +305,39 @@ export default {
                         return json({ status: 'blocked' });
                     } catch (e) {
                         console.error('[toggle-block] failed to insert block', e && e.message, e && e.stack);
-                        return json({ error: 'DB Insert failed: ' + (e && e.message) }, 500);
+                        // Gather diagnostic info to help identify which FK is failing
+                        let userRow = null;
+                        let serviceRow = null;
+                        let fkCheck = null;
+                        let fkList = null;
+                        try {
+                            userRow = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind('system').first();
+                        } catch (err2) {
+                            userRow = { error: err2.message };
+                        }
+                        try {
+                            serviceRow = await env.DB.prepare('SELECT * FROM services WHERE id = ?').bind('block').first();
+                        } catch (err3) {
+                            serviceRow = { error: err3.message };
+                        }
+                        try {
+                            fkCheck = await env.DB.prepare('PRAGMA foreign_key_check').all();
+                        } catch (err4) {
+                            fkCheck = { error: err4.message };
+                        }
+                        try {
+                            fkList = await env.DB.prepare("PRAGMA foreign_key_list('appointments')").all();
+                        } catch (err5) {
+                            fkList = { error: err5.message };
+                        }
+
+                        return json({
+                            error: e && e.message,
+                            userRow: userRow && userRow.results ? userRow.results[0] : userRow,
+                            serviceRow: serviceRow && serviceRow.results ? serviceRow.results[0] : serviceRow,
+                            fkCheck: fkCheck && fkCheck.results ? fkCheck.results : fkCheck,
+                            fkList: fkList && fkList.results ? fkList.results : fkList
+                        }, 500);
                     }
                 }
             }
