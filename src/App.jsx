@@ -159,6 +159,8 @@ function App() {
     }
   };
 
+  const [selectedActionAppt, setSelectedActionAppt] = useState(null);
+
   const fetchServices = async () => {
     try {
       const res = await fetch(`${API_URL}/services`);
@@ -517,7 +519,52 @@ function App() {
       setLoading(false);
     }
   };
+  const renderActionSheet = () => {
+    if (!selectedActionAppt) return null;
+    const isPending = selectedActionAppt.status === 'pending';
 
+    return (
+      <div className="bottom-sheet-overlay" onClick={() => setSelectedActionAppt(null)}>
+        <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
+          <div className="sheet-header"></div>
+          <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--primary)' }}>O que deseja fazer?</h3>
+
+          <div className="action-list">
+            <button className="action-item" onClick={() => { handleEditStart(selectedActionAppt); setSelectedActionAppt(null); }}>
+              <Calendar size={20} className="text-primary" /> Reagendar / Mudar Serviço
+            </button>
+
+            {isPending && (
+              <button className="action-item" onClick={() => { handlePayment(selectedActionAppt._id || selectedActionAppt.id); setSelectedActionAppt(null); }}>
+                <CreditCard size={20} className="text-primary" /> Pagar Agora (R$ {selectedActionAppt.price})
+              </button>
+            )}
+
+            <button className="action-item" onClick={() => { handleWhatsAppNotify(selectedActionAppt); setSelectedActionAppt(null); }}>
+              <MessageSquare size={20} color="#25D366" /> Enviar WhatsApp
+            </button>
+
+            {user.isAdmin && (
+              <button className="action-item" onClick={() => { handleUpdateStatus(selectedActionAppt.id); setSelectedActionAppt(null); }}>
+                <Edit2 size={20} color="#3498db" /> Mudar Status do Agendamento
+              </button>
+            )}
+
+            <button className="action-item danger" onClick={() => {
+              if (confirm('Deseja cancelar este agendamento?')) {
+                handleCancel ? handleCancel(selectedActionAppt.id) : handleDelete(selectedActionAppt.id);
+                setSelectedActionAppt(null);
+              }
+            }}>
+              <X size={20} /> Cancelar Agendamento
+            </button>
+          </div>
+
+          <button className="btn-close-sheet" onClick={() => setSelectedActionAppt(null)}>Fechar</button>
+        </div>
+      </div>
+    );
+  };
   if (!user) {
     return (
       <div className="login-screen fade-in">
@@ -740,8 +787,7 @@ function App() {
                       {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
                     </div>
                     <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
-                      <button className="btn-icon" style={{ padding: '4px', background: 'rgba(37, 211, 102, 0.1)', color: '#25D366' }} onClick={() => handleWhatsAppNotify(a)} title="Notificar WhatsApp"><MessageSquare size={14} /></button>
-                      <button className="btn-icon" style={{ padding: '4px', background: 'rgba(52, 152, 219, 0.1)', color: '#3498db' }} onClick={() => handleUpdateStatus(a.id)} title="Mudar Status"><Edit2 size={14} /></button>
+                      <button className="btn-icon" style={{ padding: '4px', background: 'rgba(52, 152, 219, 0.1)', color: '#3498db' }} onClick={() => setSelectedActionAppt(a)} title="Gerenciar Agendamento"><Edit2 size={14} /></button>
                       <button className="btn-icon" style={{ padding: '4px', background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c' }} onClick={() => handleDelete(a.id)} title="Excluir"><Trash2 size={14} /></button>
                     </div>
                   </div>
@@ -763,27 +809,19 @@ function App() {
                 {busySlots.length >= timeSlots.length ? 'Liberar Dia Todo' : 'Bloquear Dia Todo'}
               </button>
             </div>
-            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+            <div className="date-list">
               {[...Array(14)].map((_, i) => {
                 const date = addDays(startOfToday(), i);
+                const isActive = isSameDay(selectedDate, date);
                 return (
                   <button
                     key={i}
-                    className="glass-card"
-                    style={{
-                      padding: '0.8rem 1.2rem',
-                      minWidth: '90px',
-                      textAlign: 'center',
-                      borderColor: isSameDay(selectedDate, date) ? 'var(--primary)' : 'var(--border)',
-                      background: isSameDay(selectedDate, date) ?
-                        (busySlots.length >= timeSlots.length ? 'rgba(231, 76, 60, 0.1)' : 'rgba(46, 204, 113, 0.1)') :
-                        'transparent',
-                      borderWidth: isSameDay(selectedDate, date) ? '2px' : '1px'
-                    }}
+                    className={`date-card ${isActive ? 'active' : ''}`}
                     onClick={() => setSelectedDate(date)}
+                    style={isActive && busySlots.length >= timeSlots.length ? { background: 'rgba(231, 76, 60, 0.15)', borderColor: 'var(--danger)' } : {}}
                   >
-                    <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{format(date, 'eee', { locale: ptBR })}</div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{format(date, 'dd')}</div>
+                    <div className="day-name">{format(date, 'eee', { locale: ptBR })}</div>
+                    <div className="day-number">{format(date, 'dd')}</div>
                   </button>
                 );
               })}
@@ -843,28 +881,18 @@ function App() {
               <Calendar className="text-primary" /> Data e Horário
             </h2>
 
-            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '1rem' }}>
+            <div className="date-list">
               {[...Array(14)].map((_, i) => {
                 const date = addDays(startOfToday(), i);
+                const isActive = isSameDay(selectedDate, date);
                 return (
                   <button
                     key={i}
-                    className={`glass-card`}
-                    style={{
-                      padding: '0.8rem 1.2rem',
-                      minWidth: '90px',
-                      textAlign: 'center',
-                      borderColor: isSameDay(selectedDate, date) ? 'var(--primary)' : 'var(--border)',
-                      background: isSameDay(selectedDate, date) ? 'rgba(212, 175, 55, 0.1)' : 'transparent'
-                    }}
+                    className={`date-card ${isActive ? 'active' : ''}`}
                     onClick={() => setSelectedDate(date)}
                   >
-                    <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                      {format(date, 'eee', { locale: ptBR })}
-                    </div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>
-                      {format(date, 'dd')}
-                    </div>
+                    <div className="day-name">{format(date, 'eee', { locale: ptBR })}</div>
+                    <div className="day-number">{format(date, 'dd')}</div>
                   </button>
                 );
               })}
@@ -951,8 +979,7 @@ function App() {
                       {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
                     </div>
                     <div style={{ display: 'flex', gap: '5px' }}>
-                      <button className="btn-icon" style={{ padding: '4px', opacity: 0.6 }} onClick={() => handleEditStart(a)} title="Editar Agendamento"><Edit2 size={14} /></button>
-                      {user.isAdmin && <button className="btn-icon" style={{ padding: '4px', opacity: 0.6 }} onClick={() => handleUpdateStatus(a.id)} title="Alterar Status"><Edit2 size={14} /></button>}
+                      <button className="btn-icon" style={{ padding: '4px', opacity: 0.8 }} onClick={() => setSelectedActionAppt(a)} title="Gerenciar"><Edit2 size={14} /></button>
                       <button className="btn-icon" style={{ padding: '4px', opacity: 0.6, color: 'var(--danger)' }} onClick={() => handleDelete(a.id)} title="Excluir do Histórico"><Trash2 size={14} /></button>
                     </div>
                   </div>
@@ -983,6 +1010,7 @@ function App() {
           )}
         </main>
       )}
+      {renderActionSheet()}
     </div>
   );
 }

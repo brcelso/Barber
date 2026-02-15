@@ -769,16 +769,44 @@ REGRAS:
                 if (session.state === 'awaiting_confirmation') {
                     if (text === '1') {
                         const id = crypto.randomUUID();
+                        const service = await env.DB.prepare('SELECT * FROM services WHERE id = ?').bind(session.service_id).first();
+
                         await env.DB.prepare(`
                             INSERT INTO appointments (id, user_email, service_id, appointment_date, appointment_time, status)
                             VALUES (?, ?, ?, ?, ?, 'pending')
                         `).bind(id, session.user_email, session.service_id, session.appointment_date, session.appointment_time).run();
 
-                        // Generate MP Link (Simplified)
-                        const paymentUrl = `${env.FRONTEND_URL}/?payment=${id}`;
+                        // Create MP Preference directly
+                        const mpPreference = {
+                            items: [{
+                                title: `Barber - ${service.name}`,
+                                quantity: 1,
+                                unit_price: service.price,
+                                currency_id: 'BRL'
+                            }],
+                            external_reference: id,
+                            back_urls: {
+                                success: `${env.FRONTEND_URL}/success?id=${id}`,
+                                failure: `${env.FRONTEND_URL}/cancel?id=${id}`,
+                                pending: `${env.FRONTEND_URL}/pending?id=${id}`
+                            },
+                            auto_return: 'approved'
+                        };
+
+                        const mpResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${env.MP_ACCESS_TOKEN}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(mpPreference)
+                        });
+
+                        const mpData = await mpResponse.json();
+                        const paymentUrl = mpData.init_point || `${env.FRONTEND_URL}/?payment=${id}`;
 
                         await env.DB.prepare('DELETE FROM whatsapp_sessions WHERE phone = ?').bind(from).run();
-                        await sendMessage(from, `🎉 *Agendamento Realizado!* \n\nSeu horário está reservado. Para garantir sua vaga, realize o pagamento no link abaixo:\n\n🔗 ${paymentUrl}\n\nObrigado!`);
+                        await sendMessage(from, `🎉 *Agendamento Realizado!* \n\nSeu horário está reservado. Toque no link abaixo para realizar o pagamento e confirmar sua vaga agora mesmo:\n\n🔗 ${paymentUrl}\n\nObrigado! ✂️`);
                         return json({ success: true });
                     } else {
                         await env.DB.prepare('DELETE FROM whatsapp_sessions WHERE phone = ?').bind(from).run();
