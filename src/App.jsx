@@ -20,7 +20,9 @@ import {
   Lock,
   Trash2,
   Edit2,
-  Shield
+  Shield,
+  Activity,
+  Users
 } from 'lucide-react';
 import { format, addDays, startOfToday, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
