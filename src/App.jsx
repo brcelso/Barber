@@ -163,19 +163,41 @@ function App() {
           email: user.email,
           serviceId: selectedService.id,
           date: format(selectedDate, 'yyyy-MM-dd'),
-          time: selectedTime
+          time: selectedTime,
+          skipPayment: true // Signal the backend to not auto-generate payment URL
         })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('Agendamento realizado com sucesso! Você pode realizar o pagamento agora ou depois em seus agendamentos.');
+        fetchAppointments();
+        setView('history');
+      } else {
+        alert('Erro ao agendar: ' + (data.error || 'Erro desconhecido'));
+      }
+    } catch (e) {
+      alert('Erro de conexão: ' + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePayment = async (appointmentId) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/payments/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId, email: user.email })
       });
       const data = await res.json();
       if (data.paymentUrl) {
         window.location.href = data.paymentUrl;
       } else {
-        alert('Agendamento realizado! (Webhook confirmará pagamento)');
-        fetchAppointments();
-        setView('history');
+        alert('Erro ao gerar link de pagamento: ' + (data.error || 'Erro desconhecido'));
       }
     } catch (e) {
-      alert('Erro ao agendar: ' + e.message);
+      alert('Erro de conexão: ' + e.message);
     } finally {
       setLoading(false);
     }
@@ -345,7 +367,7 @@ function App() {
                 disabled={!selectedService || !selectedTime || loading}
                 onClick={handleBooking}
               >
-                {loading ? 'Processando...' : <><CreditCard size={20} /> Pagar e Confirmar</>}
+                {loading ? 'Processando...' : <><Calendar size={20} /> Agendar Agora</>}
               </button>
             </div>
           </section>
@@ -363,20 +385,35 @@ function App() {
             </div>
           ) : (
             appointments.map(a => (
-              <div key={a.id} className="glass-card appointment-item">
-                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-                  <div style={{ background: 'var(--accent)', parding: '1rem', borderRadius: '12px', textAlign: 'center', minWidth: '60px' }}>
-                    <div style={{ fontSize: '0.7rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
+              <div key={a.id} className="glass-card appointment-item" style={{ flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+                    <div style={{ background: 'var(--accent)', padding: '0.8rem', borderRadius: '12px', textAlign: 'center', minWidth: '60px' }}>
+                      <div style={{ fontSize: '0.7rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
+                    </div>
+                    <div>
+                      <h3 style={{ color: 'var(--primary)' }}>{a.service_name}</h3>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{a.appointment_time} - Barber Central</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 style={{ color: 'var(--primary)' }}>{a.service_name}</h3>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{a.appointment_time} - Barber Central</p>
+                  <div className={`status-tag status-${a.status}`}>
+                    {a.status === 'confirmed' ? 'Confirmado' : 'Pendente'}
                   </div>
                 </div>
-                <div className={`status-tag status-${a.status}`}>
-                  {a.status === 'confirmed' ? 'Confirmado' : 'Pendente'}
-                </div>
+
+                {a.status !== 'confirmed' && (
+                  <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                    <button
+                      className="btn-primary"
+                      style={{ width: '100%', padding: '0.6rem' }}
+                      onClick={() => handlePayment(a.id)}
+                      disabled={loading}
+                    >
+                      <CreditCard size={18} /> Pagar Agora (R$ {a.price})
+                    </button>
+                  </div>
+                )}
               </div>
             ))
           )}

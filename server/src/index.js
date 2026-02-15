@@ -93,7 +93,7 @@ export default {
 
             // Book an Appointment
             if (url.pathname === '/api/appointments/book' && request.method === 'POST') {
-                const { email, serviceId, date, time } = await request.json();
+                const { email, serviceId, date, time, skipPayment } = await request.json();
                 if (!email || !serviceId || !date || !time) {
                     return json({ error: 'Missing fields' }, 400);
                 }
@@ -115,25 +115,43 @@ export default {
                     VALUES (?, ?, ?, ?, ?, 'pending')
                 `).bind(id, email, serviceId, date, time).run();
 
-                // Generate Mercado Pago Preference (Simplified)
-                // In production, use the MP SDK or fetch API
+                if (skipPayment) {
+                    return json({ appointmentId: id, status: 'pending' });
+                }
+
+                // Fallback / Legacy auto-payment logic
+                return json({ appointmentId: id, status: 'pending' });
+            }
+
+            // Create Payment Link (New Route)
+            if (url.pathname === '/api/payments/create' && request.method === 'POST') {
+                const { appointmentId, email } = await request.json();
+
+                const appointment = await env.DB.prepare(`
+                    SELECT a.*, s.name as service_name, s.price 
+                    FROM appointments a 
+                    JOIN services s ON a.service_id = s.id 
+                    WHERE a.id = ? AND a.user_email = ?
+                `).bind(appointmentId, email).first();
+
+                if (!appointment) return json({ error: 'Agendamento não encontrado' }, 404);
+
                 const mpPreference = {
                     items: [{
-                        title: `Barbearia - ${service.name}`,
+                        title: `Barbearia - ${appointment.service_name}`,
                         quantity: 1,
-                        unit_price: service.price,
+                        unit_price: appointment.price,
                         currency_id: 'BRL'
                     }],
-                    external_reference: id,
+                    external_reference: appointmentId,
                     back_urls: {
-                        success: `${env.FRONTEND_URL}/success?id=${id}`,
-                        failure: `${env.FRONTEND_URL}/cancel?id=${id}`,
-                        pending: `${env.FRONTEND_URL}/pending?id=${id}`
+                        success: `${env.FRONTEND_URL}/success?id=${appointmentId}`,
+                        failure: `${env.FRONTEND_URL}/cancel?id=${appointmentId}`,
+                        pending: `${env.FRONTEND_URL}/pending?id=${appointmentId}`
                     },
                     auto_return: 'approved'
                 };
 
-                // Real call to Mercado Pago
                 const mpResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
                     method: 'POST',
                     headers: {
@@ -144,12 +162,7 @@ export default {
                 });
 
                 const mpData = await mpResponse.json();
-
-                return json({
-                    appointmentId: id,
-                    paymentUrl: mpData.init_point, // Direct checkout URL
-                    preferenceId: mpData.id
-                });
+                return json({ paymentUrl: mpData.init_point });
             }
 
             // Webhook for Mercado Pago
