@@ -285,6 +285,16 @@ export default {
                             VALUES ('block', 'Blocked Slot', 0.0, 0, 'Reserved by admin')
                         `).run();
 
+                        // Verify seeds were created
+                        const sysUser = await env.DB.prepare('SELECT email FROM users WHERE email = ?').bind('system').first();
+                        const blockService = await env.DB.prepare('SELECT id FROM services WHERE id = ?').bind('block').first();
+
+                        console.log('[toggle-block] seed check', { sysUser, blockService });
+
+                        if (!sysUser || !blockService) {
+                            return json({ error: 'Seed creation failed', userExists: !!sysUser, serviceExists: !!blockService }, 500);
+                        }
+
                         // Debug logging to help diagnose FK issues
                         console.log('[toggle-block] inserting block', { id, date, time });
 
