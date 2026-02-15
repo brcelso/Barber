@@ -1,5 +1,6 @@
 :root {
-  --primary: #d4af37; /* Gold */
+  --primary: #d4af37;
+  /* Gold */
   --primary-hover: #f1c40f;
   --bg-dark: #0a0a0a;
   --card-bg: rgba(26, 26, 26, 0.8);
@@ -24,7 +25,7 @@ body {
   color: var(--text-main);
   min-height: 100vh;
   line-height: 1.5;
-  background-image: 
+  background-image:
     radial-gradient(at 0% 0%, rgba(212, 175, 55, 0.1) 0px, transparent 50%),
     radial-gradient(at 100% 100%, rgba(30, 30, 30, 0.3) 0px, transparent 50%);
   background-attachment: fixed;
@@ -202,41 +203,87 @@ button {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .admin-badge {
-    background: var(--primary);
-    color: #000;
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 0.7rem;
-    font-weight: 900;
-    margin-left: 8px;
+  background: var(--primary);
+  color: #000;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 900;
+  margin-left: 8px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  background: var(--accent);
+  border: 1px solid var(--border);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0;
+}
+
+.user-avatar img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 50%;
 }
 
 .appointment-item {
-    padding: 1.2rem;
-    margin-bottom: 1rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  padding: 1.2rem;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .status-tag {
-    font-size: 0.75rem;
-    font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 20px;
-    text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
 }
 
-.status-confirmed { background: rgba(46, 204, 113, 0.2); color: #2ecc71; }
-.status-pending { background: rgba(212, 175, 55, 0.2); color: #d4af37; }
+.status-confirmed {
+  background: rgba(46, 204, 113, 0.2);
+  color: #2ecc71;
+}
+
+.status-pending {
+  background: rgba(212, 175, 55, 0.2);
+  color: #d4af37;
+}
 
 /* Custom Scrollbar */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: var(--bg-dark); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}

@@ -65,7 +65,7 @@ export default {
                 }
 
                 const allAppointments = await env.DB.prepare(`
-                    SELECT a.*, s.name as service_name, s.price, u.name as user_name, u.picture as user_picture
+                    SELECT a.*, s.name as service_name, s.price, u.name as user_name, u.picture as user_picture, u.phone as user_phone
                     FROM appointments a
                     JOIN services s ON a.service_id = s.id
                     JOIN users u ON a.user_email = u.email

@@ -15,6 +15,7 @@ import {
   RefreshCw,
   X,
   Check,
+  MessageSquare,
   Trash2,
   Edit2,
   Shield
@@ -235,6 +236,22 @@ function App() {
     }
   };
 
+  const handleWhatsAppNotify = (appt) => {
+    let phone = appt.user_phone;
+    if (!phone) {
+      phone = prompt(`O cliente ${appt.user_name} não tem telefone cadastrado. Digite o número (ex: 11999999999):`, "");
+    }
+    if (!phone) return;
+
+    const cleanPhone = phone.replace(/\D/g, "");
+    const finalPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
+    const dateStr = format(parseISO(appt.appointment_date), 'dd/MM/yyyy');
+    const text = `Olá ${appt.user_name}! Confirmamos seu agendamento na Barber para o dia ${dateStr} às ${appt.appointment_time} (${appt.service_name}). Até lá!`;
+
+    const url = `https://api.whatsapp.com/send?phone=${finalPhone}&text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+  };
+
   const handleBooking = async () => {
     if (!selectedService || !selectedTime || !user) return;
     setLoading(true);
@@ -320,8 +337,8 @@ function App() {
               <Shield className="text-primary" />
             </button>
           )}
-          <div className="user-avatar" style={{ border: '1px solid var(--primary)', width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden' }}>
-            <img src={user.picture} alt={user.name} style={{ width: '100%' }} />
+          <div className="user-avatar">
+            <img src={user.picture} alt={user.name} />
           </div>
           <button className="btn-icon" onClick={handleLogout} title="Sair"><LogOut /></button>
         </div>
@@ -370,6 +387,7 @@ function App() {
                       {a.status === 'pending' && (
                         <button className="btn-icon" style={{ padding: '4px', background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71' }} onClick={() => handleAdminConfirm(a.id)} title="Confirmar"><Check size={14} /></button>
                       )}
+                      <button className="btn-icon" style={{ padding: '4px', background: 'rgba(37, 211, 102, 0.1)', color: '#25D366' }} onClick={() => handleWhatsAppNotify(a)} title="Notificar WhatsApp"><MessageSquare size={14} /></button>
                       <button className="btn-icon" style={{ padding: '4px', background: 'rgba(52, 152, 219, 0.1)', color: '#3498db' }} onClick={() => handleUpdateStatus(a.id)} title="Mudar Status"><Edit2 size={14} /></button>
                       <button className="btn-icon" style={{ padding: '4px', background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c' }} onClick={() => handleDelete(a.id)} title="Excluir"><Trash2 size={14} /></button>
                     </div>
@@ -487,7 +505,7 @@ function App() {
                       <div style={{ fontSize: '0.65rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
                       <div style={{ fontSize: '1rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
                     </div>
-                    <div className="user-avatar" style={{ width: '32px', height: '32px', flexShrink: 0 }}>
+                    <div className="user-avatar" style={{ width: '32px', height: '32px' }}>
                       <img src={user.picture} alt={user.name} />
                     </div>
                     <div>
