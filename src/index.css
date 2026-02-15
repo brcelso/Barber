@@ -422,9 +422,9 @@ button {
   gap: 12px;
 }
 
-@keyframes slideUp {
+@keyframes slideDown {
   from {
-    transform: translateY(100%);
+    transform: translateY(-100%);
   }
 
   to {
@@ -439,19 +439,20 @@ button {
   backdrop-filter: blur(8px);
   z-index: 3000;
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
+  /* Cabeceira da tela */
   justify-content: center;
 }
 
 .bottom-sheet {
   width: 100%;
-  max-width: 500px;
+  max-width: 100%;
   background: #111;
-  border-top: 1px solid var(--primary);
-  border-radius: 30px 30px 0 0;
+  border-bottom: 2px solid var(--primary);
+  border-radius: 0 0 30px 30px;
   padding: 1.5rem 1.5rem 2.5rem;
-  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8);
+  animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
 }
 
 .sheet-header {

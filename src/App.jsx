@@ -160,6 +160,7 @@ function App() {
   };
 
   const [selectedActionAppt, setSelectedActionAppt] = useState(null);
+  const [sheetView, setSheetView] = useState('main'); // 'main' or 'status'
 
   const fetchServices = async () => {
     try {
@@ -519,48 +520,93 @@ function App() {
       setLoading(false);
     }
   };
+
   const renderActionSheet = () => {
     if (!selectedActionAppt) return null;
     const isPending = selectedActionAppt.status === 'pending';
 
     return (
-      <div className="bottom-sheet-overlay" onClick={() => setSelectedActionAppt(null)}>
+      <div className="bottom-sheet-overlay" onClick={() => { setSelectedActionAppt(null); setSheetView('main'); }}>
         <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
           <div className="sheet-header"></div>
-          <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--primary)' }}>O que deseja fazer?</h3>
 
-          <div className="action-list">
-            <button className="action-item" onClick={() => { handleEditStart(selectedActionAppt); setSelectedActionAppt(null); }}>
-              <Calendar size={20} className="text-primary" /> Reagendar / Mudar Serviço
-            </button>
+          {sheetView === 'main' ? (
+            <>
+              <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--primary)' }}>Ações para {selectedActionAppt.user_name}</h3>
+              <div className="action-list">
+                <button className="action-item" onClick={() => { handleEditStart(selectedActionAppt); setSelectedActionAppt(null); }}>
+                  <Calendar size={20} className="text-primary" /> Reagendar / Mudar Serviço
+                </button>
 
-            {isPending && (
-              <button className="action-item" onClick={() => { handlePayment(selectedActionAppt._id || selectedActionAppt.id); setSelectedActionAppt(null); }}>
-                <CreditCard size={20} className="text-primary" /> Pagar Agora (R$ {selectedActionAppt.price})
-              </button>
-            )}
+                {isPending && (
+                  <button className="action-item" onClick={() => { handlePayment(selectedActionAppt._id || selectedActionAppt.id); setSelectedActionAppt(null); }}>
+                    <CreditCard size={20} className="text-primary" /> Pagar Agora (R$ {selectedActionAppt.price})
+                  </button>
+                )}
 
-            <button className="action-item" onClick={() => { handleWhatsAppNotify(selectedActionAppt); setSelectedActionAppt(null); }}>
-              <MessageSquare size={20} color="#25D366" /> Enviar WhatsApp
-            </button>
+                <button className="action-item" onClick={() => { handleWhatsAppNotify(selectedActionAppt); setSelectedActionAppt(null); }}>
+                  <MessageSquare size={20} color="#25D366" /> Enviar WhatsApp
+                </button>
 
-            {user.isAdmin && (
-              <button className="action-item" onClick={() => { handleUpdateStatus(selectedActionAppt.id); setSelectedActionAppt(null); }}>
-                <Edit2 size={20} color="#3498db" /> Mudar Status do Agendamento
-              </button>
-            )}
+                {user.isAdmin && (
+                  <button className="action-item" onClick={() => setSheetView('status')}>
+                    <Edit2 size={20} color="#3498db" /> Alterar Status do Agendamento
+                  </button>
+                )}
 
-            <button className="action-item danger" onClick={() => {
-              if (confirm('Deseja cancelar este agendamento?')) {
-                handleCancel ? handleCancel(selectedActionAppt.id) : handleDelete(selectedActionAppt.id);
-                setSelectedActionAppt(null);
-              }
-            }}>
-              <X size={20} /> Cancelar Agendamento
-            </button>
-          </div>
+                <button className="action-item danger" onClick={() => {
+                  if (confirm('Deseja cancelar este agendamento?')) {
+                    handleCancel ? handleCancel(selectedActionAppt.id) : handleDelete(selectedActionAppt.id);
+                    setSelectedActionAppt(null);
+                  }
+                }}>
+                  <X size={20} /> Excluir permanentemente
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--primary)' }}>Definir Status</h3>
+              <div className="action-list">
+                {[
+                  { id: 'pending', label: 'Pendente', icon: <Edit2 size={18} /> },
+                  { id: 'confirmed', label: 'Confirmado', icon: <CheckCircle size={18} /> },
+                  { id: 'cancelled', label: 'Cancelado', icon: <X size={18} /> }
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    className="action-item"
+                    onClick={async () => {
+                      setLoading(true);
+                      try {
+                        const res = await fetch(`${API_URL}/appointments/update-status`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ appointmentId: selectedActionAppt.id, status: opt.id, userEmail: user.email })
+                        });
+                        if (res.ok) {
+                          handleRefresh();
+                          setSelectedActionAppt(null);
+                          setSheetView('main');
+                        } else {
+                          const data = await res.json();
+                          alert('Erro ao atualizar no servidor: ' + (data.error || 'Desconhecido'));
+                        }
+                      } catch (e) { alert('Erro ao atualizar status'); }
+                      finally { setLoading(false); }
+                    }}
+                  >
+                    {opt.icon} {opt.label}
+                  </button>
+                ))}
+                <button className="action-item" style={{ marginTop: '10px', background: 'rgba(255,255,255,0.05)' }} onClick={() => setSheetView('main')}>
+                  <ChevronLeft size={18} /> Voltar
+                </button>
+              </div>
+            </>
+          )}
 
-          <button className="btn-close-sheet" onClick={() => setSelectedActionAppt(null)}>Fechar</button>
+          <button className="btn-close-sheet" onClick={() => { setSelectedActionAppt(null); setSheetView('main'); }}>Fechar</button>
         </div>
       </div>
     );
