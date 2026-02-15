@@ -630,23 +630,32 @@ export default {
                     });
                 }
 
-                // AI Agent Helper
-                const askAI = async (userMessage, history = []) => {
+                // AI Agent Helper with refined personality
+                const askAI = async (userMessage, sessionState = 'main_menu') => {
                     try {
                         const services = await env.DB.prepare('SELECT * FROM services WHERE id != "block"').all();
-                        const servicesList = services.results.map((s, i) => `*${i + 1}* - ${s.name} (R$ ${s.price})`).join('\n');
+                        const servicesList = services.results.map((s, i) => `✂️ ${s.name}: R$ ${s.price}`).join('\n');
 
-                        const systemPrompt = `Você é o assistente virtual da Barber.
-Seu objetivo é ajudar o cliente. 
-Se ele quiser agendar, peça para escolher o serviço.
-Se ele quiser ver/cancelar, peça para digitar "Menu".
+                        const systemPrompt = `Você é o Leo, assistente virtual premium da Barber. 
+Seu tom é amigável, profissional e direto. 
 
-SERVIÇOS:
+CONTEXTO:
+- Estamos localizados na Barber Central.
+- Funcionamento: Seg-Sáb, 09h às 19h.
+- Serviços disponíveis:
 ${servicesList}
 
+OBJETIVO:
+- Se o usuário quiser agendar, diga para ele digitar "1" ou "Menu".
+- Se ele estiver em dúvida, explique os serviços e encoraje o agendamento.
+- Sempre tente guiar o usuário para finalizar um agendamento.
+- Se ele perguntar algo que você não sabe, peça para ele falar com o barbeiro pelo botão no app ou digitar "Menu" para ver opções.
+
 REGRAS:
-1. Responda em UMA frase curta.
-2. Use emojis ✂️.`;
+1. Responda de forma concisa (máximo 2-3 frases).
+2. Sempre use emojis ✂️💈.
+3. Se o usuário parecer pronto para agendar, finalize a frase sugerindo digitar "1".
+4. Estado atual do usuário: ${sessionState}.`;
 
                         const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
                             messages: [
@@ -655,10 +664,10 @@ REGRAS:
                             ]
                         });
 
-                        const aiText = response.response || "Como posso ajudar? Escolha uma opção:";
+                        const aiText = response.response || "Com certeza! ✂️ Digite '1' para agendar seu horário agora ou 'Menu' para ver todas as opções.";
                         return aiText;
                     } catch (e) {
-                        return "Olá! Como posso te ajudar hoje? Digite 'Menu' para ver as opções.";
+                        return "Olá! ✂️ Estou com uma instabilidade rápida, mas você pode agendar digitando '1' ou ver o 'Menu' principal!";
                     }
                 };
 
@@ -679,12 +688,26 @@ REGRAS:
                     return json({ success: true });
                 }
 
-                // AI Interception: Natural language ou opção 3
-                if (session.state === 'ai_chat' || text === '3' || (isNaN(parseInt(text)) && session.state === 'main_menu')) {
-                    const aiMsg = await askAI(text);
-                    await env.DB.prepare('UPDATE whatsapp_sessions SET state = "ai_chat" WHERE phone = ?').bind(from).run();
+                // IA ONIPRESENTE: Se não for um número (escolha) e não for um comando de sistema, a IA responde
+                const systemCommands = ['oi', 'ola', 'menu', 'sair', 'ajuda'];
+                if (!isNumericChoice && !systemCommands.includes(textLower)) {
+                    const aiMsg = await askAI(text, session.state);
                     await sendMessage(from, aiMsg);
                     return json({ success: true });
+                }
+
+                // AI Interception: Opção 3 ou chat iniciado
+                if (session.state === 'ai_chat' || text === '3') {
+                    // Se o usuário digitar um número enquanto está no chat da IA, e esse número for 1 ou 2, volta pro menu
+                    if (session.state === 'ai_chat' && (text === '1' || text === '2')) {
+                        session.state = 'main_menu';
+                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "main_menu" WHERE phone = ?').bind(from).run();
+                    } else {
+                        const aiMsg = await askAI(text, session.state);
+                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "ai_chat" WHERE phone = ?').bind(from).run();
+                        await sendMessage(from, aiMsg);
+                        return json({ success: true });
+                    }
                 }
 
                 // MAIN MENU FLOW
