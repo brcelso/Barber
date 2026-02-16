@@ -514,4 +514,48 @@ button {
   .nav-item-fluid {
     padding: 0.6rem;
   }
+
+  .appointment-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .appointment-item > div {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .login-card {
+    margin: 1rem;
+    padding: 2rem !important;
+  }
+}
+
+/* Login Card Enhancements */
+.login-card {
+  background: rgba(20, 20, 20, 0.95);
+  border: 1px solid var(--primary);
+  box-shadow: 0 0 50px rgba(212, 175, 55, 0.15);
+  backdrop-filter: blur(20px);
+}
+
+.login-card input:focus {
+  border-color: var(--primary) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.1);
+}
+
+/* Button Group Wrapping */
+.btn-group-responsive {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.btn-group-responsive button {
+  flex: 1;
+  white-space: nowrap;
+  min-width: 120px;
 }

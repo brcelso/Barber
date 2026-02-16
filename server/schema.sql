@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS services (
   name TEXT NOT NULL,
   price REAL NOT NULL,
   duration_minutes INTEGER DEFAULT 30,
-  description TEXT
+  description TEXT,
+  barber_email TEXT
 );
 
 CREATE TABLE IF NOT EXISTS appointments (
@@ -39,14 +40,14 @@ CREATE TABLE IF NOT EXISTS availability (
 );
 
 -- Seed defaults
-INSERT OR IGNORE INTO services (id, name, price, duration_minutes, description) VALUES 
-('corte-simples', 'Corte de Cabelo', 40.0, 30, 'Corte tradicional'),
-('barba', 'Barba Completa', 30.0, 20, 'Barba com toalha quente'),
-('combo', 'Cabelo e Barba', 60.0, 50, 'O pacote completo');
+INSERT OR IGNORE INTO services (id, name, price, duration_minutes, description, barber_email) VALUES 
+('corte-simples', 'Corte de Cabelo', 70.0, 30, 'Corte tradicional', 'celsosilvajunior90@gmail.com'),
+('barba', 'Barba Completa', 70.0, 20, 'Barba com toalha quente', 'celsosilvajunior90@gmail.com'),
+('combo', 'Cabelo e Barba', 150.0, 50, 'O pacote completo', 'celsosilvajunior90@gmail.com');
 
 -- Add special 'block' service used for admin-blocked slots
-INSERT OR IGNORE INTO services (id, name, price, duration_minutes, description) VALUES
-('block', 'Blocked Slot', 0.0, 0, 'Reserved by admin');
+INSERT OR IGNORE INTO services (id, name, price, duration_minutes, description, barber_email) VALUES
+('block', 'Blocked Slot', 0.0, 0, 'Reserved by admin', 'celsosilvajunior90@gmail.com');
 
 -- Ensure a system user exists for system-generated appointments/blocks
 INSERT OR IGNORE INTO users (email, name, is_admin, created_at) VALUES

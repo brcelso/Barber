@@ -57,10 +57,10 @@ function App() {
 
   // Set default view on login/load
   useEffect(() => {
-    if (user?.isAdmin) {
-      setIsAdminMode(true); // Set isAdminMode to true for admins
+    if (user?.isAdmin || user?.isBarber) {
+      setIsAdminMode(true); // Enable admin/barber mode
       setView('admin');
-      fetchSubscription(); // Fetch subscription for admins
+      if (user.isAdmin) fetchSubscription();
     } else if (user) {
       setView('book');
     }
@@ -951,7 +951,7 @@ function App() {
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>ou continue com seus dados</p>
               <button
                 className="btn-primary"
-                style={{ width: '100%', background: 'transparent', border: '1px solid var(--border)', color: 'white', display: 'flex', gap: '10px' }}
+                style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', display: 'flex', gap: '10px', justifyContent: 'center' }}
                 onClick={() => setShowManualLogin(true)}
               >
                 <User size={18} /> Entrar com E-mail e Telefone
@@ -1108,8 +1108,16 @@ function App() {
             )}
           </nav>
 
-          <button className="btn-icon" onClick={handleRefresh} title="Atualizar Dados">
-            <RefreshCw size={20} className={loading ? 'refresh-spin' : ''} />
+          <button
+            className="btn-icon"
+            onClick={handleRefresh}
+            title="Atualizar Dados"
+            style={{
+              background: loading ? 'rgba(212, 175, 55, 0.2)' : 'transparent',
+              borderColor: loading ? 'var(--primary)' : 'var(--border)'
+            }}
+          >
+            <RefreshCw size={20} className={loading ? 'refresh-spin' : ''} style={{ color: loading ? 'var(--primary)' : 'inherit' }} />
           </button>
 
           <div className="user-avatar" onClick={() => {
@@ -1641,7 +1649,7 @@ function App() {
                     <ChevronLeft size={20} />
                   </button>
                   <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Agendando com: </span>
-                  <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{selectedBarber.name}</span>
+                  <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{selectedBarber?.name || 'Barbeiro'}</span>
                 </div>
 
                 <section style={{ marginBottom: '3rem' }}>
@@ -1713,6 +1721,23 @@ function App() {
                         </button>
                       );
                     })}
+                    {timeSlots.every(t => {
+                      // Check if time is past
+                      if (isSameDay(selectedDate, startOfToday())) {
+                        const [h, m] = t.split(':').map(Number);
+                        const slotTime = new Date();
+                        slotTime.setHours(h, m, 0, 0);
+                        if (slotTime < new Date()) return true; // Considered "busy" (unavailable)
+                      }
+                      // Check if time is in busySlots
+                      const isBusy = busySlots.find(b => b.time === t && b.status !== 'cancelled');
+                      return isBusy;
+                    }) && (
+                        <div style={{ gridColumn: '1 / -1', padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
+                          😔 Dia sem horários disponíveis. Tente outro dia!
+                        </div>
+                      )}
+
                   </div>
 
                   <div style={{ marginTop: '2.5rem', borderTop: '1px solid var(--border)', paddingTop: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1762,52 +1787,60 @@ function App() {
               </div>
             ) : (
               appointments.map(a => {
-                const isProfessional = a.barber_email === user.email && a.user_email !== user.email;
-                const displayTitle = isProfessional ? `Para: ${a.client_name}` : a.service_name;
+                const isProfessional = a.barber_email === user.email; // If I am the barber
+                const displayTitle = isProfessional ? `Cliente: ${a.client_name || a.user_name || 'Cliente'}` : a.service_name;
                 const displaySubtitle = isProfessional ? `${a.service_name} às ${a.appointment_time}` : `${a.appointment_time} - com ${a.barber_name}`;
-                const displayPicture = isProfessional ? a.client_picture : a.barber_picture;
+                const displayPicture = isProfessional ? (a.client_picture || a.user_picture) : a.barber_picture;
+                const isPaid = a.payment_status === 'confirmed' || a.status === 'confirmed';
+                const canManage = !isPaid && a.status !== 'cancelled' && a.status !== 'blocked';
 
                 return (
                   <div key={a.id} className="glass-card appointment-item" style={{
-                    flexDirection: 'column',
-                    gap: '1rem',
-                    borderLeft: isProfessional ? '4px solid var(--primary)' : '4px solid rgba(255,255,255,0.1)'
+                    borderLeft: isProfessional ? '4px solid var(--primary)' : (a.status === 'confirmed' ? '4px solid var(--success)' : '4px solid rgba(255,255,255,0.1)'),
+                    background: isProfessional ? 'rgba(212, 175, 55, 0.05)' : 'var(--card-bg)'
                   }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1, minWidth: '200px' }}>
                         <div style={{ background: 'var(--accent)', padding: '0.6rem', borderRadius: '12px', textAlign: 'center', minWidth: '55px' }}>
-                          <div style={{ fontSize: '0.65rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
+                          <div style={{ fontSize: '0.65rem' }}>{format(parseISO(a.appointment_date), 'MMM', { locale: ptBR }).toUpperCase()}</div>
                           <div style={{ fontSize: '1rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
                         </div>
-                        <div className="user-avatar" style={{ width: '32px', height: '32px' }}>
+                        <div className="user-avatar" style={{ width: '40px', height: '40px' }}>
                           <img src={displayPicture || user.picture} alt="Avatar" />
                         </div>
                         <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <h3 style={{ color: 'var(--primary)', fontSize: '0.95rem' }}>{displayTitle}</h3>
-                            {(a.payment_status === 'confirmed' || a.status === 'confirmed') && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <h3 style={{ color: isProfessional ? 'var(--text-main)' : 'var(--primary)', fontSize: '1rem' }}>{displayTitle}</h3>
+                            {isPaid && (
                               <span style={{ background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>PAGO</span>
                             )}
+                            {isProfessional && <span className="admin-badge">BARBEIRO</span>}
                           </div>
                           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{displaySubtitle}</p>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
                         <div className={`status-tag status-${a.status}`}>
                           {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
                         </div>
                         <div style={{ display: 'flex', gap: '5px' }}>
-                          <button className="btn-icon" style={{ padding: '4px', opacity: 0.8 }} onClick={() => setSelectedActionAppt(a)} title="Gerenciar"><Edit2 size={14} /></button>
-                          <button className="btn-icon" style={{ padding: '4px', opacity: 0.6, color: 'var(--danger)' }} onClick={() => handleDelete(a.id)} title="Excluir do Histórico"><Trash2 size={14} /></button>
+                          {canManage && (
+                            <button className="btn-icon" style={{ padding: '6px', opacity: 0.9 }} onClick={() => setSelectedActionAppt(a)} title="Gerenciar"><Edit2 size={16} /></button>
+                          )}
+                          {!isPaid && (
+                            <button className="btn-icon" style={{ padding: '6px', opacity: 0.7, color: 'var(--danger)' }} onClick={() => handleDelete(a.id)} title="Excluir"><Trash2 size={16} /></button>
+                          )}
                         </div>
                       </div>
                     </div>
 
-                    {a.status === 'pending' && (!isProfessional || user.isAdmin) && (
-                      <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', gap: '10px' }}>
+                    {/* Action Bar for Pending Appointments */}
+                    {a.status === 'pending' && !isPaid && (!isProfessional || user.isAdmin) && (
+                      <div className="btn-group-responsive" style={{ marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
                         <button
                           className="btn-primary"
-                          style={{ flex: 2, padding: '0.6rem' }}
+                          style={{ flex: 2, justifyContent: 'center' }}
                           onClick={() => handlePayment(a)}
                           disabled={loading}
                         >
@@ -1815,7 +1848,7 @@ function App() {
                         </button>
                         <button
                           className="btn-icon"
-                          style={{ flex: 1, padding: '0.6rem', background: 'rgba(231, 76, 60, 0.2)', color: '#e74c3c', borderRadius: '12px' }}
+                          style={{ flex: 1, height: 'auto', borderRadius: '12px', border: '1px solid var(--danger)', color: 'var(--danger)', justifyContent: 'center' }}
                           onClick={() => handleCancel(a.id)}
                           disabled={loading}
                         >
@@ -1824,9 +1857,9 @@ function App() {
                       </div>
                     )}
 
-                    {isProfessional && a.status === 'pending' && (
+                    {isProfessional && !isPaid && a.status === 'pending' && (
                       <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: '0.8rem', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                        Aguardando pagamento/confirmação do cliente
+                        ⏳ Aguardando confirmação ou pagamento do cliente
                       </div>
                     )}
                   </div>
@@ -1840,92 +1873,96 @@ function App() {
       {renderActionSheet()}
 
       {/* Menu de Opções de Pagamento (Control List style) */}
-      {paymentSelectionAppt && (
-        <div className="bottom-sheet-overlay" onClick={() => setPaymentSelectionAppt(null)}>
-          <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
-            <div className="sheet-header"></div>
-            <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--primary)' }}>Como deseja pagar?</h3>
-            <div className="action-list">
-              <button className="action-item" onClick={() => processPayment('real')}>
-                <div style={{ background: 'rgba(212, 175, 55, 0.1)', padding: '10px', borderRadius: '12px' }}>
-                  <CreditCard size={24} color="var(--primary)" />
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontWeight: 800 }}>Pagamento Real</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>PIX ou Cartão via Mercado Pago</div>
-                </div>
-              </button>
-
-              <button className="action-item" style={{ borderColor: 'rgba(46, 204, 113, 0.2)' }} onClick={() => processPayment('local')}>
-                <div style={{ background: 'rgba(46, 204, 113, 0.1)', padding: '10px', borderRadius: '12px' }}>
-                  <Shield size={24} color="#2ecc71" />
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontWeight: 800, color: '#2ecc71' }}>Pagamento no Local</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Dinheiro ou Cartão na Barbearia</div>
-                </div>
-              </button>
-
-              <button className="action-item" style={{ opacity: 0.5 }} onClick={() => processPayment('mock')}>
-                <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '10px', borderRadius: '12px' }}>
-                  <RefreshCw size={24} color="white" />
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontWeight: 800 }}>Simular Online</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Apenas para teste rápido</div>
-                </div>
-              </button>
-
-              <button className="btn-close-sheet" onClick={() => setPaymentSelectionAppt(null)}>
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showPlanSelection && (
-        <div className="modal-overlay" onClick={() => setShowPlanSelection(false)}>
-          <div className="glass-card fade-in" style={{ width: '90%', maxWidth: '450px', padding: '2rem' }} onClick={e => e.stopPropagation()}>
-            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              <Shield size={48} className="text-primary" style={{ marginBottom: '1rem' }} />
-              <h2>Escolha seu Plano</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Selecione o plano ideal para sua barbearia</p>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-
-              <div className="action-item" onClick={() => handleSubscriptionPayment('pro')} style={{ cursor: 'pointer', border: '1px solid var(--primary)', background: 'rgba(212, 175, 55, 0.05)' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 800, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    Pro AI <span style={{ fontSize: '0.6rem', background: 'var(--primary)', color: 'black', padding: '2px 6px', borderRadius: '4px' }}>POPULAR</span>
+      {
+        paymentSelectionAppt && (
+          <div className="bottom-sheet-overlay" onClick={() => setPaymentSelectionAppt(null)}>
+            <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
+              <div className="sheet-header"></div>
+              <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--primary)' }}>Como deseja pagar?</h3>
+              <div className="action-list">
+                <button className="action-item" onClick={() => processPayment('real')}>
+                  <div style={{ background: 'rgba(212, 175, 55, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                    <CreditCard size={24} color="var(--primary)" />
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Mestre Leo AI + Pagamentos</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 119,90</div>
-                  <div style={{ fontSize: '0.7rem' }}>/mês</div>
-                </div>
-              </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 800 }}>Pagamento Real</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>PIX ou Cartão via Mercado Pago</div>
+                  </div>
+                </button>
 
-              <div className="action-item" onClick={() => handleSubscriptionPayment('business')} style={{ cursor: 'pointer', border: '1px solid var(--border)' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>Barber Shop</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Múltiplos Barbeiros + Equipes</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 189,90</div>
-                  <div style={{ fontSize: '0.7rem' }}>/mês</div>
-                </div>
-              </div>
+                <button className="action-item" style={{ borderColor: 'rgba(46, 204, 113, 0.2)' }} onClick={() => processPayment('local')}>
+                  <div style={{ background: 'rgba(46, 204, 113, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                    <Shield size={24} color="#2ecc71" />
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 800, color: '#2ecc71' }}>Pagamento no Local</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Dinheiro ou Cartão na Barbearia</div>
+                  </div>
+                </button>
 
-              <button className="btn-close-sheet" onClick={() => setShowPlanSelection(false)} style={{ marginTop: '1rem' }}>
-                Cancelar
-              </button>
+                <button className="action-item" style={{ opacity: 0.5 }} onClick={() => processPayment('mock')}>
+                  <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '10px', borderRadius: '12px' }}>
+                    <RefreshCw size={24} color="white" />
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 800 }}>Simular Online</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Apenas para teste rápido</div>
+                  </div>
+                </button>
+
+                <button className="btn-close-sheet" onClick={() => setPaymentSelectionAppt(null)}>
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+      {
+        showPlanSelection && (
+          <div className="modal-overlay" onClick={() => setShowPlanSelection(false)}>
+            <div className="glass-card fade-in" style={{ width: '90%', maxWidth: '450px', padding: '2rem' }} onClick={e => e.stopPropagation()}>
+              <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                <Shield size={48} className="text-primary" style={{ marginBottom: '1rem' }} />
+                <h2>Escolha seu Plano</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Selecione o plano ideal para sua barbearia</p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+
+                <div className="action-item" onClick={() => handleSubscriptionPayment('pro')} style={{ cursor: 'pointer', border: '1px solid var(--primary)', background: 'rgba(212, 175, 55, 0.05)' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 800, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      Pro AI <span style={{ fontSize: '0.6rem', background: 'var(--primary)', color: 'black', padding: '2px 6px', borderRadius: '4px' }}>POPULAR</span>
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Mestre Leo AI + Pagamentos</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 119,90</div>
+                    <div style={{ fontSize: '0.7rem' }}>/mês</div>
+                  </div>
+                </div>
+
+                <div className="action-item" onClick={() => handleSubscriptionPayment('business')} style={{ cursor: 'pointer', border: '1px solid var(--border)' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>Barber Shop</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Múltiplos Barbeiros + Equipes</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 189,90</div>
+                    <div style={{ fontSize: '0.7rem' }}>/mês</div>
+                  </div>
+                </div>
+
+                <button className="btn-close-sheet" onClick={() => setShowPlanSelection(false)} style={{ marginTop: '1rem' }}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+    </div >
   );
 }
 
