@@ -841,29 +841,29 @@ REGRAS DE RESPOSTA:
 Seu tom é amigável, direto e profissional, como um barbeiro experiente.
 
 OBJETIVO:
-Tirar dúvidas sobre serviços/preços e guiar o cliente para uma das opções do menu.
+Tirar dúvidas sobre serviços/preços e SEMPRE guiar o cliente para uma das opções do menu numerado abaixo.
 
-OPÇÕES DO SISTEMA (O cliente precisa digitar o número):
-1 - Para AGENDAR um novo corte ou serviço.
-2 - Para CONSULTAR ou CANCELAR agendamentos existentes.
-3 - Para falar com você (Leo) ou chamar um humano.
+IMPORTANTE:
+Você DEVE SEMPRE incluir as seguintes opções ao final de sua resposta para que o cliente saiba o que fazer a seguir:
+1️⃣ - Para AGENDAR um novo corte ou serviço.
+2️⃣ - Para CONSULTAR ou CANCELAR agendamentos existentes.
+3️⃣ - Para tirar dúvidas com você (Leo).
 
 SEUS SERVIÇOS E PREÇOS ATUAIS:
 ${servicesList}
 
 DIRETRIZES DE COMPORTAMENTO:
-1. SEJA ÚTIL: Se o cliente perguntar o preço de um corte, RESPONDA o preço antes de pedir para ele agendar.
+1. SEJA ÚTIL: Se o cliente perguntar o preço de um corte, RESPONDA o preço antes de mostrar o menu.
 2. SEJA CONVERSADOR: Use emojis (✂️, 💈, ✅) e linguagem natural, mas não seja prolixo.
-3. FOCO NA AÇÃO: Sempre termine sua resposta sugerindo a próxima ação (digitar 1, 2 ou Menu).
-4. NÃO INVENTE: Não invente horários, não prometa encaixes (você não vê a agenda). Apenas diga para ele digitar 1 para ver a disponibilidade.
-5. PERSONALIDADE: Você é o braço direito do barbeiro. Animado, educado e eficiente.
+3. SEMPRE MOSTRE O MENU: Não deixe o cliente sem saber o próximo passo. Termine com "Como posso te ajudar agora? Escolha uma opção:" seguido do menu 1, 2 e 3.
+4. NÃO INVENTE: Não invente horários. Diga para ele digitar 1 para ver a disponibilidade real.
 
 EXEMPLOS:
 Cliente: "Quanto é a barba?"
-Leo: "A barba sai por R$ 35, campeão! 💈 Quer garantir seu horário? Digite *1*."
-
-Cliente: "Tem horário pra hoje?"
-Leo: "Para ver os horários em tempo real, digite *1* e escolha o serviço. É rapidinho! ✂️"`;
+Leo: "A barba sai por R$ 35, campeão! 💈 Como posso te ajudar agora? Escolha uma opção:
+1️⃣ - Agendar
+2️⃣ - Meus Agendamentos
+3️⃣ - Dúvidas"`;
 
                         const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
                             messages: [
@@ -911,7 +911,10 @@ Leo: "Para ver os horários em tempo real, digite *1* e escolha o serviço. É r
                 // Se o usuário está num fluxo crítico e digita algo que não é "Menu", o handlers específicos leem.
                 // Se não for fluxo crítico, ou se for algo genérico fora do contexto, a IA assume.
                 if (!isNumericChoice && !criticalStates.includes(session.state)) {
-                    const aiMsg = await askAI(text, session.state);
+                    let aiMsg = await askAI(text, session.state);
+                    if (!aiMsg.includes("1️⃣") && !aiMsg.includes("Agendar")) {
+                        aiMsg += "\n\nComo posso te ajudar agora? Escolha uma opção:\n1️⃣ - Agendar\n2️⃣ - Meus Agendamentos\n3️⃣ - Dúvidas";
+                    }
                     await sendMessage(from, aiMsg);
                     return json({ success: true });
                 }
@@ -1045,19 +1048,24 @@ Leo: "Para ver os horários em tempo real, digite *1* e escolha o serviço. É r
 
                     const busy = await env.DB.prepare('SELECT appointment_time FROM appointments WHERE barber_email = ? AND appointment_date = ? AND status != "cancelled"').bind(session.selected_barber_email, ds).all();
                     const bt = busy.results.map(r => r.appointment_time);
-                    const slots = ["09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
+                    const slots = [
+                        "07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+                        "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30",
+                        "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00"
+                    ];
                     let av = slots.filter(t => !bt.includes(t));
 
                     // Filter past times if today
                     const brazilTime = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-                    const selectedDate = new Date(ds);
-                    const isToday = selectedDate.toISOString().split('T')[0] === brazilTime.toISOString().split('T')[0];
+                    const brazilDateStr = brazilTime.toLocaleDateString("en-CA");
+                    const isToday = ds === brazilDateStr;
 
                     if (isToday) {
-                        const currentMinutes = brazilTime.getHours() * 60 + brazilTime.getMinutes();
+                        // Buffer of 15 minutes
+                        const currentTotalMinutes = brazilTime.getHours() * 60 + brazilTime.getMinutes() + 15;
                         av = av.filter(t => {
                             const [h, m] = t.split(':').map(Number);
-                            return (h * 60 + m) > currentMinutes;
+                            return (h * 60 + m) >= currentTotalMinutes;
                         });
                     }
 
@@ -1078,19 +1086,23 @@ Leo: "Para ver os horários em tempo real, digite *1* e escolha o serviço. É r
                     const ds = session.appointment_date;
                     const busy = await env.DB.prepare('SELECT appointment_time FROM appointments WHERE barber_email = ? AND appointment_date = ? AND status != "cancelled"').bind(session.selected_barber_email, ds).all();
                     const bt = busy.results.map(r => r.appointment_time);
-                    const slots = ["09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
+                    const slots = [
+                        "07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+                        "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30",
+                        "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00"
+                    ];
                     let av = slots.filter(t => !bt.includes(t));
 
                     // Filter past times logic again to ensure index is correct
                     const brazilTime = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-                    const selectedDate = new Date(ds);
-                    const isToday = selectedDate.toISOString().split('T')[0] === brazilTime.toISOString().split('T')[0];
+                    const brazilDateStr = brazilTime.toLocaleDateString("en-CA");
+                    const isToday = ds === brazilDateStr;
 
                     if (isToday) {
-                        const currentMinutes = brazilTime.getHours() * 60 + brazilTime.getMinutes();
+                        const currentTotalMinutes = brazilTime.getHours() * 60 + brazilTime.getMinutes() + 15;
                         av = av.filter(t => {
                             const [h, m] = t.split(':').map(Number);
-                            return (h * 60 + m) > currentMinutes;
+                            return (h * 60 + m) >= currentTotalMinutes;
                         });
                     }
 

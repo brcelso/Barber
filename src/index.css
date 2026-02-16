@@ -588,17 +588,14 @@ button {
   min-height: 44px;
   display: flex;
   justify-content: center;
+  align-items: center;
   width: 100%;
   margin-bottom: 1.5rem;
-  overflow: hidden;
-  border-radius: 24px;
-  /* Matches the 'pill' shape of the google button */
-  background: transparent;
+  background: transparent !important;
 }
 
-/* Force children of google-btn-container to be centered and clip */
 .google-btn-container>div {
-  width: 100% !important;
+  background: transparent !important;
   display: flex !important;
   justify-content: center !important;
 }

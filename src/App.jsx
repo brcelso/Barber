@@ -417,7 +417,13 @@ function App() {
         if (!user) {
           const btnElem = document.getElementById("googleBtn");
           if (btnElem) {
-            window.google.accounts.id.renderButton(btnElem, { theme: "filled_black", size: "large", shape: "pill", width: "100%" });
+            window.google.accounts.id.renderButton(btnElem, {
+              theme: "outline",
+              size: "large",
+              shape: "pill",
+              width: "280", // Fixed width often prevents rendering glitches in the iframe
+              logo_alignment: "left"
+            });
           }
         }
       } else if (retryCount < 10) {
