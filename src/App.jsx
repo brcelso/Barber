@@ -46,7 +46,7 @@ function App() {
   const [selectedShop, setSelectedShop] = useState(null); // Nova navegação por hierarquia
   const [barberFilter, setBarberFilter] = useState('all'); // all, individual, business
   const [masterFilter, setMasterFilter] = useState('all'); // all, individual, business
-  const ENABLE_SIMULATION = true; // MANTENHA TRUE PARA VER A SIMULAÇÃO DOS 20 BARBEIROS
+  const ENABLE_SIMULATION = false; // MANTENHA TRUE PARA VER A SIMULAÇÃO DOS 20 BARBEIROS
   const [busySlots, setBusySlots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false); // Changed default to false
