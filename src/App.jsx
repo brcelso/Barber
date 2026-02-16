@@ -184,6 +184,24 @@ function App() {
     }
   };
 
+  const handleMasterStopBot = async (targetEmail) => {
+    try {
+      const res = await fetch(`http://localhost:3000/api/stop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'barber-secret-key', email: targetEmail })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Comando de parada enviado para ${targetEmail}`);
+      } else {
+        alert(`Erro na ponte: ${data.error}`);
+      }
+    } catch (e) {
+      alert('Certifique-se que o Servidor Ponte está rodando localmente para parar robôs.');
+    }
+  };
+
   const fetchWaStatus = async () => {
     try {
       const res = await fetch(`${API_URL}/whatsapp/status`, {
@@ -1201,6 +1219,28 @@ function App() {
                   >
                     <RefreshCw size={14} /> Reiniciar Sistema Geral
                   </button>
+                  <button
+                    style={{
+                      padding: '8px 15px',
+                      fontSize: '0.75rem',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      color: 'white',
+                      border: '1px solid var(--border)',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontWeight: 700
+                    }}
+                    onClick={() => {
+                      if (confirm('Deseja parar todos os robôs ativos?')) {
+                        handleMasterStopBot('ALL');
+                      }
+                    }}
+                  >
+                    <X size={14} /> Parar Todos os Robôs
+                  </button>
                 </div>
 
                 {masterStats && (
@@ -1445,6 +1485,24 @@ function App() {
                                 >
                                   <RefreshCw size={14} />
                                 </button>
+
+                                <button
+                                  onClick={() => handleMasterStopBot(u.email)}
+                                  style={{
+                                    background: 'rgba(231, 76, 60, 0.1)',
+                                    border: '1px solid rgba(231, 76, 60, 0.2)',
+                                    color: '#e74c3c',
+                                    padding: '6px',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}
+                                  title="Parar Robô"
+                                >
+                                  <X size={14} />
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -1609,9 +1667,24 @@ function App() {
                   ) : (
                     <div style={{ flex: 1, minWidth: '250px' }}>
                       {waStatus.status === 'connected' ? (
-                        <p style={{ color: 'var(--text-muted)' }}>
-                          ✅ Seu robô está ativo e respondendo aos clientes automaticamente através da IA do Mestre Leo.
-                        </p>
+                        <>
+                          <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                            ✅ Seu robô está ativo e respondendo aos clientes automaticamente através da IA do Mestre Leo.
+                          </p>
+                          <button
+                            className="btn-primary"
+                            style={{
+                              background: 'rgba(231, 76, 60, 0.1)',
+                              color: '#e74c3c',
+                              border: '1px solid rgba(231, 76, 60, 0.3)',
+                              padding: '8px 15px',
+                              fontSize: '0.8rem'
+                            }}
+                            onClick={() => handleMasterStopBot(user.email)}
+                          >
+                            <X size={14} /> Desligar Robô
+                          </button>
+                        </>
                       ) : (
                         <p style={{ color: 'var(--text-muted)' }}>
                           O robô está desligado. Para ativar, certifique-se que o servidor ponte está rodando em sua máquina. O QR Code aparecerá aqui automaticamente.

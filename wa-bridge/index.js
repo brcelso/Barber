@@ -179,6 +179,37 @@ app.post('/api/init', async (req, res) => {
     res.json({ success: true, message: `Iniciando sessão para ${email}` });
 });
 
+app.post('/api/stop', async (req, res) => {
+    const { key, email } = req.body;
+    if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });
+    if (!email) return res.status(400).json({ error: 'Email necessário' });
+
+    if (email === 'ALL') {
+        console.log('[Global Stop] Parando TODOS os robôs...');
+        for (const [id, sock] of sessions.entries()) {
+            try {
+                sock.ev.removeAllListeners('connection.update');
+                sock.end();
+            } catch (e) { }
+        }
+        sessions.clear();
+        return res.json({ success: true, message: 'Todos os robôs foram parados' });
+    }
+
+    if (sessions.has(email)) {
+        console.log(`[Stop] Parando robô para ${email}...`);
+        try {
+            const sock = sessions.get(email);
+            sock.ev.removeAllListeners('connection.update');
+            sock.end();
+        } catch (e) { }
+        sessions.delete(email);
+        res.json({ success: true, message: `Robô parado para ${email}` });
+    } else {
+        res.json({ success: true, message: `Nenhum robô ativo para ${email}` });
+    }
+});
+
 app.post('/send-message', async (req, res) => {
     const { key, number, message, barber_email } = req.body;
 
