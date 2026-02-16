@@ -261,9 +261,11 @@ app.post('/api/stop', async (req, res) => {
                 }).catch(() => { });
             }
 
+            // Remover da memória ANTES de fechar para evitar reconexão automática
+            sessions.delete(email);
+
             sock.ev.removeAllListeners('connection.update');
             sock.end();
-            sessions.delete(email);
 
             // Forçar atualização de status no servidor
             axios.post(STATUS_URL, { email, status: 'disconnected' }).catch(() => { });
