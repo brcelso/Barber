@@ -1336,14 +1336,29 @@ Leo: "A barba sai por R$ 35, campeão! 💈 Como posso te ajudar agora? Escolha 
                 return json({ received: true });
             }
 
+            // Admin: Update Bridge URL (Called by manage.js on startup)
+            if (url.pathname === '/api/admin/bridge/update' && request.method === 'POST') {
+                const { key, url: bridgeUrl, email } = await request.json();
+                if (key !== env.WA_BRIDGE_KEY) return json({ error: 'Invalid Key' }, 401);
+
+                // Ensure column exists (Migration on the fly)
+                try {
+                    await env.DB.prepare('ALTER TABLE users ADD COLUMN wa_bridge_url TEXT').run();
+                } catch (e) { }
+
+                await env.DB.prepare('UPDATE users SET wa_bridge_url = ? WHERE email = ?').bind(bridgeUrl, email).run();
+                return json({ success: true });
+            }
+
             // Admin: Remote Start/Stop Bot (Proxy to Bridge)
             if ((url.pathname === '/api/admin/bot/start' || url.pathname === '/api/admin/bot/stop') && request.method === 'POST') {
                 const email = request.headers.get('X-User-Email');
-                const user = await env.DB.prepare('SELECT is_admin, is_barber FROM users WHERE email = ?').bind(email).first();
+                const user = await env.DB.prepare('SELECT is_admin, is_barber, wa_bridge_url FROM users WHERE email = ?').bind(email).first();
                 if (!user || (user.is_admin !== 1 && user.is_barber !== 1)) return json({ error: 'Permission Denied' }, 403);
 
                 const { targetEmail } = await request.json();
-                const BRIDGE_URL = env.WA_BRIDGE_URL;
+                // Use URL from DB, fallback to Env
+                const BRIDGE_URL = user.wa_bridge_url || env.WA_BRIDGE_URL;
                 const BRIDGE_KEY = env.WA_BRIDGE_KEY;
                 const endpoint = url.pathname.includes('stop') ? '/api/stop' : '/api/start';
 
@@ -1358,7 +1373,7 @@ Leo: "A barba sai por R$ 35, campeão! 💈 Como posso te ajudar agora? Escolha 
                     const data = await bridgeRes.json();
                     return json(data, bridgeRes.status);
                 } catch (e) {
-                    return json({ error: 'Failed to contact bridge', details: e.message }, 502);
+                    return json({ error: 'Failed to contact bridge', details: e.message, triedUrl: BRIDGE_URL }, 502);
                 }
             }
 

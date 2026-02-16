@@ -115,7 +115,30 @@ async function run() {
                 // Garante que não tem flag antiga
                 if (fs.existsSync('.stop-flag')) fs.unlinkSync('.stop-flag');
 
-                await startNgrok();
+                const bridgeUrl = await startNgrok();
+
+                if (bridgeUrl) {
+                    try {
+                        console.log('📡 Atualizando Backend com nova URL da Bridge...');
+                        // Update Bridge URL
+                        await axios.post(`${API_URL}/admin/bridge/update`, {
+                            key: 'barber-secret-key',
+                            url: bridgeUrl,
+                            email: ADMIN_EMAIL
+                        });
+
+                        // Force Disconnected Status on Start (Clean Slate)
+                        await axios.post(`${API_URL}/whatsapp/status`, {
+                            email: ADMIN_EMAIL,
+                            status: 'disconnected'
+                        });
+
+                        console.log('✅ Backend atualizado com sucesso.');
+                    } catch (e) {
+                        console.error('⚠️ Falha ao atualizar URL no Backend:', e.message);
+                    }
+                }
+
                 await startWhatsApp();
                 isActive = true;
             }
