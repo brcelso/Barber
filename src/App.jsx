@@ -1665,14 +1665,14 @@ function App() {
                                     body: JSON.stringify({ targetEmail: user.email })
                                   });
                                   const data = await res.json();
-                                  if (data.success) {
+                                  if (res.ok) {
                                     alert('Comando de PARADA enviado! O robô ficará offline.');
-                                    setTimeout(checkWaStatus, 2000);
+                                    setTimeout(fetchWaStatus, 2000);
                                   } else {
                                     alert('Erro ao parar: ' + (data.error || 'Desconhecido'));
                                   }
                                 } catch (e) {
-                                  alert('Falha de conexão com o servidor.');
+                                  alert('Erro ao tentar parar o robô remotamente.');
                                 }
                               }}
                               style={{
@@ -1703,14 +1703,14 @@ function App() {
                                     body: JSON.stringify({ targetEmail: user.email })
                                   });
                                   const data = await res.json();
-                                  if (data.success) {
+                                  if (res.ok) {
                                     alert('Comando de INÍCIO enviado! Aguarde alguns segundos.');
-                                    setTimeout(checkWaStatus, 5000);
+                                    setTimeout(fetchWaStatus, 5000);
                                   } else {
                                     alert('Erro ao iniciar: ' + (data.error || 'Desconhecido'));
                                   }
                                 } catch (e) {
-                                  alert('Falha de conexão com o servidor.');
+                                  alert('Erro ao tentar iniciar o robô remotamente.');
                                 }
                               }}
                               style={{
