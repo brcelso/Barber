@@ -1748,24 +1748,40 @@ function App() {
                         {selectedTime && ` às ${selectedTime}`}
                       </h3>
                     </div>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      {editingAppointment && (
-                        <button className="btn-icon" onClick={() => { setEditingAppointment(null); setView('history'); }} title="Cancelar Edição">
-                          <X size={20} />
-                        </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                      {!loading && (
+                        <div style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: (!selectedService || !selectedTime) ? '#e74c3c' : '#2ecc71',
+                          background: 'rgba(0,0,0,0.2)',
+                          padding: '4px 10px',
+                          borderRadius: '8px',
+                          border: '1px solid currentColor',
+                          opacity: 0.9
+                        }}>
+                          {!selectedService ? '❌ Falta escolher o SERVIÇO' : (!selectedTime ? '❌ Falta escolher o HORÁRIO' : '✅ Tudo pronto!')}
+                        </div>
                       )}
-                      <button
-                        className="btn-primary"
-                        disabled={!selectedService || !selectedTime || loading}
-                        onClick={handleBooking}
-                        style={user?.isAdmin ? { background: 'linear-gradient(135deg, #2ecc71, #27ae60)', borderColor: '#27ae60' } : {}}
-                      >
-                        {loading ? 'Processando...' : (
-                          user?.isAdmin ?
-                            <><CheckCircle size={20} /> Salvar Agendamento (Admin)</> :
-                            <><Calendar size={20} /> {editingAppointment ? 'Salvar Alterações' : 'Agendar Agora'}</>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        {editingAppointment && (
+                          <button className="btn-icon" onClick={() => { setEditingAppointment(null); setView('history'); }} title="Cancelar Edição">
+                            <X size={20} />
+                          </button>
                         )}
-                      </button>
+                        <button
+                          className="btn-primary"
+                          disabled={!selectedService || !selectedTime || loading}
+                          onClick={handleBooking}
+                          style={user?.isAdmin ? { background: 'linear-gradient(135deg, #2ecc71, #27ae60)', borderColor: '#27ae60' } : {}}
+                        >
+                          {loading ? 'Processando...' : (
+                            user?.isAdmin ?
+                              <><CheckCircle size={20} /> Salvar Agendamento (Admin)</> :
+                              <><Calendar size={20} /> {editingAppointment ? 'Salvar Alterações' : 'Agendar Agora'}</>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </section>
