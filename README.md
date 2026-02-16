@@ -68,5 +68,17 @@ npm run dev:full
 - **CORS & Headers:** Proteção de rotas via cabeçalhos de autenticação personalizados.
 - **Webhooks Seguros:** Processamento de pagamentos e mensagens validado via tokens de ambiente.
 
+## 🆘 Recuperação de Desastre
+Caso precise reinstalar o projeto em uma nova máquina, consulte o arquivo `.env.example` na raiz para ver todas as variáveis de ambiente necessárias.
+**Itens Críticos para Backup:**
+1. **Credenciais Cloudflare:** API Token e ID do Banco D1.
+2. **Pasta `wa-bridge/auth_sessions`:** Contém a sessão conectada do WhatsApp (evita novo QR Code).
+3. **Ngrok AuthToken:** Para manter o túnel estável.
+
+## 🤖 Controle do Robô (Novidade)
+- **Parada Suave:** Botões de "Parar" no painel desconectam o WhatsApp mas mantêm o servidor local ativo.
+- **Auto-Healing:** O gerenciador local reinicia automaticamente o processo caso o WhatsApp trave.
+- **Notificações de Status:** Admin recebe avisos no próprio WhatsApp ao ligar/desligar o robô.
+
 ---
 *Desenvolvido para oferecer a melhor experiência entre barbeiro e cliente. ✂️✨*
