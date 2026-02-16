@@ -574,6 +574,25 @@ button {
   backdrop-filter: blur(20px);
 }
 
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: radial-gradient(circle at top right, rgba(212, 175, 55, 0.15), transparent 400px),
+    radial-gradient(circle at bottom left, rgba(20, 20, 20, 0.4), transparent 400px);
+}
+
+.google-btn-container {
+  min-height: 44px;
+  /* Standard Google Button height */
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
 .login-card input:focus {
   border-color: var(--primary) !important;
   background: rgba(255, 255, 255, 0.08) !important;

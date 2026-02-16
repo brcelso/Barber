@@ -426,7 +426,7 @@ function App() {
       }
     };
     initGoogle();
-  }, [user]);
+  }, [user, showManualLogin]);
 
   const handleLogout = () => {
     setUser(null);
@@ -947,7 +947,7 @@ function App() {
 
           {!showManualLogin ? (
             <>
-              <div id="googleBtn" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'center' }}></div>
+              <div id="googleBtn" className="google-btn-container"></div>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>ou continue com seus dados</p>
               <button
                 className="btn-primary"
@@ -1789,7 +1789,7 @@ function App() {
               appointments.map(a => {
                 const isProfessional = a.barber_email === user.email; // If I am the barber
                 const displayTitle = isProfessional ? `Cliente: ${a.client_name || a.user_name || 'Cliente'}` : a.service_name;
-                const displaySubtitle = isProfessional ? `${a.service_name} às ${a.appointment_time}` : `${a.appointment_time} - com ${a.barber_name}`;
+                const displaySubtitle = isProfessional ? `${a.service_name} às ${a.appointment_time}` : `${a.appointment_time} - Barbeiro: ${a.barber_name || 'Barbeiro'}`;
                 const displayPicture = isProfessional ? (a.client_picture || a.user_picture) : a.barber_picture;
                 const isPaid = a.payment_status === 'confirmed' || a.status === 'confirmed';
                 const canManage = !isPaid && a.status !== 'cancelled' && a.status !== 'blocked';

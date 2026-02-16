@@ -47,10 +47,11 @@ export default {
                     }
 
                     const appt = await env.DB.prepare(`
-                        SELECT a.*, s.name as service_name, u.phone, u.name as user_name
+                        SELECT a.*, s.name as service_name, u.phone, u.name as user_name, b.name as barber_name
                         FROM appointments a
                         JOIN services s ON a.service_id = s.id
                         JOIN users u ON a.user_email = u.email
+                        LEFT JOIN users b ON a.barber_email = b.email
                         WHERE a.id = ?
                     `).bind(appointmentId).first();
 
@@ -61,11 +62,11 @@ export default {
                     const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
 
                     if (status === 'confirmed') {
-                        message = `✅ *Agendamento Confirmado!* \n\nOlá ${appt.user_name}, seu horário para *${appt.service_name}* no dia *${formattedDate}* às *${appt.appointment_time}* foi confirmado. \n\nTe esperamos lá! ✂️`;
+                        message = `✅ *Agendamento Confirmado!* \n\nOlá ${appt.user_name}, seu horário para *${appt.service_name}* com o barbeiro *${appt.barber_name || 'Barbearia'}* no dia *${formattedDate}* às *${appt.appointment_time}* foi confirmado. \n\nTe esperamos lá! ✂️`;
                     } else if (status === 'cancelled') {
-                        message = `❌ *Agendamento Cancelado* \n\nOlá ${appt.user_name}, informamos que o agendamento para *${appt.service_name}* no dia *${formattedDate}* às *${appt.appointment_time}* foi cancelado.`;
+                        message = `❌ *Agendamento Cancelado* \n\nOlá ${appt.user_name}, informamos que o agendamento para *${appt.service_name}* com o barbeiro *${appt.barber_name || 'Barbearia'}* no dia *${formattedDate}* às *${appt.appointment_time}* foi cancelado.`;
                     } else if (status === 'pending') {
-                        message = `⏳ *Agendamento Recebido* \n\nOlá ${appt.user_name}, seu agendamento para *${appt.service_name}* no dia *${formattedDate}* às *${appt.appointment_time}* foi recebido e está sendo processado.`;
+                        message = `⏳ *Agendamento Recebido* \n\nOlá ${appt.user_name}, seu agendamento para *${appt.service_name}* com o barbeiro *${appt.barber_name || 'Barbearia'}* no dia *${formattedDate}* às *${appt.appointment_time}* foi recebido e está sendo processado.`;
                     }
 
                     if (message) {
@@ -828,7 +829,7 @@ REGRAS DE RESPOSTA:
                 }
 
                 // AI Agent Helper with refined personality
-                const askAI = async (userMessage, sessionState = 'main_menu') => {
+                const askAI = async (userMessage, _sessionState = 'main_menu') => {
                     try {
                         const barber = await env.DB.prepare('SELECT name FROM users WHERE email = ?').bind(botBarberEmail).first();
                         const barberName = barber ? barber.name : 'Barber Shop';
@@ -871,7 +872,7 @@ Leo: "Para ver os horários em tempo real, digite *1* e escolha o serviço. É r
                             ]
                         });
                         return response.response || "Estou aqui para ajudar! Digite '1' para agendar, '2' para ver seus horários ou 'Menu' para o início.";
-                    } catch (e) {
+                    } catch (_e) {
                         return "Olá! ✂️ Como posso te ajudar? Digite '1' para agendar ou 'Menu' para o menu principal.";
                     }
                 };
@@ -905,7 +906,7 @@ Leo: "Para ver os horários em tempo real, digite *1* e escolha o serviço. É r
 
                 // AI Intercept: Se não for um número de escolha e não for um fluxo de dados crítico
                 // Lista de estados onde a IA NÃO deve interferir se o usuário digitar texto (blindagem de fluxo)
-                const criticalStates = ['awaiting_barber', 'awaiting_service', 'awaiting_date', 'awaiting_time', 'awaiting_email', 'awaiting_confirmation'];
+                const criticalStates = ['awaiting_barber', 'awaiting_service', 'awaiting_date', 'awaiting_time', 'awaiting_name', 'awaiting_email', 'awaiting_confirmation'];
 
                 // Se o usuário está num fluxo crítico e digita algo que não é "Menu", o handlers específicos leem.
                 // Se não for fluxo crítico, ou se for algo genérico fora do contexto, a IA assume.
@@ -956,10 +957,11 @@ Leo: "Para ver os horários em tempo real, digite *1* e escolha o serviço. É r
                         await sendMessage(from, msg);
                     } else if (text === '2') {
                         const appts = await env.DB.prepare(`
-                            SELECT a.*, s.name as service_name
+                            SELECT a.*, s.name as service_name, b.name as barber_name
                             FROM appointments a
                             JOIN services s ON a.service_id = s.id
                             JOIN users u ON a.user_email = u.email
+                            LEFT JOIN users b ON a.barber_email = b.email
                             WHERE (u.phone LIKE ? OR u.phone = ?) AND a.status != 'cancelled'
                             ORDER BY a.appointment_date LIMIT 5
                         `).bind(`%${from.slice(-8)}`, from).all();
@@ -969,7 +971,7 @@ Leo: "Para ver os horários em tempo real, digite *1* e escolha o serviço. É r
                         } else {
                             let msg = "🗓️ *Seus Agendamentos:* \n";
                             appts.results.forEach((a, i) => {
-                                msg += `\n*${i + 1}* - ${a.service_name} dia ${a.appointment_date} às ${a.appointment_time}`;
+                                msg += `\n*${i + 1}* - ${a.service_name} com ${a.barber_name || 'Barbeiro'} dia ${a.appointment_date} às ${a.appointment_time}`;
                             });
                             msg += "\n\nEnvie o número para *CANCELAR* ou 'Menu' para o início.";
                             await env.DB.prepare('UPDATE whatsapp_sessions SET state = "managing_appointments", metadata = ? WHERE phone = ?')
@@ -1044,7 +1046,20 @@ Leo: "Para ver os horários em tempo real, digite *1* e escolha o serviço. É r
                     const busy = await env.DB.prepare('SELECT appointment_time FROM appointments WHERE barber_email = ? AND appointment_date = ? AND status != "cancelled"').bind(session.selected_barber_email, ds).all();
                     const bt = busy.results.map(r => r.appointment_time);
                     const slots = ["09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
-                    const av = slots.filter(t => !bt.includes(t));
+                    let av = slots.filter(t => !bt.includes(t));
+
+                    // Filter past times if today
+                    const brazilTime = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+                    const selectedDate = new Date(ds);
+                    const isToday = selectedDate.toISOString().split('T')[0] === brazilTime.toISOString().split('T')[0];
+
+                    if (isToday) {
+                        const currentMinutes = brazilTime.getHours() * 60 + brazilTime.getMinutes();
+                        av = av.filter(t => {
+                            const [h, m] = t.split(':').map(Number);
+                            return (h * 60 + m) > currentMinutes;
+                        });
+                    }
 
                     if (av.length === 0) {
                         await sendMessage(from, "❌ Sem horários disponíveis para este dia. Escolha outro dia ou digite 'Menu'.");
@@ -1058,14 +1073,27 @@ Leo: "Para ver os horários em tempo real, digite *1* e escolha o serviço. É r
                     await sendMessage(from, msg);
                     return json({ success: true });
                 }
-
                 // 6. AWAITING TIME
                 if (session.state === 'awaiting_time') {
                     const ds = session.appointment_date;
                     const busy = await env.DB.prepare('SELECT appointment_time FROM appointments WHERE barber_email = ? AND appointment_date = ? AND status != "cancelled"').bind(session.selected_barber_email, ds).all();
                     const bt = busy.results.map(r => r.appointment_time);
                     const slots = ["09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
-                    const av = slots.filter(t => !bt.includes(t));
+                    let av = slots.filter(t => !bt.includes(t));
+
+                    // Filter past times logic again to ensure index is correct
+                    const brazilTime = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+                    const selectedDate = new Date(ds);
+                    const isToday = selectedDate.toISOString().split('T')[0] === brazilTime.toISOString().split('T')[0];
+
+                    if (isToday) {
+                        const currentMinutes = brazilTime.getHours() * 60 + brazilTime.getMinutes();
+                        av = av.filter(t => {
+                            const [h, m] = t.split(':').map(Number);
+                            return (h * 60 + m) > currentMinutes;
+                        });
+                    }
+
                     const tm = av[parseInt(text) - 1];
 
                     if (!tm) {
@@ -1074,31 +1102,61 @@ Leo: "Para ver os horários em tempo real, digite *1* e escolha o serviço. É r
                     }
 
                     if (session.user_email) {
+                        // User exists
                         await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_confirmation", appointment_time = ? WHERE phone = ?').bind(tm, from).run();
                         const s = await env.DB.prepare('SELECT name FROM services WHERE id = ?').bind(session.service_id).first();
-                        await sendMessage(from, `📍 *Confirmar Dados:* \n\n*Serviço:* ${s.name}\n*Data:* ${ds}\n*Hora:* ${tm}\n\nConfirma?\n*1* - Sim ✅\n*2* - Não/Cancelar ❌`);
+                        const barber = await env.DB.prepare('SELECT name FROM users WHERE email = ?').bind(session.selected_barber_email).first();
+
+                        await sendMessage(from, `📝 *Confirme os dados:* \n\n💇‍♂️ *Serviço:* ${s.name}\n📅 *Data:* ${ds}\n⏰ *Hora:* ${tm}\n💈 *Barbeiro:* ${barber?.name || 'Barbearia'}\n\n*1* - ✅ Confirmar\n*2* - ❌ Cancelar\n*3* - ✏️ Corrigir meus dados`);
                     } else {
-                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_email", appointment_time = ? WHERE phone = ?').bind(tm, from).run();
-                        await sendMessage(from, `⏰ *Horário ${tm} reservado!* \n\nSendo sua primeira vez, digite seu *E-mail* para completar:`);
+                        // New user -> Ask Name first
+                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_name", appointment_time = ? WHERE phone = ?').bind(tm, from).run();
+                        await sendMessage(from, `👋 *É sua primeira vez aqui!*\n\nQual é o seu *Nome*? (Digite abaixo)`);
                     }
                     return json({ success: true });
                 }
 
-                // 7. AWAITING EMAIL
-                if (session.state === 'awaiting_email') {
-                    const email = text.toLowerCase();
-                    if (!email.includes('@')) {
-                        await sendMessage(from, "❌ E-mail inválido. Tente novamente ou digite 'Menu'.");
+                // 7. AWAITING NAME
+                if (session.state === 'awaiting_name') {
+                    const name = text.trim();
+                    if (name.length < 2) {
+                        await sendMessage(from, "⚠️ Nome muito curto. Por favor, digite seu nome completo.");
                         return json({ success: true });
                     }
-                    await env.DB.prepare('INSERT OR IGNORE INTO users (email, name, phone) VALUES (?, ?, ?)').bind(email, `Cliente ${from}`, from).run();
-                    await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_confirmation", user_email = ? WHERE phone = ?').bind(email, from).run();
-                    const s = await env.DB.prepare('SELECT name FROM services WHERE id = ?').bind(session.service_id).first();
-                    await sendMessage(from, `📍 *Dados Confirmados!* \n\n*Serviço:* ${s.name}\n*Data:* ${session.appointment_date}\n*Hora:* ${session.appointment_time}\n\nConfirma o agendamento?\n*1* - Sim ✅\n*2* - Não/Resetar ❌`);
+                    // Save name temporarily in metadata
+                    await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_email", metadata = ? WHERE phone = ?').bind(JSON.stringify({ temp_name: name }), from).run();
+                    await sendMessage(from, `Prazer, *${name}*! 🤝\n\nAgora, digite seu *E-mail* para receber o comprovante:`);
                     return json({ success: true });
                 }
 
-                // 8. FINAL CONFIRMATION & SAVE
+                // 8. AWAITING EMAIL
+                if (session.state === 'awaiting_email') {
+                    const email = text.toLowerCase().trim();
+                    if (!email.includes('@') || !email.includes('.')) {
+                        await sendMessage(from, "❌ E-mail inválido. Tente novamente (ex: joao@gmail.com).");
+                        return json({ success: true });
+                    }
+
+                    // Retrieve name from metadata
+                    const meta = session.metadata ? JSON.parse(session.metadata) : {};
+                    const userName = meta.temp_name || `Cliente ${from}`;
+
+                    // Insert or Update User
+                    await env.DB.prepare(`
+                        INSERT INTO users (email, name, phone) VALUES (?, ?, ?)
+                        ON CONFLICT(email) DO UPDATE SET name = excluded.name, phone = excluded.phone
+                    `).bind(email, userName, from).run();
+
+                    await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_confirmation", user_email = ? WHERE phone = ?').bind(email, from).run();
+
+                    const s = await env.DB.prepare('SELECT name FROM services WHERE id = ?').bind(session.service_id).first();
+                    const barber = await env.DB.prepare('SELECT name FROM users WHERE email = ?').bind(session.selected_barber_email).first();
+
+                    await sendMessage(from, `📝 *Tudo pronto! Confirme:* \n\n👤 *Nome:* ${userName}\n📧 *E-mail:* ${email}\n💇‍♂️ *Serviço:* ${s.name}\n📅 *Data:* ${session.appointment_date}\n⏰ *Hora:* ${session.appointment_time}\n💈 *Barbeiro:* ${barber?.name || 'Barbearia'}\n\n*1* - ✅ Confirmar\n*2* - ❌ Cancelar\n*3* - ✏️ Corrigir dados`);
+                    return json({ success: true });
+                }
+
+                // 9. FINAL CONFIRMATION & SAVE
                 if (session.state === 'awaiting_confirmation') {
                     if (text === '1' || textLower === 'sim' || textLower === 's') {
                         // RE-VALIDAÇÃO FINAL DOS DADOS
@@ -1153,9 +1211,12 @@ Leo: "Para ver os horários em tempo real, digite *1* e escolha o serviço. É r
                             const dateParts = appDate.split('-');
                             const fmtDate = `${dateParts[2]}/${dateParts[1]}`;
 
-                            let finMsg = `✅ *Agendamento Realizado!* \n\n✂️ *Serviço:* ${s.name}\n📅 *Data:* ${fmtDate}\n⏰ *Horário:* ${appTime}\n👤 *Barbeiro:* ${barberEmail === botBarberEmail ? 'Leo' : 'Selecionado'}`;
+                            // Fetch ACTUAL Barber Name
+                            const finalBarber = await env.DB.prepare('SELECT name FROM users WHERE email = ?').bind(barberEmail).first();
+
+                            let finMsg = `✅ *Agendamento Realizado!* \n\n✂️ *Serviço:* ${s.name}\n📅 *Data:* ${fmtDate}\n⏰ *Horário:* ${appTime}\n💈 *Barbeiro:* ${finalBarber?.name || 'Barbearia'}`;
                             finMsg += payMsg;
-                            finMsg += `\n\nO status atual é *Pendente*. Você receberá uma confirmação assim que o barbeiro aprovar!`;
+                            finMsg += `\n\nO status atual é *Pendente*. Você receberá uma confirmação assim que aprovarmos! 🚀`;
 
                             await sendMessage(from, finMsg);
 
@@ -1167,8 +1228,12 @@ Leo: "Para ver os horários em tempo real, digite *1* e escolha o serviço. É r
                     } else if (text === '2' || textLower === 'nao' || textLower === 'não') {
                         await env.DB.prepare('UPDATE whatsapp_sessions SET state = "main_menu" WHERE phone = ?').bind(from).run();
                         await sendMessage(from, "🔄 Agendamento cancelado. Voltamos ao Menu Principal.\n\n1️⃣ - Agendar\n2️⃣ - Meus Agendamentos");
+                    } else if (text === '3' || textLower === 'corrigir') {
+                        // Edit Data Flow
+                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_name" WHERE phone = ?').bind(from).run();
+                        await sendMessage(from, "✏️ *Vamos corrigir!*\n\nDigite seu *Nome* corretamente:");
                     } else {
-                        await sendMessage(from, "⚠️ Opção inválida. Digite *1* para Confirmar ou *2* para Cancelar.");
+                        await sendMessage(from, "⚠️ Opção inválida. Digite *1* para Confirmar, *2* para Cancelar ou *3* para Corrigir.");
                     }
                     return json({ success: true });
                 }
