@@ -550,7 +550,7 @@ REGRAS DE RESPOSTA:
 
                 await env.DB.prepare(`
                     UPDATE appointments 
-                    SET payment_status = 'confirmed', status = 'confirmed', payment_id = ?
+                    SET payment_status = 'confirmed', payment_id = ?
                     WHERE id = ? AND (user_email = ? OR barber_email = ?)
                 `).bind(payMethod, appointmentId, email, email).run();
 

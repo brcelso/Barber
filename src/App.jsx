@@ -1985,20 +1985,23 @@ function App() {
                     <CreditCard size={24} color="var(--primary)" />
                   </div>
                   <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 800 }}>Pagamento Real</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>PIX ou Cartão via Mercado Pago</div>
+                    <div style={{ fontWeight: 800 }}>Pagar com Mercado Pago</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>PIX ou Cartão de Crédito</div>
                   </div>
                 </button>
 
-                <button className="action-item" style={{ borderColor: 'rgba(46, 204, 113, 0.2)' }} onClick={() => processPayment('local')}>
-                  <div style={{ background: 'rgba(46, 204, 113, 0.1)', padding: '10px', borderRadius: '12px' }}>
-                    <Shield size={24} color="#2ecc71" />
-                  </div>
-                  <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 800, color: '#2ecc71' }}>Pagamento no Local</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Dinheiro ou Cartão na Barbearia</div>
-                  </div>
-                </button>
+                {/* Opção Local apenas para Admin/Barbeiro */}
+                {(user?.isAdmin || user?.isBarber) && (
+                  <button className="action-item" style={{ borderColor: 'rgba(46, 204, 113, 0.2)' }} onClick={() => processPayment('local')}>
+                    <div style={{ background: 'rgba(46, 204, 113, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                      <Shield size={24} color="#2ecc71" />
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontWeight: 800, color: '#2ecc71' }}>Pagamento no Local</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Registrar pagamento manual</div>
+                    </div>
+                  </button>
+                )}
 
                 <button className="action-item" style={{ opacity: 0.5 }} onClick={() => processPayment('mock')}>
                   <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '10px', borderRadius: '12px' }}>
