@@ -52,6 +52,40 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .header>div:first-child {
+    text-align: center;
+  }
+
+  .user-nav-group {
+    justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 0.8rem !important;
+  }
+
+  .nav-segmented {
+    width: 100%;
+    justify-content: center;
+    order: 3;
+    /* Push nav to a new line if needed */
+  }
+
+  .nav-item-fluid {
+    flex: 1;
+    justify-content: center;
+  }
 }
 
 .logo-text {
@@ -521,7 +555,7 @@ button {
     gap: 1rem;
   }
 
-  .appointment-item > div {
+  .appointment-item>div {
     width: 100%;
     justify-content: space-between;
   }
