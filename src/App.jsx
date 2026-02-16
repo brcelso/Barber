@@ -421,7 +421,7 @@ function App() {
               theme: "outline",
               size: "large",
               shape: "pill",
-              width: "280", // Fixed width often prevents rendering glitches in the iframe
+              width: "280",
               logo_alignment: "left"
             });
           }
