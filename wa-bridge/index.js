@@ -129,21 +129,6 @@ async function connectToWhatsApp(email) {
         } else if (connection === 'open') {
             console.log(`[Session] ✅ ${email} CONECTADO!`);
             axios.post(STATUS_URL, { email, status: 'connected' }).catch(() => { });
-
-            // Notificar o próprio barbeiro no chat dele
-            setTimeout(async () => {
-                try {
-                    if (sock.user && sock.user.id) {
-                        const jid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-                        console.log(`[Notify] Enviando ativação para: ${jid}`);
-                        await sock.sendMessage(jid, {
-                            text: "✅ *Robô Barber Ativado!* \n\nOlá! O robô da sua barbearia acaba de ser iniciado e já está pronto para automatizar seus agendamentos. ✂️💈"
-                        });
-                    }
-                } catch (e) {
-                    console.error(`[Notify] Erro ao enviar msg de ativação para ${email}:`, e.message);
-                }
-            }, 3000);
         }
     });
 
