@@ -61,6 +61,12 @@ async function startWhatsApp() {
     whatsappProcess.on('close', (code) => {
         console.log(`Ponte fechada (Código: ${code})`);
         whatsappProcess = null;
+        if (isActive) {
+            console.log('⚠️ Processo do WhatsApp fechou inesperadamente. Reiniciando serviços...');
+            isActive = false;
+            if (ngrokProcess) ngrokProcess.kill();
+            ngrokProcess = null;
+        }
     });
 }
 
