@@ -418,7 +418,7 @@ function App() {
           const btnElem = document.getElementById("googleBtn");
           if (btnElem) {
             window.google.accounts.id.renderButton(btnElem, {
-              theme: "outline",
+              theme: "filled_black",
               size: "large",
               shape: "pill",
               width: "280",
