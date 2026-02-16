@@ -289,10 +289,13 @@ REGRAS DE RESPOSTA:
                 if (status === 'connected' && user.wa_last_seen) {
                     const lastSeen = new Date(user.wa_last_seen);
                     const now = new Date();
-                    if ((now - lastSeen) > 120000) { // 2 minutos de tolerância
+                    // Reduzido para 45s (Heartbeat é 30s)
+                    if ((now - lastSeen) > 45000) {
                         status = 'disconnected';
-                        // Opcional: Atualizar no banco para não precisar recalcular sempre
-                        // await env.DB.prepare('UPDATE users SET wa_status = "disconnected" WHERE email = ?').bind(email).run();
+                        // Persist disconnected status to avoid flickering
+                        try {
+                            await env.DB.prepare('UPDATE users SET wa_status = "disconnected" WHERE email = ?').bind(email).run();
+                        } catch (e) { }
                     }
                 }
 
