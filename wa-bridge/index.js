@@ -98,10 +98,19 @@ async function connectToWhatsApp(email) {
                 sessions.delete(email);
                 console.log(`[Session] (${email}) LogOUT - Removendo sessão.`);
             } else {
-                setTimeout(() => {
-                    sessions.delete(email);
-                    connectToWhatsApp(email);
-                }, 5000);
+                // Só reconecta se a sessão ainda existir no mapa (ou seja, não foi removida manualmente pelo /stop)
+                if (sessions.has(email)) {
+                    console.log(`[Session] (${email}) Queda acidental - Tentando reconectar em 5s...`);
+                    setTimeout(() => {
+                        // Verifica novamente antes de reconectar
+                        if (sessions.has(email)) {
+                            sessions.delete(email);
+                            connectToWhatsApp(email);
+                        }
+                    }, 5000);
+                } else {
+                    console.log(`[Session] (${email}) Desconexão manual confirmada. Não reconectando.`);
+                }
             }
         } else if (connection === 'open') {
             console.log(`[Session] ✅ ${email} CONECTADO!`);
