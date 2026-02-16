@@ -591,14 +591,20 @@ button {
   justify-content: center;
   align-items: center;
   width: 100%;
-  margin-bottom: 1.5rem;
+  max-width: 280px;
+  margin: 0 auto 1.5rem;
   background: transparent !important;
+  overflow: hidden;
+  border-radius: 24px;
+  /* Corta qualquer rastro branco nos cantos do iframe */
+  color-scheme: dark;
 }
 
 .google-btn-container>div {
   display: flex !important;
   justify-content: center !important;
   background: transparent !important;
+  width: 100% !important;
 }
 
 .login-card input:focus {
