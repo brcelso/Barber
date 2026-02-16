@@ -22,7 +22,9 @@ import {
   Edit2,
   Shield,
   Activity,
-  Users
+  Users,
+  Power,
+  Play
 } from 'lucide-react';
 import { format, addDays, startOfToday, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
