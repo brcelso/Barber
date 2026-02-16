@@ -1970,7 +1970,7 @@ function App() {
                           {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
                         </div>
                         <div style={{ display: 'flex', gap: '5px' }}>
-                          {canManage && (
+                          {canManage && isProfessional && (
                             <button className="btn-icon" style={{ padding: '6px', opacity: 0.9 }} onClick={() => setSelectedActionAppt(a)} title="Gerenciar"><Edit2 size={16} /></button>
                           )}
                           {!isPaid && (
