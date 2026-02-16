@@ -1836,7 +1836,7 @@ function App() {
                             {isPaid && (
                               <span style={{ background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>PAGO</span>
                             )}
-                            {isProfessional && <span className="admin-badge">BARBEIRO</span>}
+
                           </div>
                           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{displaySubtitle}</p>
                         </div>
