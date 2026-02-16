@@ -43,6 +43,10 @@ function App() {
   const [adminAppointments, setAdminAppointments] = useState([]);
   const [barbers, setBarbers] = useState([]);
   const [selectedBarber, setSelectedBarber] = useState(null);
+  const [selectedShop, setSelectedShop] = useState(null); // Nova navegação por hierarquia
+  const [barberFilter, setBarberFilter] = useState('all'); // all, individual, business
+  const [masterFilter, setMasterFilter] = useState('all'); // all, individual, business
+  const ENABLE_SIMULATION = true; // MANTENHA TRUE PARA VER A SIMULAÇÃO DOS 20 BARBEIROS
   const [busySlots, setBusySlots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false); // Changed default to false
@@ -112,15 +116,113 @@ function App() {
       if (statsData.error) throw new Error(statsData.error);
       setMasterStats(statsData);
 
-      const usersRes = await fetch(`${API_URL}/master/users`, { headers: { 'X-User-Email': user.email } });
-      const usersData = await usersRes.json();
-      if (usersData.error) throw new Error(usersData.error);
+      const usersRes = await fetch(`${API_URL}/master/users`, { headers: { 'X-User-Email': user.email } }).catch(() => null);
+      const usersData = usersRes ? await usersRes.json().catch(() => []) : [];
 
-      console.log('[Master] Users fetched:', usersData);
-      setMasterUsers(Array.isArray(usersData) ? usersData : []);
+      if (ENABLE_SIMULATION) {
+        // Mock de estatísticas para evitar erro de banco vazio
+        setMasterStats({
+          totalUsers: { count: (Array.isArray(usersData) ? usersData.length : 0) + 20 },
+          activeAdmins: { count: 1 },
+          connectedBots: { count: 1 },
+          totalAppointments: { count: 42 },
+          planCounts: { results: [{ plan: 'pro', count: 15 }, { plan: 'business', count: 5 }] }
+        });
+
+        // Enriquecer dados dos usuários com tipos variados para demonstração
+        // Enriquecer dados dos usuários E adicionar 20 mocks para demonstração
+        let currentUsers = Array.isArray(usersData) ? usersData : [];
+
+        // Gerar 20 usuários simulados
+        const mockUsers = Array.from({ length: 20 }, (_, i) => ({
+          email: `mock.user.${i + 1}@example.com`,
+          name: i % 2 === 0 ? `Barbearia Top ${i + 1}` : `Usuário Teste ${i + 1}`,
+          phone: `(11) 99999-${1000 + i}`,
+          is_admin: i % 5 === 0,
+          is_barber: i % 3 === 0,
+          business_type: i % 2 === 0 ? 'Barbearia Premium' : 'Individual',
+          plan: i % 4 === 0 ? 'business' : (i % 2 === 0 ? 'pro' : null),
+          subscription_expires: new Date(Date.now() + 86400000 * 30).toISOString(),
+          wa_status: i % 4 === 0 ? 'connected' : 'disconnected'
+        }));
+
+        setMasterUsers([...currentUsers, ...mockUsers]);
+      } else {
+        setMasterUsers(Array.isArray(usersData) ? usersData : []);
+      }
     } catch (e) {
       console.error('Erro ao buscar dados master:', e);
-      setMasterError(e.message);
+      if (ENABLE_SIMULATION) {
+        setMasterStats({
+          totalUsers: { count: 32 },
+          activeAdmins: { count: 8 },
+          connectedBots: { count: 5 },
+          totalAppointments: { count: 142 },
+          planCounts: { results: [{ plan: 'pro', count: 10 }, { plan: 'business', count: 5 }] }
+        });
+
+        // Gerar Mock de Barbearias (Business) e Individuais
+        let mockUsers = [];
+
+        // 5 Barbearias com Equipe
+        const shops = ['Barbearia Corte Fino', 'Estilo & Navalha', 'Homem Moderno', 'Barba Negra', 'Vintage Barber'];
+        shops.forEach((shop, i) => {
+          // Dono da barbearia
+          const ownerEmail = `owner${i}@${shop.replace(/\s+/g, '').toLowerCase()}.com`;
+          mockUsers.push({
+            email: ownerEmail,
+            name: `${shop} (Sede)`,
+            phone: `(11) 99900-${1000 + i}`,
+            is_admin: true,
+            is_barber: true,
+            business_type: 'Barbearia Premium',
+            plan: 'business',
+            subscription_expires: new Date(Date.now() + 86400000 * 30).toISOString(),
+            wa_status: 'connected',
+            shop_name: shop,
+            role: 'owner'
+          });
+
+          // 3 Barbeiros para cada barbearia
+          for (let b = 1; b <= 3; b++) {
+            mockUsers.push({
+              email: `barber${b}.${i}@${shop.replace(/\s+/g, '').toLowerCase()}.com`,
+              name: `Barbeiro ${b} - ${shop.split(' ')[0]}`,
+              phone: `(11) 999${b}0-${2000 + i}`,
+              is_admin: false,
+              is_barber: true,
+              business_type: 'Equipe',
+              plan: null, // Plano é do dono
+              subscription_expires: null,
+              wa_status: 'disconnected', // Só o dono conecta o bot geralmente ou cada um
+              shop_name: shop,
+              role: 'barber'
+            });
+          }
+        });
+
+        // 10 Barbeiros Individuais
+        for (let i = 1; i <= 10; i++) {
+          const name = `Barbeiro Solo ${i}`;
+          mockUsers.push({
+            email: `solo${i}@gmail.com`,
+            name: name,
+            phone: `(11) 98888-${i}000`,
+            is_admin: true,
+            is_barber: true,
+            business_type: 'Individual',
+            plan: i % 3 === 0 ? 'pro' : null,
+            subscription_expires: i % 3 === 0 ? new Date(Date.now() + 86400000 * 15).toISOString() : null,
+            wa_status: i % 4 === 0 ? 'connected' : 'disconnected',
+            shop_name: name, // Loja é ele mesmo
+            role: 'individual'
+          });
+        }
+
+        setMasterUsers(mockUsers);
+      } else {
+        setMasterError(e.message);
+      }
     }
   };
 
@@ -317,6 +419,17 @@ function App() {
           isBarber: data.user.isBarber,
           phone: data.user.phone
         };
+
+        // DEVELOPER OVERRIDE: Forçar permissões no modo simulação para teste local
+        if (ENABLE_SIMULATION && finalUser.email === 'celsosilvajunior90@gmail.com') {
+          finalUser.isAdmin = true;
+          finalUser.isMaster = true;
+          finalUser.isBarber = true;
+          // Garantir snake_case também para compatibilidade
+          finalUser.is_admin = true;
+          finalUser.is_master = true;
+          finalUser.is_barber = true;
+        }
         setUser(finalUser);
         localStorage.setItem('barber_user', JSON.stringify(finalUser));
         setShowManualLogin(false);
@@ -397,6 +510,51 @@ function App() {
   };
 
   const fetchBarbers = async () => {
+    if (ENABLE_SIMULATION) {
+      const mockBarbers = [];
+
+      // 1. Criar 3 Grandes Barbearias (Lojas) com Equipe
+      for (let i = 1; i <= 3; i++) {
+        const shopEmail = `shop${i}@test.com`;
+        const shopName = `Barbearia Premium ${i}`;
+
+        // A LOJA (User Pai/Dono)
+        mockBarbers.push({
+          email: shopEmail,
+          name: shopName,
+          picture: `https://ui-avatars.com/api/?name=${encodeURIComponent(shopName)}&background=d4af37&color=fff`,
+          business_type: 'barbearia', // Define que é uma organização
+          ownerId: null // É a raiz
+        });
+
+        // OS BARBEIROS (Users Filhos)
+        for (let j = 1; j <= 4; j++) {
+          const staffName = `Barbeiro ${j} da Loja ${i}`;
+          mockBarbers.push({
+            email: `staff${i}_${j}@test.com`,
+            name: staffName,
+            picture: `https://ui-avatars.com/api/?name=${encodeURIComponent(staffName)}&background=1e1e1e&color=fff`,
+            business_type: 'staff', // Novo tipo: membro de equipe
+            ownerId: shopEmail // Link com a loja
+          });
+        }
+      }
+
+      // 2. Criar 5 Barbeiros Independentes (Solos)
+      for (let k = 1; k <= 5; k++) {
+        const soloName = `Barbeiro Solo ${k}`;
+        mockBarbers.push({
+          email: `solo${k}@test.com`,
+          name: soloName,
+          picture: `https://ui-avatars.com/api/?name=${encodeURIComponent(soloName)}&background=2ecc71&color=fff`,
+          business_type: 'individual',
+          ownerId: null
+        });
+      }
+
+      setBarbers(mockBarbers);
+      return;
+    }
     try {
       const res = await fetch(`${API_URL}/barbers`);
       const data = await res.json();
@@ -1335,207 +1493,234 @@ function App() {
                             </td>
                           </tr>
                         ) : masterUsers?.length > 0 ? (
-                          masterUsers.map(u => (
-                            <tr key={u.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                              <td style={{ padding: '10px' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                  <input
-                                    type="text"
-                                    defaultValue={u.name || ''}
-                                    placeholder="Nome"
-                                    onBlur={(e) => {
-                                      if (e.target.value !== (u.name || '')) {
-                                        handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: e.target.value, newEmail: u.email });
-                                      }
-                                    }}
-                                    style={{
-                                      background: 'rgba(255,255,255,0.04)',
-                                      border: '1px solid var(--border)',
-                                      color: 'white',
-                                      fontWeight: 700,
-                                      fontSize: '0.8rem',
-                                      width: '100%',
-                                      outline: 'none',
-                                      padding: '6px 10px',
-                                      borderRadius: '8px'
-                                    }}
-                                  />
-                                  <input
-                                    type="email"
-                                    defaultValue={u.email || ''}
-                                    placeholder="Email"
-                                    onBlur={(e) => {
-                                      if (e.target.value !== (u.email || '')) {
-                                        handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: u.name, newEmail: e.target.value });
-                                      }
-                                    }}
-                                    style={{
-                                      background: 'rgba(255,255,255,0.02)',
-                                      border: '1px solid var(--border)',
-                                      color: 'var(--text-muted)',
-                                      fontSize: '0.7rem',
-                                      width: '100%',
-                                      outline: 'none',
-                                      padding: '4px 10px',
-                                      borderRadius: '8px'
-                                    }}
-                                  />
-                                </div>
-                              </td>
-                              <td style={{ padding: '10px' }}>
-                                <input
-                                  type="text"
-                                  defaultValue={u.phone || ''}
-                                  placeholder="Sem tel"
-                                  onBlur={(e) => {
-                                    if (e.target.value !== (u.phone || '')) {
-                                      handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: e.target.value, newName: u.name, newEmail: u.email });
-                                    }
-                                  }}
-                                  style={{
-                                    background: 'rgba(255,255,255,0.03)',
-                                    border: '1px solid var(--border)',
-                                    color: 'white',
-                                    fontSize: '0.75rem',
-                                    padding: '6px 10px',
-                                    borderRadius: '10px',
-                                    width: '120px',
-                                    outline: 'none'
-                                  }}
-                                />
-                              </td>
-                              <td style={{ padding: '10px' }}>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', cursor: 'pointer' }}>
+                          Object.entries(
+                            (masterUsers || []).reduce((acc, u) => {
+                              const key = u.shop_name || u.name;
+                              if (!acc[key]) acc[key] = [];
+                              acc[key].push(u);
+                              return acc;
+                            }, {})
+                          ).map(([shopName, users]) => (
+                            <React.Fragment key={shopName}>
+                              <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <td colSpan="6" style={{ padding: '15px 10px', color: 'var(--primary)', borderLeft: '2px solid var(--primary)' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span style={{ fontSize: '1.1em' }}>🏢</span>
+                                    <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>{shopName}</span>
+                                    <span style={{ fontSize: '0.7rem', opacity: 0.6, background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '10px' }}>
+                                      {users.length} {users.length > 1 ? 'membros' : 'membro'}
+                                    </span>
+                                  </div>
+                                </td>
+                              </tr>
+                              {users.map((u, idx) => (
+                                <tr key={u.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: idx % 2 === 0 ? 'rgba(0,0,0,0.1)' : 'transparent' }}>
+                                  <td style={{ padding: '10px 10px 10px 25px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '10px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                                        {u.role === 'owner' && <span style={{ fontSize: '0.6rem', background: 'var(--primary)', color: 'black', padding: '1px 4px', borderRadius: '4px', fontWeight: 'bold' }}>DONO</span>}
+                                        {u.role === 'barber' && <span style={{ fontSize: '0.6rem', border: '1px solid var(--text-muted)', color: 'var(--text-muted)', padding: '1px 4px', borderRadius: '4px' }}>BARBEIRO</span>}
+                                        <span style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{u.name || ''}</span>
+                                      </div>
+                                      <input
+                                        type="text"
+                                        defaultValue={u.name || ''}
+                                        placeholder="Nome"
+                                        onBlur={(e) => {
+                                          if (e.target.value !== (u.name || '')) {
+                                            handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: e.target.value, newEmail: u.email });
+                                          }
+                                        }}
+                                        style={{
+                                          background: 'rgba(255,255,255,0.04)',
+                                          border: '1px solid var(--border)',
+                                          color: 'white',
+                                          fontWeight: 700,
+                                          fontSize: '0.8rem',
+                                          width: '100%',
+                                          outline: 'none',
+                                          padding: '6px 10px',
+                                          borderRadius: '8px'
+                                        }}
+                                      />
+                                      <input
+                                        type="email"
+                                        defaultValue={u.email || ''}
+                                        placeholder="Email"
+                                        onBlur={(e) => {
+                                          if (e.target.value !== (u.email || '')) {
+                                            handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: u.name, newEmail: e.target.value });
+                                          }
+                                        }}
+                                        style={{
+                                          background: 'rgba(255,255,255,0.02)',
+                                          border: '1px solid var(--border)',
+                                          color: 'var(--text-muted)',
+                                          fontSize: '0.7rem',
+                                          width: '100%',
+                                          outline: 'none',
+                                          padding: '4px 10px',
+                                          borderRadius: '8px'
+                                        }}
+                                      />
+                                    </div>
+                                  </td>
+                                  <td style={{ padding: '10px' }}>
                                     <input
-                                      type="checkbox"
-                                      defaultChecked={u.is_admin}
-                                      disabled={u.email === 'celsosilvajunior90@gmail.com'}
-                                      onChange={(e) => handleMasterUpdate(u.email, { is_admin: e.target.checked, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone })}
-                                      style={{ accentColor: 'var(--primary)', cursor: 'pointer' }}
-                                    /> Adm
-                                  </label>
-                                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', cursor: 'pointer' }}>
+                                      type="text"
+                                      defaultValue={u.phone || ''}
+                                      placeholder="Sem tel"
+                                      onBlur={(e) => {
+                                        if (e.target.value !== (u.phone || '')) {
+                                          handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: e.target.value, newName: u.name, newEmail: u.email });
+                                        }
+                                      }}
+                                      style={{
+                                        background: 'rgba(255,255,255,0.03)',
+                                        border: '1px solid var(--border)',
+                                        color: 'white',
+                                        fontSize: '0.75rem',
+                                        padding: '6px 10px',
+                                        borderRadius: '10px',
+                                        width: '120px',
+                                        outline: 'none'
+                                      }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '10px' }}>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', cursor: 'pointer' }}>
+                                        <input
+                                          type="checkbox"
+                                          defaultChecked={u.is_admin}
+                                          disabled={u.email === 'celsosilvajunior90@gmail.com'}
+                                          onChange={(e) => handleMasterUpdate(u.email, { is_admin: e.target.checked, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone })}
+                                          style={{ accentColor: 'var(--primary)', cursor: 'pointer' }}
+                                        /> Adm
+                                      </label>
+                                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', cursor: 'pointer' }}>
+                                        <input
+                                          type="checkbox"
+                                          defaultChecked={u.is_barber}
+                                          onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: e.target.checked, expires: u.subscription_expires, plan: u.plan, phone: u.phone })}
+                                          style={{ accentColor: 'var(--primary)', cursor: 'pointer' }}
+                                        /> Barb
+                                      </label>
+                                    </div>
+                                  </td>
+                                  <td style={{ padding: '10px' }}>
+                                    <select
+                                      value={u.plan || ''}
+                                      onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: e.target.value, phone: u.phone })}
+                                      style={{
+                                        background: 'rgba(255,255,255,0.05)',
+                                        border: '1px solid var(--border)',
+                                        color: 'white',
+                                        fontSize: '0.75rem',
+                                        padding: '6px 10px',
+                                        borderRadius: '10px',
+                                        width: '100%',
+                                        cursor: 'pointer',
+                                        outline: 'none',
+                                        colorScheme: 'dark'
+                                      }}
+                                    >
+                                      <option value="" style={{ color: '#000', background: '#fff' }}>Sem Plano</option>
+                                      <option value="pro" style={{ color: '#000', background: '#fff' }}>Pro AI</option>
+                                      <option value="business" style={{ color: '#000', background: '#fff' }}>Barber Shop</option>
+                                      {u.plan && u.plan !== 'pro' && u.plan !== 'business' && (
+                                        <option value={u.plan} style={{ color: '#000', background: '#fff' }}>{u.plan} (Antigo)</option>
+                                      )}
+                                    </select>
+                                  </td>
+                                  <td style={{ padding: '10px' }}>
                                     <input
-                                      type="checkbox"
-                                      defaultChecked={u.is_barber}
-                                      onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: e.target.checked, expires: u.subscription_expires, plan: u.plan, phone: u.phone })}
-                                      style={{ accentColor: 'var(--primary)', cursor: 'pointer' }}
-                                    /> Barb
-                                  </label>
-                                </div>
-                              </td>
-                              <td style={{ padding: '10px' }}>
-                                <select
-                                  value={u.plan || ''}
-                                  onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: e.target.value, phone: u.phone })}
-                                  style={{
-                                    background: 'rgba(255,255,255,0.05)',
-                                    border: '1px solid var(--border)',
-                                    color: 'white',
-                                    fontSize: '0.75rem',
-                                    padding: '6px 10px',
-                                    borderRadius: '10px',
-                                    width: '100%',
-                                    cursor: 'pointer',
-                                    outline: 'none',
-                                    colorScheme: 'dark'
-                                  }}
-                                >
-                                  <option value="" style={{ color: '#000', background: '#fff' }}>Sem Plano</option>
-                                  <option value="pro" style={{ color: '#000', background: '#fff' }}>Pro AI</option>
-                                  <option value="business" style={{ color: '#000', background: '#fff' }}>Barber Shop</option>
-                                  {u.plan && u.plan !== 'pro' && u.plan !== 'business' && (
-                                    <option value={u.plan} style={{ color: '#000', background: '#fff' }}>{u.plan} (Antigo)</option>
-                                  )}
-                                </select>
-                              </td>
-                              <td style={{ padding: '10px' }}>
-                                <input
-                                  type="date"
-                                  value={u.subscription_expires ? u.subscription_expires.split('T')[0] : ''}
-                                  onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: e.target.value ? new Date(e.target.value).toISOString() : null, plan: u.plan, phone: u.phone })}
-                                  style={{
-                                    background: 'rgba(255,255,255,0.05)',
-                                    border: '1px solid var(--border)',
-                                    color: 'white',
-                                    fontSize: '0.75rem',
-                                    padding: '6px 10px',
-                                    borderRadius: '10px',
-                                    width: '100%',
-                                    outline: 'none',
-                                    colorScheme: 'dark'
-                                  }}
-                                />
-                              </td>
-                              <td style={{ padding: '10px' }}>
-                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                  <div style={{
-                                    width: '8px',
-                                    height: '8px',
-                                    borderRadius: '50%',
-                                    background: u.wa_status === 'connected' ? '#2ecc71' : '#e74c3c',
-                                    boxShadow: u.wa_status === 'connected' ? '0 0 8px #2ecc71' : 'none'
-                                  }} title={u.wa_status || 'desconectado'} />
+                                      type="date"
+                                      value={u.subscription_expires ? u.subscription_expires.split('T')[0] : ''}
+                                      onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: e.target.value ? new Date(e.target.value).toISOString() : null, plan: u.plan, phone: u.phone })}
+                                      style={{
+                                        background: 'rgba(255,255,255,0.05)',
+                                        border: '1px solid var(--border)',
+                                        color: 'white',
+                                        fontSize: '0.75rem',
+                                        padding: '6px 10px',
+                                        borderRadius: '10px',
+                                        width: '100%',
+                                        outline: 'none',
+                                        colorScheme: 'dark'
+                                      }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '10px' }}>
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                      <div style={{
+                                        width: '8px',
+                                        height: '8px',
+                                        borderRadius: '50%',
+                                        background: u.wa_status === 'connected' ? '#2ecc71' : '#e74c3c',
+                                        boxShadow: u.wa_status === 'connected' ? '0 0 8px #2ecc71' : 'none'
+                                      }} title={u.wa_status || 'desconectado'} />
 
-                                  <button
-                                    onClick={() => handleMasterDelete(u.email)}
-                                    disabled={u.email === 'celsosilvajunior90@gmail.com'}
-                                    style={{
-                                      background: 'rgba(231, 76, 60, 0.15)',
-                                      border: '1px solid rgba(231, 76, 60, 0.3)',
-                                      color: '#e74c3c',
-                                      padding: '6px',
-                                      borderRadius: '8px',
-                                      cursor: 'pointer',
-                                      opacity: u.email === 'celsosilvajunior90@gmail.com' ? 0.3 : 1,
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center'
-                                    }}
-                                    title="Deletar Usuário"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
+                                      <button
+                                        onClick={() => handleMasterDelete(u.email)}
+                                        disabled={u.email === 'celsosilvajunior90@gmail.com'}
+                                        style={{
+                                          background: 'rgba(231, 76, 60, 0.15)',
+                                          border: '1px solid rgba(231, 76, 60, 0.3)',
+                                          color: '#e74c3c',
+                                          padding: '6px',
+                                          borderRadius: '8px',
+                                          cursor: 'pointer',
+                                          opacity: u.email === 'celsosilvajunior90@gmail.com' ? 0.3 : 1,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center'
+                                        }}
+                                        title="Deletar Usuário"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
 
-                                  <button
-                                    onClick={() => handleMasterRestartBot(u.email)}
-                                    style={{
-                                      background: 'rgba(255, 255, 255, 0.05)',
-                                      border: '1px solid var(--border)',
-                                      color: 'white',
-                                      padding: '6px',
-                                      borderRadius: '8px',
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center'
-                                    }}
-                                    title="Reiniciar Robô"
-                                  >
-                                    <RefreshCw size={14} />
-                                  </button>
+                                      <button
+                                        onClick={() => handleMasterRestartBot(u.email)}
+                                        style={{
+                                          background: 'rgba(255, 255, 255, 0.05)',
+                                          border: '1px solid var(--border)',
+                                          color: 'white',
+                                          padding: '6px',
+                                          borderRadius: '8px',
+                                          cursor: 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center'
+                                        }}
+                                        title="Reiniciar Robô"
+                                      >
+                                        <RefreshCw size={14} />
+                                      </button>
 
-                                  <button
-                                    onClick={() => handleMasterStopBot(u.email)}
-                                    style={{
-                                      background: 'rgba(231, 76, 60, 0.1)',
-                                      border: '1px solid rgba(231, 76, 60, 0.2)',
-                                      color: '#e74c3c',
-                                      padding: '6px',
-                                      borderRadius: '8px',
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center'
-                                    }}
-                                    title="Parar Robô"
-                                  >
-                                    <X size={14} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
+                                      <button
+                                        onClick={() => handleMasterStopBot(u.email)}
+                                        style={{
+                                          background: 'rgba(231, 76, 60, 0.1)',
+                                          border: '1px solid rgba(231, 76, 60, 0.2)',
+                                          color: '#e74c3c',
+                                          padding: '6px',
+                                          borderRadius: '8px',
+                                          cursor: 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center'
+                                        }}
+                                        title="Parar Robô"
+                                      >
+                                        <X size={14} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </React.Fragment>
                           ))
                         ) : (
                           <tr>
@@ -1866,30 +2051,86 @@ function App() {
             <main id="booking-section">
               {!selectedBarber ? (
                 <section style={{ marginBottom: '3rem' }}>
-                  <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <User className="text-primary" /> Escolha seu Barbeiro
-                  </h2>
-                  <div className="service-grid">
-                    {barbers.map(b => (
-                      <div
-                        key={b.email}
-                        className="glass-card service-card"
-                        onClick={() => setSelectedBarber(b)}
-                        style={{ textAlign: 'center' }}
-                      >
-                        <img src={b.picture} alt={b.name} style={{ width: '80px', height: '80px', borderRadius: '50%', margin: '0 auto 1rem', border: '2px solid var(--primary)' }} />
-                        <h3 style={{ fontSize: '1.2rem' }}>{b.name}</h3>
-                        <button className="btn-primary" style={{ marginTop: '1rem', width: '100%' }}>Escolher</button>
+                  {!selectedShop ? (
+                    /* Nível 1: Selecionar Barbearia ou Profissional Independente */
+                    <>
+                      <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <User className="text-primary" /> Escolha o Local / Profissional
+                      </h2>
+                      <div className="service-grid">
+                        {barbers.filter(b => !b.ownerId).map(b => (
+                          <div
+                            key={b.email}
+                            className="glass-card service-card"
+                            onClick={() => {
+                              if (b.business_type === 'barbearia') {
+                                setSelectedShop(b); // Entra na loja
+                              } else {
+                                setSelectedBarber(b); // Seleciona direto
+                              }
+                            }}
+                            style={{ textAlign: 'center' }}
+                          >
+                            <img src={b.picture} alt={b.name} style={{ width: '80px', height: '80px', borderRadius: '50%', margin: '0 auto 1rem', border: `2px solid ${b.business_type === 'barbearia' ? 'var(--primary)' : 'var(--text-muted)'}` }} />
+                            <h3 style={{ fontSize: '1.1rem' }}>{b.name}</h3>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '5px' }}>
+                              {b.business_type === 'barbearia' ? 'Barbearia • Equipe' : 'Profissional Independente'}
+                            </p>
+                            <button className="btn-primary" style={{ marginTop: '1rem', width: '100%' }}>
+                              {b.business_type === 'barbearia' ? 'Ver Equipe' : 'Agendar'}
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </>
+                  ) : (
+                    /* Nível 2: Selecionar Profissional da Loja */
+                    <>
+                      <button
+                        className="btn-icon"
+                        onClick={() => setSelectedShop(null)}
+                        style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '5px', width: 'auto', padding: '5px 10px', fontSize: '0.9rem' }}
+                      >
+                        <ChevronLeft size={16} /> Voltar para Lojas
+                      </button>
+
+                      <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <Users className="text-primary" /> Equipe: <span style={{ color: 'var(--primary)' }}>{selectedShop.name}</span>
+                      </h2>
+
+                      <div className="service-grid">
+                        {/* Listar Staff da Loja + O Próprio Dono se ele atender (opcional, aqui listando só quem tem ownerId da loja) */}
+                        {barbers.filter(b => b.ownerId === selectedShop.email).map(b => (
+                          <div
+                            key={b.email}
+                            className="glass-card service-card"
+                            onClick={() => setSelectedBarber(b)}
+                            style={{ textAlign: 'center' }}
+                          >
+                            <img src={b.picture} alt={b.name} style={{ width: '80px', height: '80px', borderRadius: '50%', margin: '0 auto 1rem', border: '2px solid var(--text-muted)' }} />
+                            <h3 style={{ fontSize: '1.2rem' }}>{b.name}</h3>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 'bold', marginTop: '5px' }}>MEMBRO DA EQUIPE</div>
+                            <button className="btn-primary" style={{ marginTop: '1rem', width: '100%' }}>Escolher</button>
+                          </div>
+                        ))}
+                        {barbers.filter(b => b.ownerId === selectedShop.email).length === 0 && (
+                          <p style={{ color: 'var(--text-muted)', textAlign: 'center', gridColumn: '1/-1' }}>Nenhum profissional cadastrado nesta equipe.</p>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </section>
               ) : (
                 <>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '2rem' }}>
-                    <button className="btn-icon" onClick={() => { setSelectedBarber(null); setSelectedService(null); }}>
+                    <button className="btn-icon" onClick={() => { setSelectedBarber(null); if (!selectedShop?.ownerId) setSelectedShop(null); /* Se era solo, limpa shop tb */ }}>
                       <ChevronLeft size={20} />
                     </button>
+                    {selectedShop && (
+                      <span style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '5px' }}>
+                        {selectedShop.name}
+                      </span>
+                    )}
                     <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Agendando com: </span>
                     <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{selectedBarber?.name || 'Barbeiro'}</span>
                   </div>
@@ -2136,104 +2377,9 @@ function App() {
           )
         }
 
-        {renderActionSheet()}
-
-        {/* Menu de Opções de Pagamento (Control List style) */}
-        {
-          paymentSelectionAppt && (
-            <div className="bottom-sheet-overlay" onClick={() => setPaymentSelectionAppt(null)}>
-              <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
-                <div className="sheet-header"></div>
-                <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--primary)' }}>Como deseja pagar?</h3>
-                <div className="action-list">
-                  <button className="action-item" onClick={() => processPayment('real')}>
-                    <div style={{ background: 'rgba(212, 175, 55, 0.1)', padding: '10px', borderRadius: '12px' }}>
-                      <CreditCard size={24} color="var(--primary)" />
-                    </div>
-                    <div style={{ textAlign: 'left' }}>
-                      <div style={{ fontWeight: 800 }}>Pagar com Mercado Pago</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>PIX ou Cartão de Crédito</div>
-                    </div>
-                  </button>
-
-                  {/* Opção Local apenas para Admin/Barbeiro EM Agendamentos Ativos */}
-                  {(user?.isAdmin || user?.isBarber) && paymentSelectionAppt?.source === 'admin' && (
-                    <button className="action-item" style={{ borderColor: 'rgba(46, 204, 113, 0.2)' }} onClick={() => processPayment('local')}>
-                      <div style={{ background: 'rgba(46, 204, 113, 0.1)', padding: '10px', borderRadius: '12px' }}>
-                        <Shield size={24} color="#2ecc71" />
-                      </div>
-                      <div style={{ textAlign: 'left' }}>
-                        <div style={{ fontWeight: 800, color: '#2ecc71' }}>Pagamento no Local</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Registrar pagamento manual</div>
-                      </div>
-                    </button>
-                  )}
-
-                  {(user?.isAdmin || user?.isBarber) && paymentSelectionAppt?.source === 'admin' && (
-                    <button className="action-item" style={{ opacity: 0.5 }} onClick={() => processPayment('mock')}>
-                      <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '10px', borderRadius: '12px' }}>
-                        <RefreshCw size={24} color="white" />
-                      </div>
-                      <div style={{ textAlign: 'left' }}>
-                        <div style={{ fontWeight: 800 }}>Simular Online</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Apenas para teste rápido (Admin)</div>
-                      </div>
-                    </button>
-                  )}
-
-                  <button className="btn-close-sheet" onClick={() => setPaymentSelectionAppt(null)}>
-                    Fechar
-                  </button>
-                </div>
-              </div>
-            </div>
-          )
-        }
-        {
-          showPlanSelection && (
-            <div className="modal-overlay" onClick={() => setShowPlanSelection(false)}>
-              <div className="glass-card fade-in" style={{ width: '90%', maxWidth: '450px', padding: '2rem' }} onClick={e => e.stopPropagation()}>
-                <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                  <Shield size={48} className="text-primary" style={{ marginBottom: '1rem' }} />
-                  <h2>Escolha seu Plano</h2>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Selecione o plano ideal para sua barbearia</p>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-
-                  <div className="action-item" onClick={() => handleSubscriptionPayment('pro')} style={{ cursor: 'pointer', border: '1px solid var(--primary)', background: 'rgba(212, 175, 55, 0.05)' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 800, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        Pro AI <span style={{ fontSize: '0.6rem', background: 'var(--primary)', color: 'black', padding: '2px 6px', borderRadius: '4px' }}>POPULAR</span>
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Mestre Leo AI + Pagamentos</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 119,90</div>
-                      <div style={{ fontSize: '0.7rem' }}>/mês</div>
-                    </div>
-                  </div>
-
-                  <div className="action-item" onClick={() => handleSubscriptionPayment('business')} style={{ cursor: 'pointer', border: '1px solid var(--border)' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>Barber Shop</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Múltiplos Barbeiros + Equipes</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 189,90</div>
-                      <div style={{ fontSize: '0.7rem' }}>/mês</div>
-                    </div>
-                  </div>
-
-                  <button className="btn-close-sheet" onClick={() => setShowPlanSelection(false)} style={{ marginTop: '1rem' }}>
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            </div>
-          )
-        }
+        {/* Fechamento do Container principal */}
       </div>
+
       {renderActionSheet()}
 
       {paymentSelectionAppt && (
@@ -2328,5 +2474,3 @@ function App() {
     </>
   );
 }
-
-export default App;
