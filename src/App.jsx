@@ -1880,7 +1880,17 @@ function App() {
                     )}
 
                     {isProfessional && !isPaid && a.status === 'pending' && (
-                      <div style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: '0.8rem', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                      <div className="status-banner" style={{
+                        width: '100%',
+                        marginTop: '1rem',
+                        padding: '0.8rem',
+                        fontSize: '0.8rem',
+                        color: 'var(--text-muted)',
+                        textAlign: 'center',
+                        background: 'rgba(255,255,255,0.03)',
+                        borderRadius: '10px',
+                        border: '1px dashed var(--border)'
+                      }}>
                         ⏳ Aguardando confirmação ou pagamento do cliente
                       </div>
                     )}

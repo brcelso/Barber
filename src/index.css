@@ -363,6 +363,7 @@ button {
   padding: 1.2rem;
   margin-bottom: 1rem;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
 }
