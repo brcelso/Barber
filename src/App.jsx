@@ -421,7 +421,7 @@ function App() {
               theme: "filled_black",
               size: "large",
               shape: "pill",
-              width: "280",
+              width: "100%", // Use full width of container
               logo_alignment: "left"
             });
           }
