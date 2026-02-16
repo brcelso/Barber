@@ -5,6 +5,9 @@ const {
     fetchLatestWaWebVersion
 } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
+let ngrokProcess = null;
+let whatsappProcess = null;
+let isActive = false;
 const express = require('express');
 const bodyParser = require('body-parser');
 const pino = require('pino');
@@ -230,13 +233,10 @@ app.post('/api/stop', async (req, res) => {
         }
         sessions.clear();
 
-        // Forçar atualização de status de TODOS no servidor (opcional, mas bom pra garantir)
-        // Como não sabemos todos, vamos deixar o restart limpar tudo
 
-        console.log('[Global Stop] Todos os robôs parados. Reiniciando processo para garantir limpeza...');
-        setTimeout(() => process.exit(0), 1000); // Força restart pelo manage.js
+        console.log('[Global Stop] Todos os robôs foram desconectados. O servidor permanece online.');
 
-        return res.json({ success: true, message: 'Todos os robôs foram parados e o sistema será reiniciado.' });
+        return res.json({ success: true, message: 'Todos os robôs foram parados. O servidor continua ativo.' });
     }
 
     if (sessions.has(email)) {
