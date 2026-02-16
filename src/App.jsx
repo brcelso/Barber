@@ -2058,15 +2058,17 @@ function App() {
                   </button>
                 )}
 
-                <button className="action-item" style={{ opacity: 0.5 }} onClick={() => processPayment('mock')}>
-                  <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '10px', borderRadius: '12px' }}>
-                    <RefreshCw size={24} color="white" />
-                  </div>
-                  <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 800 }}>Simular Online</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Apenas para teste rápido</div>
-                  </div>
-                </button>
+                {(user?.isAdmin || user?.isBarber) && (
+                  <button className="action-item" style={{ opacity: 0.5 }} onClick={() => processPayment('mock')}>
+                    <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '10px', borderRadius: '12px' }}>
+                      <RefreshCw size={24} color="white" />
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontWeight: 800 }}>Simular Online</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Apenas para teste rápido (Admin)</div>
+                    </div>
+                  </button>
+                )}
 
                 <button className="btn-close-sheet" onClick={() => setPaymentSelectionAppt(null)}>
                   Fechar
