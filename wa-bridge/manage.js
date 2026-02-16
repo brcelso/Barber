@@ -8,6 +8,7 @@ const ADMIN_EMAIL = 'celsosilvajunior90@gmail.com'; // Admin fixo para licenciam
 
 let ngrokProcess = null;
 let whatsappProcess = null;
+let isActive = false;
 
 async function checkLicense() {
     try {
@@ -80,7 +81,7 @@ function stopAll() {
 async function run() {
     console.log('--- GERENCIADOR BARBER BRIDGE ---');
 
-    let isActive = false;
+
 
     while (true) {
         const license = await checkLicense();
