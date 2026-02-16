@@ -787,8 +787,8 @@ function App() {
     }
   };
 
-  const handlePayment = (appt) => {
-    setPaymentSelectionAppt(appt);
+  const handlePayment = (appt, source = 'client') => {
+    setPaymentSelectionAppt({ ...appt, source });
   };
 
   const processPayment = async (type) => {
@@ -1544,7 +1544,7 @@ function App() {
                                 <button
                                   className="btn-primary"
                                   style={{ fontSize: '0.65rem', padding: '2px 8px', height: 'auto', minHeight: 'unset' }}
-                                  onClick={() => handlePayment(a)}
+                                  onClick={() => handlePayment(a, 'admin')}
                                 >
                                   Pagar
                                 </button>
@@ -2045,8 +2045,8 @@ function App() {
                   </div>
                 </button>
 
-                {/* Opção Local apenas para Admin/Barbeiro */}
-                {(user?.isAdmin || user?.isBarber) && (
+                {/* Opção Local apenas para Admin/Barbeiro EM Agendamentos Ativos */}
+                {(user?.isAdmin || user?.isBarber) && paymentSelectionAppt?.source === 'admin' && (
                   <button className="action-item" style={{ borderColor: 'rgba(46, 204, 113, 0.2)' }} onClick={() => processPayment('local')}>
                     <div style={{ background: 'rgba(46, 204, 113, 0.1)', padding: '10px', borderRadius: '12px' }}>
                       <Shield size={24} color="#2ecc71" />
@@ -2058,7 +2058,7 @@ function App() {
                   </button>
                 )}
 
-                {(user?.isAdmin || user?.isBarber) && (
+                {(user?.isAdmin || user?.isBarber) && paymentSelectionAppt?.source === 'admin' && (
                   <button className="action-item" style={{ opacity: 0.5 }} onClick={() => processPayment('mock')}>
                     <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '10px', borderRadius: '12px' }}>
                       <RefreshCw size={24} color="white" />
