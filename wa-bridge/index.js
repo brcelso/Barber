@@ -107,10 +107,12 @@ async function connectToWhatsApp(email) {
             // Notificar o próprio barbeiro no chat dele
             try {
                 setTimeout(async () => {
-                    await sock.sendMessage(sock.user.id, {
+                    const jid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+                    console.log(`[Notify] Enviando ativação para: ${jid}`);
+                    await sock.sendMessage(jid, {
                         text: "✅ *Robô Barber Ativado!* \n\nOlá! O robô da sua barbearia acaba de ser iniciado e já está pronto para automatizar seus agendamentos. ✂️💈"
                     });
-                }, 2000);
+                }, 3000);
             } catch (e) {
                 console.error(`[Notify] Erro ao enviar msg de ativação para ${email}:`, e.message);
             }
