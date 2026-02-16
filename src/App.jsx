@@ -1479,7 +1479,7 @@ function App() {
                         </div>
                         <div>
                           <h3 style={{ fontSize: '0.95rem' }}>{a.user_name}</h3>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>{a.service_name} às {a.appointment_time}</p>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>{a.service_name} às {a.appointment_time} - Barbeiro: {a.barber_name || 'Barbeiro'}</p>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
                             {(a.payment_status === 'confirmed' || a.status === 'confirmed') ? (
                               <span style={{ background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>PAGO</span>
@@ -1811,7 +1811,7 @@ function App() {
               appointments.map(a => {
                 const isProfessional = a.barber_email === user.email; // If I am the barber
                 const displayTitle = isProfessional ? `Cliente: ${a.client_name || a.user_name || 'Cliente'}` : a.service_name;
-                const displaySubtitle = isProfessional ? `${a.service_name} às ${a.appointment_time}` : `${a.appointment_time} - Barbeiro: ${a.barber_name || 'Barbeiro'}`;
+                const displaySubtitle = `${a.appointment_time} - ${a.service_name} - Barbeiro: ${a.barber_name || 'Barbeiro'}`;
                 const displayPicture = isProfessional ? (a.client_picture || a.user_picture) : a.barber_picture;
                 const isPaid = a.payment_status === 'confirmed' || a.status === 'confirmed';
                 const canManage = !isPaid && a.status !== 'cancelled' && a.status !== 'blocked';

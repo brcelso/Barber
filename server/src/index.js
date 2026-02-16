@@ -420,10 +420,11 @@ REGRAS DE RESPOSTA:
                 }
 
                 const allAppointments = await env.DB.prepare(`
-                    SELECT a.*, s.name as service_name, s.price, u.name as user_name, u.picture as user_picture, u.phone as user_phone
+                    SELECT a.*, s.name as service_name, s.price, u.name as user_name, u.picture as user_picture, u.phone as user_phone, b.name as barber_name
                     FROM appointments a
                     LEFT JOIN services s ON a.service_id = s.id
                     LEFT JOIN users u ON a.user_email = u.email
+                    LEFT JOIN users b ON a.barber_email = b.email
                     WHERE a.barber_email = ?
                     ORDER BY a.appointment_date DESC, a.appointment_time DESC
                 `).bind(email).all();
