@@ -880,26 +880,43 @@ Leo: "A barba sai por R$ 35, campeão! 💈 Como posso te ajudar agora? Escolha 
                 const isNumericChoice = /^\d+$/.test(text) && text.length <= 2;
 
                 // Fluxo Inicial / Reset Universal
-                if (!session || textLower === 'oi' || textLower === 'ola' || textLower === 'menu' || textLower === 'sair' || textLower === 'ajuda') {
+                if (!session || textLower === 'oi' || textLower === 'ola' || textLower === 'menu' || textLower === 'sair' || textLower === 'ajuda' || (session.state === 'main_menu' && !session.selected_barber_email)) {
                     const userEmail = userInDb ? userInDb.email : (session ? session.user_email : null);
-                    const barbers = await env.DB.prepare('SELECT email, name FROM users WHERE is_barber = 1').all();
 
-                    await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email) VALUES (?, "awaiting_barber", ?)').bind(from, userEmail).run();
+                    // Se o bot já veio com o e-mail do barbeiro vinculado (visto no bridge)
+                    if (botBarberEmail) {
+                        const b = await env.DB.prepare('SELECT email, name FROM users WHERE email = ?').bind(botBarberEmail).first();
+                        if (b) {
+                            await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email, selected_barber_email) VALUES (?, "main_menu", ?, ?)').bind(from, userEmail, b.email).run();
+                            let msg = `✂️ *Bem-vindo à Barber!* \n\nVocê está sendo atendido por *${b.name}*. 💈\n\nO que deseja fazer?\n\n`;
+                            msg += "1️⃣ - Agendar novo horário\n";
+                            msg += "2️⃣ - Meus Agendamentos (Ver/Cancelar)\n";
+                            msg += "3️⃣ - Dúvidas com o Leo (Chat IA)\n";
+                            msg += "\nDigite 'Menu' a qualquer momento para voltar.";
+                            await sendMessage(from, msg);
+                            return json({ success: true });
+                        }
+                    }
+
+                    const barbers = await env.DB.prepare('SELECT email, name FROM users WHERE is_barber = 1').all();
 
                     if (barbers.results.length === 1) {
                         const b = barbers.results[0];
-                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "main_menu", selected_barber_email = ? WHERE phone = ?').bind(b.email, from).run();
+                        await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email, selected_barber_email) VALUES (?, "main_menu", ?, ?)').bind(from, userEmail, b.email).run();
                         let msg = `✂️ *Bem-vindo à Barber!* \n\nVocê está sendo atendido por *${b.name}*. 💈\n\nO que deseja fazer?\n\n`;
                         msg += "1️⃣ - Agendar novo horário\n";
                         msg += "2️⃣ - Meus Agendamentos (Ver/Cancelar)\n";
-                        msg += "3️⃣ - Falar com o Leo (Dúvidas/Chat)\n";
+                        msg += "3️⃣ - Dúvidas com o Leo (Chat IA)\n";
                         msg += "\nDigite 'Menu' a qualquer momento para voltar.";
                         await sendMessage(from, msg);
-                    } else {
+                    } else if (barbers.results.length > 1) {
+                        await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email) VALUES (?, "awaiting_barber", ?)').bind(from, userEmail).run();
                         let msg = "✂️ *Bem-vindo à Barber!* \n\nPara começar, selecione o *Barbeiro* desejado:\n\n";
                         barbers.results.forEach((b, i) => { msg += `*${i + 1}* - ${b.name}\n`; });
                         msg += "\nDigite o número correspondente!";
                         await sendMessage(from, msg);
+                    } else {
+                        await sendMessage(from, "⚠️ Desculpe, não encontramos barbeiros ativos no momento. Tente novamente mais tarde.");
                     }
                     return json({ success: true });
                 }
@@ -951,7 +968,15 @@ Leo: "A barba sai por R$ 35, campeão! 💈 Como posso te ajudar agora? Escolha 
                 // 2. MAIN MENU -> BRANCHES
                 if (session.state === 'main_menu') {
                     if (text === '1') {
+                        if (!session.selected_barber_email) {
+                            await sendMessage(from, "⚠️ Erro: Barbeiro não selecionado. Digite 'Menu' para escolher um barbeiro.");
+                            return json({ success: true });
+                        }
                         const services = await env.DB.prepare('SELECT * FROM services WHERE barber_email = ? AND id != "block"').bind(session.selected_barber_email).all();
+                        if (services.results.length === 0) {
+                            await sendMessage(from, "❌ Este barbeiro ainda não cadastrou serviços. Escolha outro ou digite 'Menu'.");
+                            return json({ success: true });
+                        }
                         let msg = "📅 *Escolha o serviço:* \n";
                         services.results.forEach((s, i) => { msg += `\n*${i + 1}* - ${s.name} (R$ ${s.price})`; });
                         msg += "\n\nOu digite 'Menu' para voltar.";
