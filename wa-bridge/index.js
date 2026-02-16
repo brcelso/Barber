@@ -202,17 +202,41 @@ app.post('/api/stop', async (req, res) => {
 
     if (email === 'ALL') {
         console.log('[Global Stop] Parando TODOS os robôs...');
+        let adminNotified = false;
         for (const [id, sock] of sessions.entries()) {
             try {
-                await sock.sendMessage(sock.user.id, {
-                    text: "🛑 *Sistema Geral Desativado* \n\nTodos os robôs do sistema estão sendo desligados agora pelo Mestre. Nenhuma mensagem automática será enviada."
-                }).catch(() => { });
+                // Tenta notificar o Admin (Celso) usando qualquer sessão ativa antes de desligar
+                if (id === 'celsosilvajunior90@gmail.com' || !adminNotified) {
+                    const adminJid = '5511972509876@s.whatsapp.net';
+                    await sock.sendMessage(adminJid, {
+                        text: "⚠️ *AVISO MASTER:* O Sistema de Robôs foi desligado globalmente. Todos os serviços foram interrompidos."
+                    }).catch(() => { });
+                    adminNotified = true;
+                }
+
+                if (sock.user && sock.user.id) {
+                    const jid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+                    await sock.sendMessage(jid, {
+                        text: "🛑 *Sistema Geral Desativado* \n\nTodos os robôs do sistema estão sendo desligados agora pelo Mestre."
+                    }).catch(() => { });
+                }
+
                 sock.ev.removeAllListeners('connection.update');
                 sock.end();
-            } catch (e) { }
+            } catch (e) {
+                console.error(`[Global Stop Error] Falha ao parar ${id}:`, e.message);
+                try { sock.end(); } catch (err) { }
+            }
         }
         sessions.clear();
-        return res.json({ success: true, message: 'Todos os robôs foram parados' });
+
+        // Forçar atualização de status de TODOS no servidor (opcional, mas bom pra garantir)
+        // Como não sabemos todos, vamos deixar o restart limpar tudo
+
+        console.log('[Global Stop] Todos os robôs parados. Reiniciando processo para garantir limpeza...');
+        setTimeout(() => process.exit(0), 1000); // Força restart pelo manage.js
+
+        return res.json({ success: true, message: 'Todos os robôs foram parados e o sistema será reiniciado.' });
     }
 
     if (sessions.has(email)) {
@@ -221,9 +245,12 @@ app.post('/api/stop', async (req, res) => {
             const sock = sessions.get(email);
 
             // Notificar antes de desligar
-            await sock.sendMessage(sock.user.id, {
-                text: "🛑 *Robô Barber Desativado* \n\nO robô foi desligado manualmente através do seu painel de controle. Ele não responderá mais mensagens automáticas até ser religado."
-            }).catch(() => { });
+            if (sock.user && sock.user.id) {
+                const jid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+                await sock.sendMessage(jid, {
+                    text: "🛑 *Robô Barber Desativado* \n\nO robô foi desligado manualmente. Até logo! 👋"
+                }).catch(() => { });
+            }
 
             sock.ev.removeAllListeners('connection.update');
             sock.end();
