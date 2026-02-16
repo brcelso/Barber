@@ -418,7 +418,7 @@ function App() {
           const btnElem = document.getElementById("googleBtn");
           if (btnElem) {
             window.google.accounts.id.renderButton(btnElem, {
-              theme: "filled_black",
+              theme: "outline",
               size: "large",
               shape: "pill",
               width: 280,
@@ -953,7 +953,7 @@ function App() {
 
           {!showManualLogin ? (
             <>
-              <div id="googleBtn" className="google-btn-container" data-theme="dark"></div>
+              <div id="googleBtn" className="google-btn-container"></div>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>ou continue com seus dados</p>
               <button
                 className="btn-primary"

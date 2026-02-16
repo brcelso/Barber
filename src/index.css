@@ -587,40 +587,15 @@ button {
 
 .google-btn-container {
   width: 100%;
-  max-width: 280px;
-  margin: 0 auto 1.5rem;
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-  min-height: 48px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  overflow: hidden;
-  /* Garante que nada vaze */
-  position: relative;
-  color-scheme: dark !important;
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.google-btn-container:hover {
-  background: rgba(212, 175, 55, 0.08);
-  border-color: var(--primary);
-}
-
-/* Força o componente do Google a se comportar */
 #googleBtn {
-  width: 100% !important;
-  display: flex !important;
-  justify-content: center !important;
-  background: transparent !important;
-}
-
-#googleBtn div,
-#googleBtn iframe {
-  background: transparent !important;
-  background-color: transparent !important;
-  color-scheme: dark !important;
+  display: flex;
+  justify-content: center;
 }
 
 .login-card input:focus {
