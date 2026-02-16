@@ -229,7 +229,12 @@ app.post('/api/stop', async (req, res) => {
             // Forçar atualização de status no servidor
             axios.post(STATUS_URL, { email, status: 'disconnected' }).catch(() => { });
 
-        } catch (e) { }
+        } catch (e) {
+            console.error(`[Stop Error] Falha ao parar ${email}:`, e.message);
+            // Garante limpeza mesmo com erro
+            sessions.delete(email);
+            axios.post(STATUS_URL, { email, status: 'disconnected' }).catch(() => { });
+        }
         res.json({ success: true, message: `Robô parado para ${email}` });
     } else {
         // Mesmo se não achar sessão, força status desconectado no servidor para corrigir UI
