@@ -592,8 +592,16 @@ button {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 44px;
-  background: transparent !important;
+  min-height: 48px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.google-btn-container:hover {
+  background: rgba(212, 175, 55, 0.08);
+  border-color: var(--primary);
 }
 
 #googleBtn {
