@@ -103,6 +103,17 @@ async function connectToWhatsApp(email) {
         } else if (connection === 'open') {
             console.log(`[Session] ✅ ${email} CONECTADO!`);
             axios.post(STATUS_URL, { email, status: 'connected' }).catch(() => { });
+
+            // Notificar o próprio barbeiro no chat dele
+            try {
+                setTimeout(async () => {
+                    await sock.sendMessage(sock.user.id, {
+                        text: "✅ *Robô Barber Ativado!* \n\nOlá! O robô da sua barbearia acaba de ser iniciado e já está pronto para automatizar seus agendamentos. ✂️💈"
+                    });
+                }, 2000);
+            } catch (e) {
+                console.error(`[Notify] Erro ao enviar msg de ativação para ${email}:`, e.message);
+            }
         }
     });
 
@@ -188,6 +199,9 @@ app.post('/api/stop', async (req, res) => {
         console.log('[Global Stop] Parando TODOS os robôs...');
         for (const [id, sock] of sessions.entries()) {
             try {
+                await sock.sendMessage(sock.user.id, {
+                    text: "🛑 *Sistema Geral Desativado* \n\nTodos os robôs do sistema estão sendo desligados agora pelo Mestre. Nenhuma mensagem automática será enviada."
+                }).catch(() => { });
                 sock.ev.removeAllListeners('connection.update');
                 sock.end();
             } catch (e) { }
@@ -200,6 +214,12 @@ app.post('/api/stop', async (req, res) => {
         console.log(`[Stop] Parando robô para ${email}...`);
         try {
             const sock = sessions.get(email);
+
+            // Notificar antes de desligar
+            await sock.sendMessage(sock.user.id, {
+                text: "🛑 *Robô Barber Desativado* \n\nO robô foi desligado manualmente através do seu painel de controle. Ele não responderá mais mensagens automáticas até ser religado."
+            }).catch(() => { });
+
             sock.ev.removeAllListeners('connection.update');
             sock.end();
         } catch (e) { }
