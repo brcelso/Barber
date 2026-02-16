@@ -1647,30 +1647,83 @@ function App() {
                       <p style={{ color: 'black', fontSize: '0.7rem', marginTop: '0.5rem', fontWeight: 800 }}>ESCANEIE COM SEU WHATSAPP</p>
                     </div>
                   ) : (
-                    <div style={{ flex: 1, minWidth: '250px' }}>
+                    <div style={{ flex: 1, minWidth: '250px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {waStatus.status === 'connected' ? (
                         <>
-                          <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                            ✅ Seu robô está ativo e respondendo aos clientes automaticamente através da IA do Mestre Leo.
+                          <p style={{ color: 'var(--text-muted)' }}>
+                            ✅ Seu robô está ativo e respondendo aos clientes automaticamente.
                           </p>
                           <button
                             className="btn-primary"
+                            onClick={async () => {
+                              if (!confirm('Tem certeza que deseja DESLIGAR o robô? Ele parará de responder mensagens.')) return;
+                              try {
+                                const res = await fetch(`${API_URL}/admin/bot/stop`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json', 'X-User-Email': user.email },
+                                  body: JSON.stringify({ targetEmail: user.email })
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                  alert('Comando de PARADA enviado! O robô ficará offline.');
+                                  setTimeout(checkWaStatus, 2000);
+                                } else {
+                                  alert('Erro ao parar: ' + (data.error || 'Desconhecido'));
+                                }
+                              } catch (e) {
+                                alert('Falha de conexão com o servidor.');
+                              }
+                            }}
                             style={{
                               background: 'rgba(231, 76, 60, 0.1)',
                               color: '#e74c3c',
                               border: '1px solid rgba(231, 76, 60, 0.3)',
                               padding: '8px 15px',
-                              fontSize: '0.8rem'
+                              fontSize: '0.9rem',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                             }}
-                            onClick={() => handleMasterStopBot(user.email)}
                           >
-                            <X size={14} /> Desligar Robô
+                            <Power size={18} /> DESLIGAR ROBÔ
                           </button>
                         </>
                       ) : (
-                        <p style={{ color: 'var(--text-muted)' }}>
-                          O robô está desligado. Para ativar, certifique-se que o servidor ponte está rodando em sua máquina. O QR Code aparecerá aqui automaticamente.
-                        </p>
+                        <>
+                          <p style={{ color: 'var(--text-muted)' }}>
+                            O robô está desligado. Clique abaixo para iniciar remotamente (se o servidor local estiver ok) ou aguarde o QR Code.
+                          </p>
+                          <button
+                            className="btn-primary"
+                            onClick={async () => {
+                              if (!confirm('Deseja iniciar o robô remotamente? Certifique-se que o computador principal está ligado.')) return;
+                              try {
+                                const res = await fetch(`${API_URL}/admin/bot/start`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json', 'X-User-Email': user.email },
+                                  body: JSON.stringify({ targetEmail: user.email })
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                  alert('Comando de INÍCIO enviado! Aguarde alguns segundos.');
+                                  setTimeout(checkWaStatus, 5000);
+                                } else {
+                                  alert('Erro ao iniciar: ' + (data.error || 'Desconhecido'));
+                                }
+                              } catch (e) {
+                                alert('Falha de conexão com o servidor.');
+                              }
+                            }}
+                            style={{
+                              background: 'rgba(46, 204, 113, 0.1)',
+                              color: '#2ecc71',
+                              border: '1px solid rgba(46, 204, 113, 0.3)',
+                              padding: '8px 15px',
+                              fontSize: '0.9rem',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                            }}
+                          >
+                            <Play size={18} /> INICIAR ROBÔ
+                          </button>
+                        </>
                       )}
                     </div>
                   )}
