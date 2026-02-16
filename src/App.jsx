@@ -180,38 +180,49 @@ function App() {
 
   const handleMasterRestartBot = async (targetEmail) => {
     try {
-      // Tenta reiniciar na ponte local (PWA mode)
-      const res = await fetch(`http://localhost:3000/api/restart`, {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/admin/bot/start`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'barber-secret-key', email: targetEmail })
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Email': targetEmail // Envia como o email alvo
+        },
+        body: JSON.stringify({ email: targetEmail })
       });
       const data = await res.json();
       if (res.ok) {
-        alert(`Comando de reinicialização enviado para ${targetEmail}`);
+        alert(`Comando de reinicialização enviado remotamente para ${targetEmail}`);
       } else {
-        alert(`Erro na ponte: ${data.error}`);
+        alert(`Erro na API: ${data.error}`);
       }
     } catch (e) {
-      alert('Certifique-se que o Servidor Ponte está rodando localmente para reiniciar robôs.');
+      alert('Erro ao tentar reiniciar o robô remotamente.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleMasterStopBot = async (targetEmail) => {
     try {
-      const res = await fetch(`http://localhost:3000/api/stop`, {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/admin/bot/stop`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'barber-secret-key', email: targetEmail })
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Email': targetEmail
+        },
+        body: JSON.stringify({ email: targetEmail })
       });
       const data = await res.json();
       if (res.ok) {
-        alert(`Comando de parada enviado para ${targetEmail}`);
+        alert(`Comando de parada enviado remotamente para ${targetEmail}`);
       } else {
-        alert(`Erro na ponte: ${data.error}`);
+        alert(`Erro na API: ${data.error}`);
       }
     } catch (e) {
-      alert('Certifique-se que o Servidor Ponte está rodando localmente para parar robôs.');
+      alert('Erro ao tentar parar o robô remotamente.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -222,15 +233,6 @@ function App() {
       });
       const data = await res.json();
       setWaStatus(data);
-
-      // Só tenta inicializar a ponte se o status for desconectado
-      if (data.status === 'disconnected') {
-        fetch(`http://localhost:3000/api/init`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: 'barber-secret-key', email: user.email })
-        }).catch(() => { }); // Ignora erro se a ponte não estiver rodando localmente
-      }
     } catch (e) {
       console.error('Erro ao buscar status WhatsApp:', e);
     }
