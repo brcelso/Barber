@@ -421,7 +421,7 @@ function App() {
               theme: "filled_black",
               size: "large",
               shape: "pill",
-              width: "100%", // Use full width of container
+              width: 280,
               logo_alignment: "left"
             });
           }
@@ -953,7 +953,7 @@ function App() {
 
           {!showManualLogin ? (
             <>
-              <div id="googleBtn" className="google-btn-container"></div>
+              <div id="googleBtn" className="google-btn-container" data-theme="dark"></div>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>ou continue com seus dados</p>
               <button
                 className="btn-primary"
