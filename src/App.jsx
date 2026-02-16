@@ -860,13 +860,6 @@ function App() {
                 <button className="action-item" onClick={() => { handleEditStart(selectedActionAppt); setSelectedActionAppt(null); }}>
                   <Calendar size={20} className="text-primary" /> Reagendar / Mudar Serviço
                 </button>
-
-                {isPending && (
-                  <button className="action-item" onClick={() => { handlePayment(selectedActionAppt._id || selectedActionAppt.id); setSelectedActionAppt(null); }}>
-                    <CreditCard size={20} className="text-primary" /> Pagar Agora (R$ {selectedActionAppt.price})
-                  </button>
-                )}
-
                 <button className="action-item" onClick={() => { handleWhatsAppNotify(selectedActionAppt); setSelectedActionAppt(null); }}>
                   <MessageSquare size={20} color="#25D366" /> Enviar WhatsApp
                 </button>
@@ -881,15 +874,6 @@ function App() {
                     </button>
                   </>
                 )}
-
-                <button className="action-item danger" onClick={() => {
-                  if (confirm('Deseja cancelar este agendamento?')) {
-                    handleCancel ? handleCancel(selectedActionAppt.id) : handleDelete(selectedActionAppt.id);
-                    setSelectedActionAppt(null);
-                  }
-                }}>
-                  <X size={20} /> Excluir permanentemente
-                </button>
               </div>
             </>
           ) : sheetView === 'status' ? (
