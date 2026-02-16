@@ -57,6 +57,17 @@ function App() {
   const [masterStats, setMasterStats] = useState(null);
   const [masterUsers, setMasterUsers] = useState([]);
 
+  // Auto-scroll when editing
+  useEffect(() => {
+    if (editingAppointment && view === 'book') {
+      setTimeout(() => {
+        const el = document.getElementById('booking-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+        else window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 100);
+    }
+  }, [editingAppointment, view]);
+
   // Set default view on login/load
   useEffect(() => {
     if (user?.isAdmin || user?.isBarber) {
@@ -1024,7 +1035,7 @@ function App() {
   }
 
   return (
-    <div className="container fade-in">
+    <>
       {showPhoneSetup && (
         <div className="modal-overlay">
           <div className="glass-card modal-content" style={{ textAlign: 'center' }}>
@@ -1055,759 +1066,533 @@ function App() {
         </div>
       )}
 
-      <header className="header">
-        <div>
-          <h1 className="logo-text">✂️ Barber</h1>
-          <p style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>
-            {user.isAdmin && isAdminMode ? 'Relatórios & Gestão' : 'Premium Experience'}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
-          {/* Admin toggle removed as requested */}
-        </div>
+      <div className="container">
 
-        <div className="user-nav-group">
-          {user.isAdmin && (
-            <div className="subscription-badge" style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '0.3rem 0.8rem',
-              background: subscription.daysLeft < 3 ? 'rgba(231, 76, 60, 0.1)' : 'rgba(212, 175, 55, 0.1)',
-              borderRadius: '16px',
-              fontSize: '0.75rem',
-              border: `1px solid ${subscription.daysLeft < 3 ? '#e74c3c' : '#d4af37'}`,
-              marginBottom: '0'
-            }}>
-              <span style={{ color: subscription.daysLeft < 3 ? '#e74c3c' : '#d4af37', fontWeight: 600 }}>
-                {subscription.plan && <span style={{ marginRight: '5px', textTransform: 'uppercase', fontSize: '0.6rem', background: 'rgba(255,255,255,0.1)', padding: '1px 4px', borderRadius: '3px' }}>{subscription.plan === 'business' ? 'Shop' : subscription.plan}</span>}
-                {subscription.isActive ? `${subscription.daysLeft}d restantes` : 'Expirada!'}
-              </span>
-              <div style={{ display: 'flex', gap: '4px' }}>
-                {!subscription.trialUsed && (
-                  <button
-                    onClick={handleMockPay}
-                    style={{
-                      background: 'rgba(255,255,255,0.08)',
-                      color: 'white',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      padding: '2px 6px',
-                      borderRadius: '6px',
-                      fontSize: '0.6rem',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
-                    title="Ativar 3 dias de teste"
-                  >
-                    Teste 3d
-                  </button>
-                )}
-                <button
-                  onClick={() => setShowPlanSelection(true)}
-                  style={{
-                    background: 'var(--primary)',
-                    color: 'black',
-                    border: 'none',
-                    padding: '3px 10px',
-                    borderRadius: '8px',
-                    fontSize: '0.7rem',
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  <CreditCard size={10} /> Pagar
-                </button>
-              </div>
-            </div>
-          )}
-
-          <nav className="nav-segmented">
-            <button
-              className={`nav-item-fluid ${view === 'book' ? 'active' : ''}`}
-              onClick={() => setView('book')}
-            >
-              <Plus size={18} /> <span>Agendar</span>
-            </button>
-            <button
-              className={`nav-item-fluid ${view === 'history' ? 'active' : ''}`}
-              onClick={() => setView('history')}
-            >
-              <History size={18} /> <span>Histórico</span>
-            </button>
-            {(user.isAdmin || user.isBarber) && (
-              <button
-                className={`nav-item-fluid ${view === 'admin' ? 'active' : ''}`}
-                onClick={() => setView('admin')}
-              >
-                <Shield size={18} /> <span>Admin</span>
-              </button>
-            )}
-          </nav>
-
-          <button
-            className="btn-icon"
-            onClick={handleRefresh}
-            title="Atualizar Dados"
-            style={{
-              background: loading ? 'rgba(212, 175, 55, 0.2)' : 'transparent',
-              borderColor: loading ? 'var(--primary)' : 'var(--border)'
-            }}
-          >
-            <RefreshCw size={20} className={loading ? 'refresh-spin' : ''} style={{ color: loading ? 'var(--primary)' : 'inherit' }} />
-          </button>
-
-          <div className="user-avatar" onClick={() => {
-            const newPhone = prompt('Deseja alterar seu número de WhatsApp?', user.phone);
-            if (newPhone) handleUpdateProfile(newPhone);
-          }} title="Editar Perfil" style={{ cursor: 'pointer' }}>
-            <img src={user.picture} alt={user.name} />
+        <header className="header">
+          <div>
+            <h1 className="logo-text">✂️ Barber</h1>
+            <p style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>
+              {user.isAdmin && isAdminMode ? 'Relatórios & Gestão' : 'Premium Experience'}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
+            {/* Admin toggle removed as requested */}
           </div>
 
-          {!user.isAdmin && (
-            <button
-              className="btn-primary"
-              style={{ fontSize: '0.7rem', padding: '5px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--primary)', color: 'var(--primary)' }}
-              onClick={handlePromoteToBarber}
-            >
-              Quero ser Barbeiro
-            </button>
-          )}
-
-          <button
-            className="btn-icon"
-            style={{ background: 'rgba(37, 211, 102, 0.1)', color: '#25D366', border: '1px solid rgba(37, 211, 102, 0.2)' }}
-            onClick={() => window.open('https://wa.me/5511972509876', '_blank')}
-            title="Falar com Barbeiro"
-          >
-            <MessageCircle size={20} />
-          </button>
-
-          <button className="btn-icon" onClick={handleLogout} title="Sair"><LogOut size={20} /></button>
-        </div>
-      </header>
-
-      {view === 'admin' && (user?.isAdmin || user?.isBarber) && (
-        <main className="fade-in">
-          {/* MASTER PANEL: Painel de Controle Global */}
-          {user?.isMaster && (
-            <div style={{ marginBottom: '2rem' }}>
-              <div className="glass-card" style={{ padding: '2rem', border: '1px solid var(--primary)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Activity className="text-primary" size={24} /> Centro de Controle Master
-                  </h2>
-                  <div style={{ display: 'flex', gap: '5px' }}>
+          <div className="user-nav-group">
+            {user.isAdmin && (
+              <div className="subscription-badge" style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '0.3rem 0.8rem',
+                background: subscription.daysLeft < 3 ? 'rgba(231, 76, 60, 0.1)' : 'rgba(212, 175, 55, 0.1)',
+                borderRadius: '16px',
+                fontSize: '0.75rem',
+                border: `1px solid ${subscription.daysLeft < 3 ? '#e74c3c' : '#d4af37'}`,
+                marginBottom: '0'
+              }}>
+                <span style={{ color: subscription.daysLeft < 3 ? '#e74c3c' : '#d4af37', fontWeight: 600 }}>
+                  {subscription.plan && <span style={{ marginRight: '5px', textTransform: 'uppercase', fontSize: '0.6rem', background: 'rgba(255,255,255,0.1)', padding: '1px 4px', borderRadius: '3px' }}>{subscription.plan === 'business' ? 'Shop' : subscription.plan}</span>}
+                  {subscription.isActive ? `${subscription.daysLeft}d restantes` : 'Expirada!'}
+                </span>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {!subscription.trialUsed && (
                     <button
-                      className="btn-icon"
-                      style={{ padding: '6px', width: '30px', height: '30px' }}
-                      title="Reiniciar Sistema Geral"
-                      onClick={() => {
-                        if (confirm('Isso reiniciará todos os robôs ativos. Continuar?')) {
-                          handleMasterRestartBot('ALL');
-                        }
+                      onClick={handleMockPay}
+                      style={{
+                        background: 'rgba(255,255,255,0.08)',
+                        color: 'white',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        padding: '2px 6px',
+                        borderRadius: '6px',
+                        fontSize: '0.6rem',
+                        fontWeight: 600,
+                        cursor: 'pointer'
                       }}
+                      title="Ativar 3 dias de teste"
                     >
-                      <RefreshCw size={14} />
+                      Teste 3d
                     </button>
-                    <button
-                      className="btn-icon"
-                      style={{ padding: '6px', width: '30px', height: '30px', color: '#e74c3c' }}
-                      title="Parar Todos os Robôs"
-                      onClick={() => {
-                        if (confirm('Deseja parar todos os robôs ativos?')) {
-                          handleMasterStopBot('ALL');
-                        }
-                      }}
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                {masterStats && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-                    <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
-                      <Users size={20} className="text-primary" />
-                      <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats?.totalUsers?.count || 0}</div>
-                      <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>USUÁRIOS</div>
-                    </div>
-                    <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
-                      <Shield size={20} className="text-primary" />
-                      <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats?.activeAdmins?.count || 0}</div>
-                      <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>ASSINANTES</div>
-                    </div>
-                    <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
-                      <MessageSquare size={20} className="text-primary" />
-                      <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats?.connectedBots?.count || 0}</div>
-                      <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>ROBÔS ATIVOS</div>
-                    </div>
-                    {/* New Plan Stats */}
-                    {masterStats?.planCounts?.results?.length > 0 ? (
-                      masterStats.planCounts.results.map(p => (
-                        <div key={p.plan} className="glass-card" style={{ padding: '1rem', textAlign: 'center', border: '1px solid rgba(212, 175, 55, 0.2)' }}>
-                          <Shield size={20} className="text-primary" />
-                          <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{p.count}</div>
-                          <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>PLANO {p.plan === 'business' ? 'SHOP' : p.plan}</div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="glass-card" style={{ padding: '1rem', textAlign: 'center', opacity: 0.5 }}>
-                        <Shield size={20} className="text-muted" />
-                        <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>0</div>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>PLANOS ATIVOS</div>
-                      </div>
-                    )}
-                    <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
-                      <Calendar size={20} className="text-primary" />
-                      <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats?.totalAppointments?.count || 0}</div>
-                      <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>AGENDAMENTOS</div>
-                    </div>
-                  </div>
-                )}
-
-                <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>📊 Gestão Global de Usuários</h3>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', minWidth: '800px' }}>
-                    <thead>
-                      <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
-                        <th style={{ padding: '10px', width: '240px' }}>Nome / Email</th>
-                        <th style={{ padding: '10px', width: '130px' }}>Telefone</th>
-                        <th style={{ padding: '10px', width: '90px' }}>Papéis</th>
-                        <th style={{ padding: '10px', width: '160px' }}>Plano</th>
-                        <th style={{ padding: '10px', width: '140px' }}>Expiração</th>
-                        <th style={{ padding: '10px' }}>Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {masterError ? (
-                        <tr>
-                          <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#e74c3c' }}>
-                            ❌ Erro: {masterError}
-                          </td>
-                        </tr>
-                      ) : masterUsers?.length > 0 ? (
-                        masterUsers.map(u => (
-                          <tr key={u.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <td style={{ padding: '10px' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                <input
-                                  type="text"
-                                  defaultValue={u.name || ''}
-                                  placeholder="Nome"
-                                  onBlur={(e) => {
-                                    if (e.target.value !== (u.name || '')) {
-                                      handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: e.target.value, newEmail: u.email });
-                                    }
-                                  }}
-                                  style={{
-                                    background: 'rgba(255,255,255,0.04)',
-                                    border: '1px solid var(--border)',
-                                    color: 'white',
-                                    fontWeight: 700,
-                                    fontSize: '0.8rem',
-                                    width: '100%',
-                                    outline: 'none',
-                                    padding: '6px 10px',
-                                    borderRadius: '8px'
-                                  }}
-                                />
-                                <input
-                                  type="email"
-                                  defaultValue={u.email || ''}
-                                  placeholder="Email"
-                                  onBlur={(e) => {
-                                    if (e.target.value !== (u.email || '')) {
-                                      handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: u.name, newEmail: e.target.value });
-                                    }
-                                  }}
-                                  style={{
-                                    background: 'rgba(255,255,255,0.02)',
-                                    border: '1px solid var(--border)',
-                                    color: 'var(--text-muted)',
-                                    fontSize: '0.7rem',
-                                    width: '100%',
-                                    outline: 'none',
-                                    padding: '4px 10px',
-                                    borderRadius: '8px'
-                                  }}
-                                />
-                              </div>
-                            </td>
-                            <td style={{ padding: '10px' }}>
-                              <input
-                                type="text"
-                                defaultValue={u.phone || ''}
-                                placeholder="Sem tel"
-                                onBlur={(e) => {
-                                  if (e.target.value !== (u.phone || '')) {
-                                    handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: e.target.value, newName: u.name, newEmail: u.email });
-                                  }
-                                }}
-                                style={{
-                                  background: 'rgba(255,255,255,0.03)',
-                                  border: '1px solid var(--border)',
-                                  color: 'white',
-                                  fontSize: '0.75rem',
-                                  padding: '6px 10px',
-                                  borderRadius: '10px',
-                                  width: '120px',
-                                  outline: 'none'
-                                }}
-                              />
-                            </td>
-                            <td style={{ padding: '10px' }}>
-                              <div style={{ display: 'flex', gap: '8px' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', cursor: 'pointer' }}>
-                                  <input
-                                    type="checkbox"
-                                    defaultChecked={u.is_admin}
-                                    disabled={u.email === 'celsosilvajunior90@gmail.com'}
-                                    onChange={(e) => handleMasterUpdate(u.email, { is_admin: e.target.checked, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone })}
-                                    style={{ accentColor: 'var(--primary)', cursor: 'pointer' }}
-                                  /> Adm
-                                </label>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', cursor: 'pointer' }}>
-                                  <input
-                                    type="checkbox"
-                                    defaultChecked={u.is_barber}
-                                    onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: e.target.checked, expires: u.subscription_expires, plan: u.plan, phone: u.phone })}
-                                    style={{ accentColor: 'var(--primary)', cursor: 'pointer' }}
-                                  /> Barb
-                                </label>
-                              </div>
-                            </td>
-                            <td style={{ padding: '10px' }}>
-                              <select
-                                value={u.plan || ''}
-                                onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: e.target.value, phone: u.phone })}
-                                style={{
-                                  background: 'rgba(255,255,255,0.05)',
-                                  border: '1px solid var(--border)',
-                                  color: 'white',
-                                  fontSize: '0.75rem',
-                                  padding: '6px 10px',
-                                  borderRadius: '10px',
-                                  width: '100%',
-                                  cursor: 'pointer',
-                                  outline: 'none',
-                                  colorScheme: 'dark'
-                                }}
-                              >
-                                <option value="" style={{ color: '#000', background: '#fff' }}>Sem Plano</option>
-                                <option value="pro" style={{ color: '#000', background: '#fff' }}>Pro AI</option>
-                                <option value="business" style={{ color: '#000', background: '#fff' }}>Barber Shop</option>
-                                {u.plan && u.plan !== 'pro' && u.plan !== 'business' && (
-                                  <option value={u.plan} style={{ color: '#000', background: '#fff' }}>{u.plan} (Antigo)</option>
-                                )}
-                              </select>
-                            </td>
-                            <td style={{ padding: '10px' }}>
-                              <input
-                                type="date"
-                                value={u.subscription_expires ? u.subscription_expires.split('T')[0] : ''}
-                                onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: e.target.value ? new Date(e.target.value).toISOString() : null, plan: u.plan, phone: u.phone })}
-                                style={{
-                                  background: 'rgba(255,255,255,0.05)',
-                                  border: '1px solid var(--border)',
-                                  color: 'white',
-                                  fontSize: '0.75rem',
-                                  padding: '6px 10px',
-                                  borderRadius: '10px',
-                                  width: '100%',
-                                  outline: 'none',
-                                  colorScheme: 'dark'
-                                }}
-                              />
-                            </td>
-                            <td style={{ padding: '10px' }}>
-                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                <div style={{
-                                  width: '8px',
-                                  height: '8px',
-                                  borderRadius: '50%',
-                                  background: u.wa_status === 'connected' ? '#2ecc71' : '#e74c3c',
-                                  boxShadow: u.wa_status === 'connected' ? '0 0 8px #2ecc71' : 'none'
-                                }} title={u.wa_status || 'desconectado'} />
-
-                                <button
-                                  onClick={() => handleMasterDelete(u.email)}
-                                  disabled={u.email === 'celsosilvajunior90@gmail.com'}
-                                  style={{
-                                    background: 'rgba(231, 76, 60, 0.15)',
-                                    border: '1px solid rgba(231, 76, 60, 0.3)',
-                                    color: '#e74c3c',
-                                    padding: '6px',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    opacity: u.email === 'celsosilvajunior90@gmail.com' ? 0.3 : 1,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                  }}
-                                  title="Deletar Usuário"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-
-                                <button
-                                  onClick={() => handleMasterRestartBot(u.email)}
-                                  style={{
-                                    background: 'rgba(255, 255, 255, 0.05)',
-                                    border: '1px solid var(--border)',
-                                    color: 'white',
-                                    padding: '6px',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                  }}
-                                  title="Reiniciar Robô"
-                                >
-                                  <RefreshCw size={14} />
-                                </button>
-
-                                <button
-                                  onClick={() => handleMasterStopBot(u.email)}
-                                  style={{
-                                    background: 'rgba(231, 76, 60, 0.1)',
-                                    border: '1px solid rgba(231, 76, 60, 0.2)',
-                                    color: '#e74c3c',
-                                    padding: '6px',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                  }}
-                                  title="Parar Robô"
-                                >
-                                  <X size={14} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            Nenhum usuário encontrado.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {user?.isBarber && (
-            <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <History className="text-primary" /> Agendamentos Ativos
-                </h2>
-                <div className="glass-card" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-                  Total: <span className="text-primary" style={{ fontWeight: 800 }}>{adminAppointments.filter(a => a.status !== 'blocked').length}</span>
-                </div>
-              </div>
-              {adminAppointments.filter(a => a.status !== 'blocked').length === 0 ? (
-                <div className="glass-card" style={{ padding: '3rem', textAlign: 'center', marginBottom: '2rem' }}>
-                  <History size={48} style={{ color: 'var(--border)', marginBottom: '1rem' }} />
-                  <p>Nenhum agendamento ativo.</p>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '3rem' }}>
-                  {adminAppointments.filter(a => a.status !== 'blocked').map(a => (
-                    <div key={a.id} className="glass-card appointment-item" style={{ borderLeft: a.status === 'confirmed' ? '4px solid var(--success)' : (a.status === 'cancelled' ? '4px solid var(--danger)' : '4px solid var(--primary)') }}>
-                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
-                        <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: '12px', textAlign: 'center', minWidth: '55px' }}>
-                          <div style={{ fontSize: '0.65rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
-                          <div style={{ fontSize: '1rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
-                        </div>
-                        <div className="user-avatar" style={{ width: '32px', height: '32px' }}>
-                          <img src={a.user_picture} alt={a.user_name} />
-                        </div>
-                        <div>
-                          <h3 style={{ fontSize: '0.95rem' }}>{a.user_name}</h3>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>{a.service_name} às {a.appointment_time} - Barbeiro: {a.barber_name || 'Barbeiro'}</p>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                            {(a.payment_status === 'confirmed' || a.status === 'confirmed') ? (
-                              <span style={{ background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>PAGO</span>
-                            ) : (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>⏳ Pagamento pendente</span>
-                                <button
-                                  className="btn-primary"
-                                  style={{ fontSize: '0.65rem', padding: '2px 8px', height: 'auto', minHeight: 'unset' }}
-                                  onClick={() => handlePayment(a, 'admin')}
-                                >
-                                  Pagar
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                        <div className={`status-tag status-${a.status}`} style={{ fontSize: '0.7rem' }}>
-                          {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
-                        </div>
-                        <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
-                          <button className="btn-icon" style={{ padding: '4px', background: 'rgba(52, 152, 219, 0.1)', color: '#3498db' }} onClick={() => setSelectedActionAppt(a)} title="Gerenciar Agendamento"><Edit2 size={14} /></button>
-                          <button className="btn-icon" style={{ padding: '4px', background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c' }} onClick={() => handleDelete(a.id)} title="Excluir"><Trash2 size={14} /></button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Lock className="text-primary" size={24} /> Configurar Agenda
-                  </h2>
+                  )}
                   <button
-                    className="btn-primary"
-                    style={{ fontSize: '0.8rem', padding: '0.5rem 1rem', background: busySlots.length >= timeSlots.length ? 'rgba(46, 204, 113, 0.2)' : 'rgba(231, 76, 60, 0.2)', color: busySlots.length >= timeSlots.length ? '#2ecc71' : '#e74c3c', border: '1px solid currentColor' }}
-                    onClick={handleToggleFullDay}
+                    onClick={() => setShowPlanSelection(true)}
+                    style={{
+                      background: 'var(--primary)',
+                      color: 'black',
+                      border: 'none',
+                      padding: '3px 10px',
+                      borderRadius: '8px',
+                      fontSize: '0.7rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
                   >
-                    {busySlots.length >= timeSlots.length ? 'Liberar Dia Todo' : 'Bloquear Dia Todo'}
+                    <CreditCard size={10} /> Pagar
                   </button>
                 </div>
-                <div className="date-list">
-                  {[...Array(14)].map((_, i) => {
-                    const date = addDays(startOfToday(), i);
-                    const isActive = isSameDay(selectedDate, date);
-                    return (
-                      <button
-                        key={i}
-                        className={`date-card ${isActive ? 'active' : ''}`}
-                        onClick={() => setSelectedDate(date)}
-                        style={isActive && busySlots.length >= timeSlots.length ? { background: 'rgba(231, 76, 60, 0.15)', borderColor: 'var(--danger)' } : {}}
-                      >
-                        <div className="day-name">{format(date, 'eee', { locale: ptBR })}</div>
-                        <div className="day-number">{format(date, 'dd')}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="time-slots">
-                  {timeSlots.map(t => {
-                    const isBusy = busySlots.find(b => b.time === t);
-                    const isBlocked = isBusy?.status === 'blocked';
-                    const isBooked = isBusy && isBusy.status !== 'blocked';
-
-                    // Ocultar horários passados se for hoje
-                    if (isSameDay(selectedDate, startOfToday())) {
-                      const [h, m] = t.split(':').map(Number);
-                      const slotTime = new Date();
-                      slotTime.setHours(h, m, 0, 0);
-                      if (slotTime < new Date()) return null;
-                    }
-
-                    return (
-                      <button
-                        key={t}
-                        className={`time-slot ${isBlocked ? 'selected' : 'available'}`}
-                        style={isBooked ? { opacity: 0.5, cursor: 'not-allowed', background: 'rgba(255,255,255,0.1)' } : {}}
-                        onClick={() => !isBooked && handleToggleBlock(t)}
-                        title={isBooked ? 'Agendado por Cliente' : (isBlocked ? 'Liberar Horário' : 'Bloquear Horário')}
-                      >
-                        {t} {isBlocked && <Lock size={12} />}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  * Clique nos horários para bloqueá-los (dourado) ou liberá-los. Horários acinzentados já possuem agendamentos.
-                </p>
               </div>
+            )}
 
-              <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem', border: waStatus.status === 'connected' ? '1px solid #2ecc71' : '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <MessageSquare className="text-primary" size={24} /> Robô de WhatsApp
-                  </h2>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: waStatus.status === 'connected' ? '#2ecc71' : (waStatus.status === 'awaiting_qr' ? '#f1c40f' : '#e74c3c') }} />
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                      {waStatus.status === 'connected' ? 'Conectado' : (waStatus.status === 'awaiting_qr' ? 'Aguardando Escaneamento' : 'Desconectado')}
-                    </span>
-                  </div>
-                </div>
+            <nav className="nav-segmented">
+              <button
+                className={`nav-item-fluid ${view === 'book' ? 'active' : ''}`}
+                onClick={() => setView('book')}
+              >
+                <Plus size={18} /> <span>Agendar</span>
+              </button>
+              <button
+                className={`nav-item-fluid ${view === 'history' ? 'active' : ''}`}
+                onClick={() => setView('history')}
+              >
+                <History size={18} /> <span>Histórico</span>
+              </button>
+              {(user.isAdmin || user.isBarber) && (
+                <button
+                  className={`nav-item-fluid ${view === 'admin' ? 'active' : ''}`}
+                  onClick={() => setView('admin')}
+                >
+                  <Shield size={18} /> <span>Admin</span>
+                </button>
+              )}
+            </nav>
 
-                <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {waStatus.status === 'awaiting_qr' && waStatus.qr ? (
-                    <div style={{ textAlign: 'center', background: 'white', padding: '1rem', borderRadius: '12px' }}>
-                      <img src={waStatus.qr} alt="WhatsApp QR Code" style={{ width: '200px', height: '200px' }} />
-                      <p style={{ color: 'black', fontSize: '0.7rem', marginTop: '0.5rem', fontWeight: 800 }}>ESCANEIE COM SEU WHATSAPP</p>
+            <button
+              className="btn-icon"
+              onClick={handleRefresh}
+              title="Atualizar Dados"
+              style={{
+                background: loading ? 'rgba(212, 175, 55, 0.2)' : 'transparent',
+                borderColor: loading ? 'var(--primary)' : 'var(--border)'
+              }}
+            >
+              <RefreshCw size={20} className={loading ? 'refresh-spin' : ''} style={{ color: loading ? 'var(--primary)' : 'inherit' }} />
+            </button>
+
+            <div className="user-avatar" onClick={() => {
+              const newPhone = prompt('Deseja alterar seu número de WhatsApp?', user.phone);
+              if (newPhone) handleUpdateProfile(newPhone);
+            }} title="Editar Perfil" style={{ cursor: 'pointer' }}>
+              <img src={user.picture} alt={user.name} />
+            </div>
+
+            {!user.isAdmin && (
+              <button
+                className="btn-primary"
+                style={{ fontSize: '0.7rem', padding: '5px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--primary)', color: 'var(--primary)' }}
+                onClick={handlePromoteToBarber}
+              >
+                Quero ser Barbeiro
+              </button>
+            )}
+
+            <button
+              className="btn-icon"
+              style={{ background: 'rgba(37, 211, 102, 0.1)', color: '#25D366', border: '1px solid rgba(37, 211, 102, 0.2)' }}
+              onClick={() => window.open('https://wa.me/5511972509876', '_blank')}
+              title="Falar com Barbeiro"
+            >
+              <MessageCircle size={20} />
+            </button>
+
+            <button className="btn-icon" onClick={handleLogout} title="Sair"><LogOut size={20} /></button>
+          </div>
+        </header>
+
+        {view === 'admin' && (user?.isAdmin || user?.isBarber) && (
+          <main className="fade-in">
+            {/* MASTER PANEL: Painel de Controle Global */}
+            {user?.isMaster && (
+              <div style={{ marginBottom: '2rem' }}>
+                <div className="glass-card" style={{ padding: '2rem', border: '1px solid var(--primary)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Activity className="text-primary" size={24} /> Centro de Controle Master
+                    </h2>
+                    <div style={{ display: 'flex', gap: '5px' }}>
+                      <button
+                        className="btn-icon"
+                        style={{ padding: '6px', width: '30px', height: '30px' }}
+                        title="Reiniciar Sistema Geral"
+                        onClick={() => {
+                          if (confirm('Isso reiniciará todos os robôs ativos. Continuar?')) {
+                            handleMasterRestartBot('ALL');
+                          }
+                        }}
+                      >
+                        <RefreshCw size={14} />
+                      </button>
+                      <button
+                        className="btn-icon"
+                        style={{ padding: '6px', width: '30px', height: '30px', color: '#e74c3c' }}
+                        title="Parar Todos os Robôs"
+                        onClick={() => {
+                          if (confirm('Deseja parar todos os robôs ativos?')) {
+                            handleMasterStopBot('ALL');
+                          }
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
                     </div>
-                  ) : (
-                    <div style={{ flex: 1, minWidth: '250px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {waStatus.status === 'connected' ? (
-                        <>
-                          <p style={{ color: 'var(--text-muted)' }}>
-                            ✅ Seu robô está ativo e respondendo aos clientes automaticamente.
-                          </p>
-                          <button
-                            className="btn-primary"
-                            onClick={async () => {
-                              if (!confirm('Tem certeza que deseja DESLIGAR o robô? Ele parará de responder mensagens.')) return;
-                              try {
-                                const res = await fetch(`${API_URL}/admin/bot/stop`, {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json', 'X-User-Email': user.email },
-                                  body: JSON.stringify({ targetEmail: user.email })
-                                });
-                                const data = await res.json();
-                                if (data.success) {
-                                  alert('Comando de PARADA enviado! O robô ficará offline.');
-                                  setTimeout(checkWaStatus, 2000);
-                                } else {
-                                  alert('Erro ao parar: ' + (data.error || 'Desconhecido'));
-                                }
-                              } catch (e) {
-                                alert('Falha de conexão com o servidor.');
-                              }
-                            }}
-                            style={{
-                              background: 'rgba(231, 76, 60, 0.1)',
-                              color: '#e74c3c',
-                              border: '1px solid rgba(231, 76, 60, 0.3)',
-                              padding: '8px 15px',
-                              fontSize: '0.9rem',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
-                            }}
-                          >
-                            <Power size={18} /> DESLIGAR ROBÔ
-                          </button>
-                        </>
+                  </div>
+
+                  {masterStats && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+                      <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
+                        <Users size={20} className="text-primary" />
+                        <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats?.totalUsers?.count || 0}</div>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>USUÁRIOS</div>
+                      </div>
+                      <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
+                        <Shield size={20} className="text-primary" />
+                        <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats?.activeAdmins?.count || 0}</div>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>ASSINANTES</div>
+                      </div>
+                      <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
+                        <MessageSquare size={20} className="text-primary" />
+                        <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats?.connectedBots?.count || 0}</div>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>ROBÔS ATIVOS</div>
+                      </div>
+                      {/* New Plan Stats */}
+                      {masterStats?.planCounts?.results?.length > 0 ? (
+                        masterStats.planCounts.results.map(p => (
+                          <div key={p.plan} className="glass-card" style={{ padding: '1rem', textAlign: 'center', border: '1px solid rgba(212, 175, 55, 0.2)' }}>
+                            <Shield size={20} className="text-primary" />
+                            <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{p.count}</div>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>PLANO {p.plan === 'business' ? 'SHOP' : p.plan}</div>
+                          </div>
+                        ))
                       ) : (
-                        <>
-                          <p style={{ color: 'var(--text-muted)' }}>
-                            O robô está desligado. Clique abaixo para iniciar remotamente (se o servidor local estiver ok) ou aguarde o QR Code.
-                          </p>
-                          <button
-                            className="btn-primary"
-                            onClick={async () => {
-                              if (!confirm('Deseja iniciar o robô remotamente? Certifique-se que o computador principal está ligado.')) return;
-                              try {
-                                const res = await fetch(`${API_URL}/admin/bot/start`, {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json', 'X-User-Email': user.email },
-                                  body: JSON.stringify({ targetEmail: user.email })
-                                });
-                                const data = await res.json();
-                                if (data.success) {
-                                  alert('Comando de INÍCIO enviado! Aguarde alguns segundos.');
-                                  setTimeout(checkWaStatus, 5000);
-                                } else {
-                                  alert('Erro ao iniciar: ' + (data.error || 'Desconhecido'));
-                                }
-                              } catch (e) {
-                                alert('Falha de conexão com o servidor.');
-                              }
-                            }}
-                            style={{
-                              background: 'rgba(46, 204, 113, 0.1)',
-                              color: '#2ecc71',
-                              border: '1px solid rgba(46, 204, 113, 0.3)',
-                              padding: '8px 15px',
-                              fontSize: '0.9rem',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
-                            }}
-                          >
-                            <Play size={18} /> INICIAR ROBÔ
-                          </button>
-                        </>
+                        <div className="glass-card" style={{ padding: '1rem', textAlign: 'center', opacity: 0.5 }}>
+                          <Shield size={20} className="text-muted" />
+                          <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>0</div>
+                          <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>PLANOS ATIVOS</div>
+                        </div>
                       )}
+                      <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
+                        <Calendar size={20} className="text-primary" />
+                        <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats?.totalAppointments?.count || 0}</div>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>AGENDAMENTOS</div>
+                      </div>
                     </div>
                   )}
 
-                  <div style={{ flex: 1, minWidth: '250px' }}>
-                    <div className="glass-card" style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)' }}>
-                      <h4 style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Dicas:</h4>
-                      <ul style={{ fontSize: '0.8rem', color: 'var(--text-muted)', paddingLeft: '1.2rem' }}>
-                        <li>Use o WhatsApp Business para melhores resultados.</li>
-                        <li>A IA responde dúvidas sobre preços e horários.</li>
-                        <li>Clientes podem agendar digitando "1".</li>
-                      </ul>
-                    </div>
+                  <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>📊 Gestão Global de Usuários</h3>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', minWidth: '800px' }}>
+                      <thead>
+                        <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
+                          <th style={{ padding: '10px', width: '240px' }}>Nome / Email</th>
+                          <th style={{ padding: '10px', width: '130px' }}>Telefone</th>
+                          <th style={{ padding: '10px', width: '90px' }}>Papéis</th>
+                          <th style={{ padding: '10px', width: '160px' }}>Plano</th>
+                          <th style={{ padding: '10px', width: '140px' }}>Expiração</th>
+                          <th style={{ padding: '10px' }}>Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {masterError ? (
+                          <tr>
+                            <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#e74c3c' }}>
+                              ❌ Erro: {masterError}
+                            </td>
+                          </tr>
+                        ) : masterUsers?.length > 0 ? (
+                          masterUsers.map(u => (
+                            <tr key={u.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                              <td style={{ padding: '10px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  <input
+                                    type="text"
+                                    defaultValue={u.name || ''}
+                                    placeholder="Nome"
+                                    onBlur={(e) => {
+                                      if (e.target.value !== (u.name || '')) {
+                                        handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: e.target.value, newEmail: u.email });
+                                      }
+                                    }}
+                                    style={{
+                                      background: 'rgba(255,255,255,0.04)',
+                                      border: '1px solid var(--border)',
+                                      color: 'white',
+                                      fontWeight: 700,
+                                      fontSize: '0.8rem',
+                                      width: '100%',
+                                      outline: 'none',
+                                      padding: '6px 10px',
+                                      borderRadius: '8px'
+                                    }}
+                                  />
+                                  <input
+                                    type="email"
+                                    defaultValue={u.email || ''}
+                                    placeholder="Email"
+                                    onBlur={(e) => {
+                                      if (e.target.value !== (u.email || '')) {
+                                        handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: u.name, newEmail: e.target.value });
+                                      }
+                                    }}
+                                    style={{
+                                      background: 'rgba(255,255,255,0.02)',
+                                      border: '1px solid var(--border)',
+                                      color: 'var(--text-muted)',
+                                      fontSize: '0.7rem',
+                                      width: '100%',
+                                      outline: 'none',
+                                      padding: '4px 10px',
+                                      borderRadius: '8px'
+                                    }}
+                                  />
+                                </div>
+                              </td>
+                              <td style={{ padding: '10px' }}>
+                                <input
+                                  type="text"
+                                  defaultValue={u.phone || ''}
+                                  placeholder="Sem tel"
+                                  onBlur={(e) => {
+                                    if (e.target.value !== (u.phone || '')) {
+                                      handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: e.target.value, newName: u.name, newEmail: u.email });
+                                    }
+                                  }}
+                                  style={{
+                                    background: 'rgba(255,255,255,0.03)',
+                                    border: '1px solid var(--border)',
+                                    color: 'white',
+                                    fontSize: '0.75rem',
+                                    padding: '6px 10px',
+                                    borderRadius: '10px',
+                                    width: '120px',
+                                    outline: 'none'
+                                  }}
+                                />
+                              </td>
+                              <td style={{ padding: '10px' }}>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', cursor: 'pointer' }}>
+                                    <input
+                                      type="checkbox"
+                                      defaultChecked={u.is_admin}
+                                      disabled={u.email === 'celsosilvajunior90@gmail.com'}
+                                      onChange={(e) => handleMasterUpdate(u.email, { is_admin: e.target.checked, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone })}
+                                      style={{ accentColor: 'var(--primary)', cursor: 'pointer' }}
+                                    /> Adm
+                                  </label>
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', cursor: 'pointer' }}>
+                                    <input
+                                      type="checkbox"
+                                      defaultChecked={u.is_barber}
+                                      onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: e.target.checked, expires: u.subscription_expires, plan: u.plan, phone: u.phone })}
+                                      style={{ accentColor: 'var(--primary)', cursor: 'pointer' }}
+                                    /> Barb
+                                  </label>
+                                </div>
+                              </td>
+                              <td style={{ padding: '10px' }}>
+                                <select
+                                  value={u.plan || ''}
+                                  onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: e.target.value, phone: u.phone })}
+                                  style={{
+                                    background: 'rgba(255,255,255,0.05)',
+                                    border: '1px solid var(--border)',
+                                    color: 'white',
+                                    fontSize: '0.75rem',
+                                    padding: '6px 10px',
+                                    borderRadius: '10px',
+                                    width: '100%',
+                                    cursor: 'pointer',
+                                    outline: 'none',
+                                    colorScheme: 'dark'
+                                  }}
+                                >
+                                  <option value="" style={{ color: '#000', background: '#fff' }}>Sem Plano</option>
+                                  <option value="pro" style={{ color: '#000', background: '#fff' }}>Pro AI</option>
+                                  <option value="business" style={{ color: '#000', background: '#fff' }}>Barber Shop</option>
+                                  {u.plan && u.plan !== 'pro' && u.plan !== 'business' && (
+                                    <option value={u.plan} style={{ color: '#000', background: '#fff' }}>{u.plan} (Antigo)</option>
+                                  )}
+                                </select>
+                              </td>
+                              <td style={{ padding: '10px' }}>
+                                <input
+                                  type="date"
+                                  value={u.subscription_expires ? u.subscription_expires.split('T')[0] : ''}
+                                  onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: e.target.value ? new Date(e.target.value).toISOString() : null, plan: u.plan, phone: u.phone })}
+                                  style={{
+                                    background: 'rgba(255,255,255,0.05)',
+                                    border: '1px solid var(--border)',
+                                    color: 'white',
+                                    fontSize: '0.75rem',
+                                    padding: '6px 10px',
+                                    borderRadius: '10px',
+                                    width: '100%',
+                                    outline: 'none',
+                                    colorScheme: 'dark'
+                                  }}
+                                />
+                              </td>
+                              <td style={{ padding: '10px' }}>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                  <div style={{
+                                    width: '8px',
+                                    height: '8px',
+                                    borderRadius: '50%',
+                                    background: u.wa_status === 'connected' ? '#2ecc71' : '#e74c3c',
+                                    boxShadow: u.wa_status === 'connected' ? '0 0 8px #2ecc71' : 'none'
+                                  }} title={u.wa_status || 'desconectado'} />
+
+                                  <button
+                                    onClick={() => handleMasterDelete(u.email)}
+                                    disabled={u.email === 'celsosilvajunior90@gmail.com'}
+                                    style={{
+                                      background: 'rgba(231, 76, 60, 0.15)',
+                                      border: '1px solid rgba(231, 76, 60, 0.3)',
+                                      color: '#e74c3c',
+                                      padding: '6px',
+                                      borderRadius: '8px',
+                                      cursor: 'pointer',
+                                      opacity: u.email === 'celsosilvajunior90@gmail.com' ? 0.3 : 1,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center'
+                                    }}
+                                    title="Deletar Usuário"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleMasterRestartBot(u.email)}
+                                    style={{
+                                      background: 'rgba(255, 255, 255, 0.05)',
+                                      border: '1px solid var(--border)',
+                                      color: 'white',
+                                      padding: '6px',
+                                      borderRadius: '8px',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center'
+                                    }}
+                                    title="Reiniciar Robô"
+                                  >
+                                    <RefreshCw size={14} />
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleMasterStopBot(u.email)}
+                                    style={{
+                                      background: 'rgba(231, 76, 60, 0.1)',
+                                      border: '1px solid rgba(231, 76, 60, 0.2)',
+                                      color: '#e74c3c',
+                                      padding: '6px',
+                                      borderRadius: '8px',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center'
+                                    }}
+                                    title="Parar Robô"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                              Nenhum usuário encontrado.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
-            </>
-          )}
-        </main>
-      )
-      }
+            )}
 
-      {
-        view === 'book' && (
-          <main>
-            {!selectedBarber ? (
-              <section style={{ marginBottom: '3rem' }}>
-                <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <User className="text-primary" /> Escolha seu Barbeiro
-                </h2>
-                <div className="service-grid">
-                  {barbers.map(b => (
-                    <div
-                      key={b.email}
-                      className="glass-card service-card"
-                      onClick={() => setSelectedBarber(b)}
-                      style={{ textAlign: 'center' }}
-                    >
-                      <img src={b.picture} alt={b.name} style={{ width: '80px', height: '80px', borderRadius: '50%', margin: '0 auto 1rem', border: '2px solid var(--primary)' }} />
-                      <h3 style={{ fontSize: '1.2rem' }}>{b.name}</h3>
-                      <button className="btn-primary" style={{ marginTop: '1rem', width: '100%' }}>Escolher</button>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ) : (
+            {user?.isBarber && (
               <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '2rem' }}>
-                  <button className="btn-icon" onClick={() => { setSelectedBarber(null); setSelectedService(null); }}>
-                    <ChevronLeft size={20} />
-                  </button>
-                  <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Agendando com: </span>
-                  <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{selectedBarber?.name || 'Barbeiro'}</span>
-                </div>
-
-                <section style={{ marginBottom: '3rem' }}>
-                  <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Scissors className="text-primary" /> Escolha o Serviço
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                  <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <History className="text-primary" /> Agendamentos Ativos
                   </h2>
-                  <div className="service-grid">
-                    {services.map(s => (
-                      <div
-                        key={s.id}
-                        className={`glass-card service-card ${selectedService?.id === s.id ? 'selected' : ''}`}
-                        onClick={() => setSelectedService(s)}
-                      >
-                        <h3 style={{ fontSize: '1.2rem' }}>{s.name}</h3>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>{s.duration_minutes} min</p>
-                        <div className="price">R$ {s.price}</div>
-                        <div style={{ color: selectedService?.id === s.id ? 'var(--primary)' : 'transparent' }}>
-                          <CheckCircle size={24} />
+                  <div className="glass-card" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                    Total: <span className="text-primary" style={{ fontWeight: 800 }}>{adminAppointments.filter(a => a.status !== 'blocked').length}</span>
+                  </div>
+                </div>
+                {adminAppointments.filter(a => a.status !== 'blocked').length === 0 ? (
+                  <div className="glass-card" style={{ padding: '3rem', textAlign: 'center', marginBottom: '2rem' }}>
+                    <History size={48} style={{ color: 'var(--border)', marginBottom: '1rem' }} />
+                    <p>Nenhum agendamento ativo.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '3rem' }}>
+                    {adminAppointments.filter(a => a.status !== 'blocked').map(a => (
+                      <div key={a.id} className="glass-card appointment-item" style={{ borderLeft: a.status === 'confirmed' ? '4px solid var(--success)' : (a.status === 'cancelled' ? '4px solid var(--danger)' : '4px solid var(--primary)') }}>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1 }}>
+                          <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: '12px', textAlign: 'center', minWidth: '55px' }}>
+                            <div style={{ fontSize: '0.65rem' }}>{format(parseISO(a.appointment_date), 'MMM').toUpperCase()}</div>
+                            <div style={{ fontSize: '1rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
+                          </div>
+                          <div className="user-avatar" style={{ width: '32px', height: '32px' }}>
+                            <img src={a.user_picture} alt={a.user_name} />
+                          </div>
+                          <div>
+                            <h3 style={{ fontSize: '0.95rem' }}>{a.user_name}</h3>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>{a.service_name} às {a.appointment_time} - Barbeiro: {a.barber_name || 'Barbeiro'}</p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                              {(a.payment_status === 'confirmed' || a.status === 'confirmed') ? (
+                                <span style={{ background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>PAGO</span>
+                              ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>⏳ Pagamento pendente</span>
+                                  <button
+                                    className="btn-primary"
+                                    style={{ fontSize: '0.65rem', padding: '2px 8px', height: 'auto', minHeight: 'unset' }}
+                                    onClick={() => handlePayment(a, 'admin')}
+                                  >
+                                    Pagar
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                          <div className={`status-tag status-${a.status}`} style={{ fontSize: '0.7rem' }}>
+                            {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
+                          </div>
+                          <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
+                            <button className="btn-icon" style={{ padding: '4px', background: 'rgba(52, 152, 219, 0.1)', color: '#3498db' }} onClick={() => setSelectedActionAppt(a)} title="Gerenciar Agendamento"><Edit2 size={14} /></button>
+                            <button className="btn-icon" style={{ padding: '4px', background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c' }} onClick={() => handleDelete(a.id)} title="Excluir"><Trash2 size={14} /></button>
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
-                </section>
+                )}
 
-                <section className="glass-card" style={{ padding: '2rem' }}>
-                  <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Calendar className="text-primary" /> Data e Horário
-                  </h2>
-
+                <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Lock className="text-primary" size={24} /> Configurar Agenda
+                    </h2>
+                    <button
+                      className="btn-primary"
+                      style={{ fontSize: '0.8rem', padding: '0.5rem 1rem', background: busySlots.length >= timeSlots.length ? 'rgba(46, 204, 113, 0.2)' : 'rgba(231, 76, 60, 0.2)', color: busySlots.length >= timeSlots.length ? '#2ecc71' : '#e74c3c', border: '1px solid currentColor' }}
+                      onClick={handleToggleFullDay}
+                    >
+                      {busySlots.length >= timeSlots.length ? 'Liberar Dia Todo' : 'Bloquear Dia Todo'}
+                    </button>
+                  </div>
                   <div className="date-list">
                     {[...Array(14)].map((_, i) => {
                       const date = addDays(startOfToday(), i);
@@ -1817,6 +1602,7 @@ function App() {
                           key={i}
                           className={`date-card ${isActive ? 'active' : ''}`}
                           onClick={() => setSelectedDate(date)}
+                          style={isActive && busySlots.length >= timeSlots.length ? { background: 'rgba(231, 76, 60, 0.15)', borderColor: 'var(--danger)' } : {}}
                         >
                           <div className="day-name">{format(date, 'eee', { locale: ptBR })}</div>
                           <div className="day-number">{format(date, 'dd')}</div>
@@ -1824,11 +1610,11 @@ function App() {
                       );
                     })}
                   </div>
-
                   <div className="time-slots">
                     {timeSlots.map(t => {
                       const isBusy = busySlots.find(b => b.time === t);
-                      const isSelected = selectedTime === t;
+                      const isBlocked = isBusy?.status === 'blocked';
+                      const isBooked = isBusy && isBusy.status !== 'blocked';
 
                       // Ocultar horários passados se for hoje
                       if (isSameDay(selectedDate, startOfToday())) {
@@ -1841,286 +1627,605 @@ function App() {
                       return (
                         <button
                           key={t}
-                          className={`time-slot ${isSelected ? 'selected' : (isBusy ? 'occupied' : 'available')}`}
-                          onClick={() => !isBusy && setSelectedTime(t)}
-                          disabled={isBusy}
-                          title={isBusy ? 'Horário Ocupado' : 'Horário Disponível'}
+                          className={`time-slot ${isBlocked ? 'selected' : 'available'}`}
+                          style={isBooked ? { opacity: 0.5, cursor: 'not-allowed', background: 'rgba(255,255,255,0.1)' } : {}}
+                          onClick={() => !isBooked && handleToggleBlock(t)}
+                          title={isBooked ? 'Agendado por Cliente' : (isBlocked ? 'Liberar Horário' : 'Bloquear Horário')}
                         >
-                          {t}
+                          {t} {isBlocked && <Lock size={12} />}
                         </button>
                       );
                     })}
-                    {timeSlots.every(t => {
-                      // Check if time is past
-                      if (isSameDay(selectedDate, startOfToday())) {
-                        const [h, m] = t.split(':').map(Number);
-                        const slotTime = new Date();
-                        slotTime.setHours(h, m, 0, 0);
-                        if (slotTime < new Date()) return true; // Considered "busy" (unavailable)
-                      }
-                      // Check if time is in busySlots
-                      const isBusy = busySlots.find(b => b.time === t && b.status !== 'cancelled');
-                      return isBusy;
-                    }) && (
-                        <div style={{ gridColumn: '1 / -1', padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
-                          😔 Dia sem horários disponíveis. Tente outro dia!
-                        </div>
-                      )}
+                  </div>
+                  <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    * Clique nos horários para bloqueá-los (dourado) ou liberá-los. Horários acinzentados já possuem agendamentos.
+                  </p>
+                </div>
 
+                <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem', border: waStatus.status === 'connected' ? '1px solid #2ecc71' : '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <MessageSquare className="text-primary" size={24} /> Robô de WhatsApp
+                    </h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: waStatus.status === 'connected' ? '#2ecc71' : (waStatus.status === 'awaiting_qr' ? '#f1c40f' : '#e74c3c') }} />
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                        {waStatus.status === 'connected' ? 'Conectado' : (waStatus.status === 'awaiting_qr' ? 'Aguardando Escaneamento' : 'Desconectado')}
+                      </span>
+                    </div>
                   </div>
 
-                  <div style={{ marginTop: '2.5rem', borderTop: '1px solid var(--border)', paddingTop: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Resumo {editingAppointment && '(Editando)'}:</p>
-                      <h3 style={{ fontSize: '1.1rem' }}>
-                        {selectedService ? selectedService.name : 'Selecione um serviço'}
-                        {selectedTime && ` às ${selectedTime}`}
-                      </h3>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-                      {!loading && (
-                        <div style={{
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          color: (!selectedService || !selectedTime) ? '#e74c3c' : '#2ecc71',
-                          background: 'rgba(0,0,0,0.2)',
-                          padding: '4px 10px',
-                          borderRadius: '8px',
-                          border: '1px solid currentColor',
-                          opacity: 0.9
-                        }}>
-                          {!selectedService ? '❌ Falta escolher o SERVIÇO' : (!selectedTime ? '❌ Falta escolher o HORÁRIO' : '✅ Tudo pronto!')}
-                        </div>
-                      )}
-                      <div style={{ display: 'flex', gap: '10px' }}>
-                        {editingAppointment && (
-                          <button className="btn-icon" onClick={() => { setEditingAppointment(null); setView('history'); }} title="Cancelar Edição">
-                            <X size={20} />
-                          </button>
+                  <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {waStatus.status === 'awaiting_qr' && waStatus.qr ? (
+                      <div style={{ textAlign: 'center', background: 'white', padding: '1rem', borderRadius: '12px' }}>
+                        <img src={waStatus.qr} alt="WhatsApp QR Code" style={{ width: '200px', height: '200px' }} />
+                        <p style={{ color: 'black', fontSize: '0.7rem', marginTop: '0.5rem', fontWeight: 800 }}>ESCANEIE COM SEU WHATSAPP</p>
+                      </div>
+                    ) : (
+                      <div style={{ flex: 1, minWidth: '250px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {waStatus.status === 'connected' ? (
+                          <>
+                            <p style={{ color: 'var(--text-muted)' }}>
+                              ✅ Seu robô está ativo e respondendo aos clientes automaticamente.
+                            </p>
+                            <button
+                              className="btn-primary"
+                              onClick={async () => {
+                                if (!confirm('Tem certeza que deseja DESLIGAR o robô? Ele parará de responder mensagens.')) return;
+                                try {
+                                  const res = await fetch(`${API_URL}/admin/bot/stop`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'X-User-Email': user.email },
+                                    body: JSON.stringify({ targetEmail: user.email })
+                                  });
+                                  const data = await res.json();
+                                  if (data.success) {
+                                    alert('Comando de PARADA enviado! O robô ficará offline.');
+                                    setTimeout(checkWaStatus, 2000);
+                                  } else {
+                                    alert('Erro ao parar: ' + (data.error || 'Desconhecido'));
+                                  }
+                                } catch (e) {
+                                  alert('Falha de conexão com o servidor.');
+                                }
+                              }}
+                              style={{
+                                background: 'rgba(231, 76, 60, 0.1)',
+                                color: '#e74c3c',
+                                border: '1px solid rgba(231, 76, 60, 0.3)',
+                                padding: '8px 15px',
+                                fontSize: '0.9rem',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                              }}
+                            >
+                              <Power size={18} /> DESLIGAR ROBÔ
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <p style={{ color: 'var(--text-muted)' }}>
+                              O robô está desligado. Clique abaixo para iniciar remotamente (se o servidor local estiver ok) ou aguarde o QR Code.
+                            </p>
+                            <button
+                              className="btn-primary"
+                              onClick={async () => {
+                                if (!confirm('Deseja iniciar o robô remotamente? Certifique-se que o computador principal está ligado.')) return;
+                                try {
+                                  const res = await fetch(`${API_URL}/admin/bot/start`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'X-User-Email': user.email },
+                                    body: JSON.stringify({ targetEmail: user.email })
+                                  });
+                                  const data = await res.json();
+                                  if (data.success) {
+                                    alert('Comando de INÍCIO enviado! Aguarde alguns segundos.');
+                                    setTimeout(checkWaStatus, 5000);
+                                  } else {
+                                    alert('Erro ao iniciar: ' + (data.error || 'Desconhecido'));
+                                  }
+                                } catch (e) {
+                                  alert('Falha de conexão com o servidor.');
+                                }
+                              }}
+                              style={{
+                                background: 'rgba(46, 204, 113, 0.1)',
+                                color: '#2ecc71',
+                                border: '1px solid rgba(46, 204, 113, 0.3)',
+                                padding: '8px 15px',
+                                fontSize: '0.9rem',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                              }}
+                            >
+                              <Play size={18} /> INICIAR ROBÔ
+                            </button>
+                          </>
                         )}
-                        <button
-                          className="btn-primary"
-                          disabled={!selectedService || !selectedTime || loading}
-                          onClick={handleBooking}
-                          style={user?.isAdmin ? { background: 'linear-gradient(135deg, #2ecc71, #27ae60)', borderColor: '#27ae60' } : {}}
-                        >
-                          {loading ? 'Processando...' : (
-                            user?.isAdmin ?
-                              <><CheckCircle size={20} /> Salvar Agendamento (Admin)</> :
-                              <><Calendar size={20} /> {editingAppointment ? 'Salvar Alterações' : 'Agendar Agora'}</>
-                          )}
-                        </button>
+                      </div>
+                    )}
+
+                    <div style={{ flex: 1, minWidth: '250px' }}>
+                      <div className="glass-card" style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)' }}>
+                        <h4 style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Dicas:</h4>
+                        <ul style={{ fontSize: '0.8rem', color: 'var(--text-muted)', paddingLeft: '1.2rem' }}>
+                          <li>Use o WhatsApp Business para melhores resultados.</li>
+                          <li>A IA responde dúvidas sobre preços e horários.</li>
+                          <li>Clientes podem agendar digitando "1".</li>
+                        </ul>
                       </div>
                     </div>
                   </div>
-                </section>
+                </div>
               </>
             )}
           </main>
         )
-      }
+        }
 
-      {
-        view === 'history' && (
-          <main className="fade-in">
-            <h2 style={{ marginBottom: '2rem' }}>Meus Agendamentos</h2>
-            {appointments.length === 0 ? (
-              <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
-                <History size={48} style={{ color: 'var(--border)', marginBottom: '1rem' }} />
-                <p>Você ainda não possui agendamentos.</p>
-                <button className="btn-primary" onClick={() => setView('book')} style={{ margin: '1.5rem auto' }}>Agendar Agora</button>
-              </div>
-            ) : (
-              appointments.map(a => {
-                const isProfessional = a.barber_email === user.email; // If I am the barber
-                const displayTitle = isProfessional ? `Cliente: ${a.client_name || a.user_name || 'Cliente'}` : a.service_name;
-                const displaySubtitle = `${a.appointment_time} - ${a.service_name} - Barbeiro: ${a.barber_name || 'Barbeiro'}`;
-                const displayPicture = isProfessional ? (a.client_picture || a.user_picture) : a.barber_picture;
-                const isPaid = a.payment_status === 'confirmed' || a.status === 'confirmed';
-                const canManage = !isPaid && a.status !== 'cancelled' && a.status !== 'blocked';
-
-                return (
-                  <div key={a.id} className="glass-card appointment-item" style={{
-                    borderLeft: isProfessional ? '4px solid var(--primary)' : (a.status === 'confirmed' ? '4px solid var(--success)' : '4px solid rgba(255,255,255,0.1)'),
-                    background: isProfessional ? 'rgba(212, 175, 55, 0.05)' : 'var(--card-bg)'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1, minWidth: '200px' }}>
-                        <div style={{ background: 'var(--accent)', padding: '0.6rem', borderRadius: '12px', textAlign: 'center', minWidth: '55px' }}>
-                          <div style={{ fontSize: '0.65rem' }}>{format(parseISO(a.appointment_date), 'MMM', { locale: ptBR }).toUpperCase()}</div>
-                          <div style={{ fontSize: '1rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
-                        </div>
-                        <div className="user-avatar" style={{ width: '40px', height: '40px' }}>
-                          <img src={displayPicture || user.picture} alt="Avatar" />
-                        </div>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            <h3 style={{ color: isProfessional ? 'var(--text-main)' : 'var(--primary)', fontSize: '1rem' }}>{displayTitle}</h3>
-                            {isPaid && (
-                              <span style={{ background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>PAGO</span>
-                            )}
-
-                          </div>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{displaySubtitle}</p>
-                        </div>
+        {
+          view === 'book' && (
+            <main id="booking-section">
+              {!selectedBarber ? (
+                <section style={{ marginBottom: '3rem' }}>
+                  <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <User className="text-primary" /> Escolha seu Barbeiro
+                  </h2>
+                  <div className="service-grid">
+                    {barbers.map(b => (
+                      <div
+                        key={b.email}
+                        className="glass-card service-card"
+                        onClick={() => setSelectedBarber(b)}
+                        style={{ textAlign: 'center' }}
+                      >
+                        <img src={b.picture} alt={b.name} style={{ width: '80px', height: '80px', borderRadius: '50%', margin: '0 auto 1rem', border: '2px solid var(--primary)' }} />
+                        <h3 style={{ fontSize: '1.2rem' }}>{b.name}</h3>
+                        <button className="btn-primary" style={{ marginTop: '1rem', width: '100%' }}>Escolher</button>
                       </div>
+                    ))}
+                  </div>
+                </section>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '2rem' }}>
+                    <button className="btn-icon" onClick={() => { setSelectedBarber(null); setSelectedService(null); }}>
+                      <ChevronLeft size={20} />
+                    </button>
+                    <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Agendando com: </span>
+                    <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{selectedBarber?.name || 'Barbeiro'}</span>
+                  </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
-                        <div className={`status-tag status-${a.status}`}>
-                          {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
+                  <section style={{ marginBottom: '3rem' }}>
+                    <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Scissors className="text-primary" /> Escolha o Serviço
+                    </h2>
+                    <div className="service-grid">
+                      {services.map(s => (
+                        <div
+                          key={s.id}
+                          className={`glass-card service-card ${selectedService?.id === s.id ? 'selected' : ''}`}
+                          onClick={() => setSelectedService(s)}
+                        >
+                          <h3 style={{ fontSize: '1.2rem' }}>{s.name}</h3>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>{s.duration_minutes} min</p>
+                          <div className="price">R$ {s.price}</div>
+                          <div style={{ color: selectedService?.id === s.id ? 'var(--primary)' : 'transparent' }}>
+                            <CheckCircle size={24} />
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '5px' }}>
+                      ))}
+                    </div>
+                  </section>
 
-                          {!isPaid && (
-                            <button className="btn-icon" style={{ padding: '6px', opacity: 0.7, color: 'var(--danger)' }} onClick={() => handleDelete(a.id)} title="Excluir"><Trash2 size={16} /></button>
+                  <section className="glass-card" style={{ padding: '2rem' }}>
+                    <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Calendar className="text-primary" /> Data e Horário
+                    </h2>
+
+                    <div className="date-list">
+                      {[...Array(14)].map((_, i) => {
+                        const date = addDays(startOfToday(), i);
+                        const isActive = isSameDay(selectedDate, date);
+                        return (
+                          <button
+                            key={i}
+                            className={`date-card ${isActive ? 'active' : ''}`}
+                            onClick={() => setSelectedDate(date)}
+                          >
+                            <div className="day-name">{format(date, 'eee', { locale: ptBR })}</div>
+                            <div className="day-number">{format(date, 'dd')}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="time-slots">
+                      {timeSlots.map(t => {
+                        const isBusy = busySlots.find(b => b.time === t);
+                        const isSelected = selectedTime === t;
+
+                        // Ocultar horários passados se for hoje
+                        if (isSameDay(selectedDate, startOfToday())) {
+                          const [h, m] = t.split(':').map(Number);
+                          const slotTime = new Date();
+                          slotTime.setHours(h, m, 0, 0);
+                          if (slotTime < new Date()) return null;
+                        }
+
+                        return (
+                          <button
+                            key={t}
+                            className={`time-slot ${isSelected ? 'selected' : (isBusy ? 'occupied' : 'available')}`}
+                            onClick={() => !isBusy && setSelectedTime(t)}
+                            disabled={isBusy}
+                            title={isBusy ? 'Horário Ocupado' : 'Horário Disponível'}
+                          >
+                            {t}
+                          </button>
+                        );
+                      })}
+                      {timeSlots.every(t => {
+                        // Check if time is past
+                        if (isSameDay(selectedDate, startOfToday())) {
+                          const [h, m] = t.split(':').map(Number);
+                          const slotTime = new Date();
+                          slotTime.setHours(h, m, 0, 0);
+                          if (slotTime < new Date()) return true; // Considered "busy" (unavailable)
+                        }
+                        // Check if time is in busySlots
+                        const isBusy = busySlots.find(b => b.time === t && b.status !== 'cancelled');
+                        return isBusy;
+                      }) && (
+                          <div style={{ gridColumn: '1 / -1', padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
+                            😔 Dia sem horários disponíveis. Tente outro dia!
+                          </div>
+                        )}
+
+                    </div>
+
+                    <div style={{ marginTop: '2.5rem', borderTop: '1px solid var(--border)', paddingTop: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Resumo {editingAppointment && '(Editando)'}:</p>
+                        <h3 style={{ fontSize: '1.1rem' }}>
+                          {selectedService ? selectedService.name : 'Selecione um serviço'}
+                          {selectedTime && ` às ${selectedTime}`}
+                        </h3>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                        {!loading && (
+                          <div style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            color: (!selectedService || !selectedTime) ? '#e74c3c' : '#2ecc71',
+                            background: 'rgba(0,0,0,0.2)',
+                            padding: '4px 10px',
+                            borderRadius: '8px',
+                            border: '1px solid currentColor',
+                            opacity: 0.9
+                          }}>
+                            {!selectedService ? '❌ Falta escolher o SERVIÇO' : (!selectedTime ? '❌ Falta escolher o HORÁRIO' : '✅ Tudo pronto!')}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          {editingAppointment && (
+                            <button className="btn-icon" onClick={() => { setEditingAppointment(null); setView('history'); }} title="Cancelar Edição">
+                              <X size={20} />
+                            </button>
                           )}
+                          <button
+                            className="btn-primary"
+                            disabled={!selectedService || !selectedTime || loading}
+                            onClick={handleBooking}
+                            style={user?.isAdmin ? { background: 'linear-gradient(135deg, #2ecc71, #27ae60)', borderColor: '#27ae60' } : {}}
+                          >
+                            {loading ? 'Processando...' : (
+                              user?.isAdmin ?
+                                <><CheckCircle size={20} /> Salvar Agendamento (Admin)</> :
+                                <><Calendar size={20} /> {editingAppointment ? 'Salvar Alterações' : 'Agendar Agora'}</>
+                            )}
+                          </button>
                         </div>
                       </div>
                     </div>
+                  </section>
+                </>
+              )}
+            </main>
+          )
+        }
 
-                    {/* Action Bar for Pending Appointments */}
-                    {a.status === 'pending' && !isPaid && (!isProfessional || user.isAdmin) && (
-                      <div className="btn-group-responsive" style={{ marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
-                        <button
-                          className="btn-primary"
-                          style={{ flex: 2, justifyContent: 'center' }}
-                          onClick={() => handlePayment(a)}
-                          disabled={loading}
-                        >
-                          <CreditCard size={18} /> Pagar Agora (R$ {a.price})
-                        </button>
-                        <button
-                          className="btn-icon"
-                          style={{ flex: 1, height: 'auto', borderRadius: '12px', border: '1px solid var(--danger)', color: 'var(--danger)', justifyContent: 'center' }}
-                          onClick={() => handleCancel(a.id)}
-                          disabled={loading}
-                        >
-                          <X size={18} /> Cancelar
-                        </button>
-                      </div>
-                    )}
+        {
+          view === 'history' && (
+            <main className="fade-in">
+              <h2 style={{ marginBottom: '2rem' }}>Meus Agendamentos</h2>
+              {appointments.length === 0 ? (
+                <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
+                  <History size={48} style={{ color: 'var(--border)', marginBottom: '1rem' }} />
+                  <p>Você ainda não possui agendamentos.</p>
+                  <button className="btn-primary" onClick={() => setView('book')} style={{ margin: '1.5rem auto' }}>Agendar Agora</button>
+                </div>
+              ) : (
+                appointments.map(a => {
+                  const isProfessional = a.barber_email === user.email; // If I am the barber
+                  const displayTitle = isProfessional ? `Cliente: ${a.client_name || a.user_name || 'Cliente'}` : a.service_name;
+                  const displaySubtitle = `${a.appointment_time} - ${a.service_name} - Barbeiro: ${a.barber_name || 'Barbeiro'}`;
+                  const displayPicture = isProfessional ? (a.client_picture || a.user_picture) : a.barber_picture;
+                  const isPaid = a.payment_status === 'confirmed' || a.status === 'confirmed';
+                  const canManage = !isPaid && a.status !== 'cancelled' && a.status !== 'blocked';
 
-                    {isProfessional && !isPaid && a.status === 'pending' && (
-                      <div className="status-banner" style={{
-                        width: '100%',
-                        marginTop: '1rem',
-                        padding: '0.8rem',
-                        fontSize: '0.8rem',
-                        color: 'var(--text-muted)',
-                        textAlign: 'center',
-                        background: 'rgba(255,255,255,0.03)',
-                        borderRadius: '10px',
-                        border: '1px dashed var(--border)'
-                      }}>
-                        ⏳ Aguardando confirmação ou pagamento do cliente
+                  return (
+                    <div key={a.id} className="glass-card appointment-item" style={{
+                      borderLeft: isProfessional ? '4px solid var(--primary)' : (a.status === 'confirmed' ? '4px solid var(--success)' : '4px solid rgba(255,255,255,0.1)'),
+                      background: isProfessional ? 'rgba(212, 175, 55, 0.05)' : 'var(--card-bg)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1, minWidth: '200px' }}>
+                          <div style={{ background: 'var(--accent)', padding: '0.6rem', borderRadius: '12px', textAlign: 'center', minWidth: '55px' }}>
+                            <div style={{ fontSize: '0.65rem' }}>{format(parseISO(a.appointment_date), 'MMM', { locale: ptBR }).toUpperCase()}</div>
+                            <div style={{ fontSize: '1rem', fontWeight: 800 }}>{format(parseISO(a.appointment_date), 'dd')}</div>
+                          </div>
+                          <div className="user-avatar" style={{ width: '40px', height: '40px' }}>
+                            <img src={displayPicture || user.picture} alt="Avatar" />
+                          </div>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <h3 style={{ color: isProfessional ? 'var(--text-main)' : 'var(--primary)', fontSize: '1rem' }}>{displayTitle}</h3>
+                              {isPaid && (
+                                <span style={{ background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>PAGO</span>
+                              )}
+
+                            </div>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{displaySubtitle}</p>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
+                          <div className={`status-tag status-${a.status}`}>
+                            {a.status === 'confirmed' ? 'Confirmado' : (a.status === 'cancelled' ? 'Cancelado' : 'Pendente')}
+                          </div>
+                          <div style={{ display: 'flex', gap: '5px' }}>
+
+                            {!isPaid && (
+                              <button className="btn-icon" style={{ padding: '6px', opacity: 0.7, color: 'var(--danger)' }} onClick={() => handleDelete(a.id)} title="Excluir"><Trash2 size={16} /></button>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    )}
+
+                      {/* Action Bar for Pending Appointments */}
+                      {a.status === 'pending' && !isPaid && (!isProfessional || user.isAdmin) && (
+                        <div className="btn-group-responsive" style={{ marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                          <button
+                            className="btn-primary"
+                            style={{ flex: 2, justifyContent: 'center' }}
+                            onClick={() => handlePayment(a)}
+                            disabled={loading}
+                          >
+                            <CreditCard size={18} /> Pagar Agora (R$ {a.price})
+                          </button>
+                          <button
+                            className="btn-icon"
+                            style={{ flex: 1, height: 'auto', borderRadius: '12px', border: '1px solid var(--danger)', color: 'var(--danger)', justifyContent: 'center' }}
+                            onClick={() => handleCancel(a.id)}
+                            disabled={loading}
+                          >
+                            <X size={18} /> Cancelar
+                          </button>
+                        </div>
+                      )}
+
+                      {isProfessional && !isPaid && a.status === 'pending' && (
+                        <div className="status-banner" style={{
+                          width: '100%',
+                          marginTop: '1rem',
+                          padding: '0.8rem',
+                          fontSize: '0.8rem',
+                          color: 'var(--text-muted)',
+                          textAlign: 'center',
+                          background: 'rgba(255,255,255,0.03)',
+                          borderRadius: '10px',
+                          border: '1px dashed var(--border)'
+                        }}>
+                          ⏳ Aguardando confirmação ou pagamento do cliente
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </main>
+          )
+        }
+
+        {renderActionSheet()}
+
+        {/* Menu de Opções de Pagamento (Control List style) */}
+        {
+          paymentSelectionAppt && (
+            <div className="bottom-sheet-overlay" onClick={() => setPaymentSelectionAppt(null)}>
+              <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
+                <div className="sheet-header"></div>
+                <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--primary)' }}>Como deseja pagar?</h3>
+                <div className="action-list">
+                  <button className="action-item" onClick={() => processPayment('real')}>
+                    <div style={{ background: 'rgba(212, 175, 55, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                      <CreditCard size={24} color="var(--primary)" />
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontWeight: 800 }}>Pagar com Mercado Pago</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>PIX ou Cartão de Crédito</div>
+                    </div>
+                  </button>
+
+                  {/* Opção Local apenas para Admin/Barbeiro EM Agendamentos Ativos */}
+                  {(user?.isAdmin || user?.isBarber) && paymentSelectionAppt?.source === 'admin' && (
+                    <button className="action-item" style={{ borderColor: 'rgba(46, 204, 113, 0.2)' }} onClick={() => processPayment('local')}>
+                      <div style={{ background: 'rgba(46, 204, 113, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                        <Shield size={24} color="#2ecc71" />
+                      </div>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontWeight: 800, color: '#2ecc71' }}>Pagamento no Local</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Registrar pagamento manual</div>
+                      </div>
+                    </button>
+                  )}
+
+                  {(user?.isAdmin || user?.isBarber) && paymentSelectionAppt?.source === 'admin' && (
+                    <button className="action-item" style={{ opacity: 0.5 }} onClick={() => processPayment('mock')}>
+                      <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '10px', borderRadius: '12px' }}>
+                        <RefreshCw size={24} color="white" />
+                      </div>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontWeight: 800 }}>Simular Online</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Apenas para teste rápido (Admin)</div>
+                      </div>
+                    </button>
+                  )}
+
+                  <button className="btn-close-sheet" onClick={() => setPaymentSelectionAppt(null)}>
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        }
+        {
+          showPlanSelection && (
+            <div className="modal-overlay" onClick={() => setShowPlanSelection(false)}>
+              <div className="glass-card fade-in" style={{ width: '90%', maxWidth: '450px', padding: '2rem' }} onClick={e => e.stopPropagation()}>
+                <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                  <Shield size={48} className="text-primary" style={{ marginBottom: '1rem' }} />
+                  <h2>Escolha seu Plano</h2>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Selecione o plano ideal para sua barbearia</p>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+
+                  <div className="action-item" onClick={() => handleSubscriptionPayment('pro')} style={{ cursor: 'pointer', border: '1px solid var(--primary)', background: 'rgba(212, 175, 55, 0.05)' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 800, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        Pro AI <span style={{ fontSize: '0.6rem', background: 'var(--primary)', color: 'black', padding: '2px 6px', borderRadius: '4px' }}>POPULAR</span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Mestre Leo AI + Pagamentos</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 119,90</div>
+                      <div style={{ fontSize: '0.7rem' }}>/mês</div>
+                    </div>
                   </div>
-                );
-              })
-            )}
-          </main>
-        )
-      }
 
+                  <div className="action-item" onClick={() => handleSubscriptionPayment('business')} style={{ cursor: 'pointer', border: '1px solid var(--border)' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>Barber Shop</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Múltiplos Barbeiros + Equipes</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 189,90</div>
+                      <div style={{ fontSize: '0.7rem' }}>/mês</div>
+                    </div>
+                  </div>
+
+                  <button className="btn-close-sheet" onClick={() => setShowPlanSelection(false)} style={{ marginTop: '1rem' }}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        }
+      </div>
       {renderActionSheet()}
 
-      {/* Menu de Opções de Pagamento (Control List style) */}
-      {
-        paymentSelectionAppt && (
-          <div className="bottom-sheet-overlay" onClick={() => setPaymentSelectionAppt(null)}>
-            <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
-              <div className="sheet-header"></div>
-              <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--primary)' }}>Como deseja pagar?</h3>
-              <div className="action-list">
-                <button className="action-item" onClick={() => processPayment('real')}>
-                  <div style={{ background: 'rgba(212, 175, 55, 0.1)', padding: '10px', borderRadius: '12px' }}>
-                    <CreditCard size={24} color="var(--primary)" />
+      {paymentSelectionAppt && (
+        <div className="bottom-sheet-overlay" onClick={() => setPaymentSelectionAppt(null)}>
+          <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
+            <div className="sheet-header"></div>
+            <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--primary)' }}>Como deseja pagar?</h3>
+            <div className="action-list">
+              <button className="action-item" onClick={() => processPayment('real')}>
+                <div style={{ background: 'rgba(212, 175, 55, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                  <CreditCard size={24} color="var(--primary)" />
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontWeight: 800 }}>Pagar com Mercado Pago</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>PIX ou Cartão de Crédito</div>
+                </div>
+              </button>
+
+              {(user?.isAdmin || user?.isBarber) && paymentSelectionAppt?.source === 'admin' && (
+                <button className="action-item" style={{ borderColor: 'rgba(46, 204, 113, 0.2)' }} onClick={() => processPayment('local')}>
+                  <div style={{ background: 'rgba(46, 204, 113, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                    <Shield size={24} color="#2ecc71" />
                   </div>
                   <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 800 }}>Pagar com Mercado Pago</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>PIX ou Cartão de Crédito</div>
+                    <div style={{ fontWeight: 800, color: '#2ecc71' }}>Pagamento no Local</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Registrar pagamento manual</div>
                   </div>
                 </button>
+              )}
 
-                {/* Opção Local apenas para Admin/Barbeiro EM Agendamentos Ativos */}
-                {(user?.isAdmin || user?.isBarber) && paymentSelectionAppt?.source === 'admin' && (
-                  <button className="action-item" style={{ borderColor: 'rgba(46, 204, 113, 0.2)' }} onClick={() => processPayment('local')}>
-                    <div style={{ background: 'rgba(46, 204, 113, 0.1)', padding: '10px', borderRadius: '12px' }}>
-                      <Shield size={24} color="#2ecc71" />
-                    </div>
-                    <div style={{ textAlign: 'left' }}>
-                      <div style={{ fontWeight: 800, color: '#2ecc71' }}>Pagamento no Local</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Registrar pagamento manual</div>
-                    </div>
-                  </button>
-                )}
-
-                {(user?.isAdmin || user?.isBarber) && paymentSelectionAppt?.source === 'admin' && (
-                  <button className="action-item" style={{ opacity: 0.5 }} onClick={() => processPayment('mock')}>
-                    <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '10px', borderRadius: '12px' }}>
-                      <RefreshCw size={24} color="white" />
-                    </div>
-                    <div style={{ textAlign: 'left' }}>
-                      <div style={{ fontWeight: 800 }}>Simular Online</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Apenas para teste rápido (Admin)</div>
-                    </div>
-                  </button>
-                )}
-
-                <button className="btn-close-sheet" onClick={() => setPaymentSelectionAppt(null)}>
-                  Fechar
+              {(user?.isAdmin || user?.isBarber) && paymentSelectionAppt?.source === 'admin' && (
+                <button className="action-item" style={{ opacity: 0.5 }} onClick={() => processPayment('mock')}>
+                  <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '10px', borderRadius: '12px' }}>
+                    <RefreshCw size={24} color="white" />
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 800 }}>Simular Online</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Apenas para teste rápido (Admin)</div>
+                  </div>
                 </button>
-              </div>
+              )}
+
+              <button className="btn-close-sheet" onClick={() => setPaymentSelectionAppt(null)}>
+                Fechar
+              </button>
             </div>
           </div>
-        )
-      }
-      {
-        showPlanSelection && (
-          <div className="modal-overlay" onClick={() => setShowPlanSelection(false)}>
-            <div className="glass-card fade-in" style={{ width: '90%', maxWidth: '450px', padding: '2rem' }} onClick={e => e.stopPropagation()}>
-              <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                <Shield size={48} className="text-primary" style={{ marginBottom: '1rem' }} />
-                <h2>Escolha seu Plano</h2>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Selecione o plano ideal para sua barbearia</p>
+        </div>
+      )}
+
+      {showPlanSelection && (
+        <div className="modal-overlay" onClick={() => setShowPlanSelection(false)}>
+          <div className="glass-card fade-in" style={{ width: '90%', maxWidth: '450px', padding: '2rem' }} onClick={e => e.stopPropagation()}>
+            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+              <Shield size={48} className="text-primary" style={{ marginBottom: '1rem' }} />
+              <h2>Escolha seu Plano</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Selecione o plano ideal para sua barbearia</p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div className="action-item" onClick={() => handleSubscriptionPayment('pro')} style={{ cursor: 'pointer', border: '1px solid var(--primary)', background: 'rgba(212, 175, 55, 0.05)' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 800, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    Pro AI <span style={{ fontSize: '0.6rem', background: 'var(--primary)', color: 'black', padding: '2px 6px', borderRadius: '4px' }}>POPULAR</span>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Mestre Leo AI + Pagamentos</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 119,90</div>
+                  <div style={{ fontSize: '0.7rem' }}>/mês</div>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-
-                <div className="action-item" onClick={() => handleSubscriptionPayment('pro')} style={{ cursor: 'pointer', border: '1px solid var(--primary)', background: 'rgba(212, 175, 55, 0.05)' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 800, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      Pro AI <span style={{ fontSize: '0.6rem', background: 'var(--primary)', color: 'black', padding: '2px 6px', borderRadius: '4px' }}>POPULAR</span>
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Mestre Leo AI + Pagamentos</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 119,90</div>
-                    <div style={{ fontSize: '0.7rem' }}>/mês</div>
-                  </div>
+              <div className="action-item" onClick={() => handleSubscriptionPayment('business')} style={{ cursor: 'pointer', border: '1px solid var(--border)' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>Barber Shop</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Múltiplos Barbeiros + Equipes</div>
                 </div>
-
-                <div className="action-item" onClick={() => handleSubscriptionPayment('business')} style={{ cursor: 'pointer', border: '1px solid var(--border)' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>Barber Shop</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Múltiplos Barbeiros + Equipes</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 189,90</div>
-                    <div style={{ fontSize: '0.7rem' }}>/mês</div>
-                  </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 189,90</div>
+                  <div style={{ fontSize: '0.7rem' }}>/mês</div>
                 </div>
-
-                <button className="btn-close-sheet" onClick={() => setShowPlanSelection(false)} style={{ marginTop: '1rem' }}>
-                  Cancelar
-                </button>
               </div>
+
+              <button className="btn-close-sheet" onClick={() => setShowPlanSelection(false)} style={{ marginTop: '1rem' }}>
+                Cancelar
+              </button>
             </div>
           </div>
-        )
-      }
-    </div >
+        </div>
+      )}
+    </>
   );
 }
 
