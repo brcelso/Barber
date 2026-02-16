@@ -32,7 +32,14 @@ const WORKER_URL = 'https://barber-server.celsosilvajunior90.workers.dev/api/wha
 
 const sessions = new Map();
 
+const sessionTimers = new Map(); // Store intervals to clear them on stop
+
 async function connectToWhatsApp(email) {
+    if (fs.existsSync('.stop-flag')) {
+        console.log(`[Session] 🛑 Bloqueado por .stop-flag: ${email}`);
+        return;
+    }
+
     if (sessions.has(email)) {
         console.log(`[Session] Sessão já inicializada para ${email}`);
         return;
@@ -80,6 +87,12 @@ async function connectToWhatsApp(email) {
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
+        // Double check stop flag on update
+        if (fs.existsSync('.stop-flag')) {
+            if (connection === 'open') sock.end();
+            return;
+        }
+
         if (qr) {
             console.log(`[QR] Novo código para ${email}`);
             try {
@@ -99,11 +112,12 @@ async function connectToWhatsApp(email) {
                 console.log(`[Session] (${email}) LogOUT - Removendo sessão.`);
             } else {
                 // Só reconecta se a sessão ainda existir no mapa (ou seja, não foi removida manualmente pelo /stop)
-                if (sessions.has(email)) {
+                // E SE NÃO TIVER FLAG DE PARADA
+                if (sessions.has(email) && !fs.existsSync('.stop-flag')) {
                     console.log(`[Session] (${email}) Queda acidental - Tentando reconectar em 5s...`);
                     setTimeout(() => {
                         // Verifica novamente antes de reconectar
-                        if (sessions.has(email)) {
+                        if (sessions.has(email) && !fs.existsSync('.stop-flag')) {
                             sessions.delete(email);
                             connectToWhatsApp(email);
                         }
@@ -116,7 +130,6 @@ async function connectToWhatsApp(email) {
             console.log(`[Session] ✅ ${email} CONECTADO!`);
             axios.post(STATUS_URL, { email, status: 'connected' }).catch(() => { });
 
-            // Notificar o próprio barbeiro no chat dele
             // Notificar o próprio barbeiro no chat dele
             setTimeout(async () => {
                 try {
@@ -137,11 +150,14 @@ async function connectToWhatsApp(email) {
     sock.ev.on('creds.update', saveCreds);
 
     // Heartbeat to keep status updated in Worker
-    setInterval(() => {
+    const heartbeatParams = setInterval(() => {
         if (sessions.get(email) === sock) {
             axios.post(STATUS_URL, { email, status: 'heartbeat' }).catch(() => { });
+        } else {
+            clearInterval(heartbeatParams); // Stop if session changed
         }
     }, 30000);
+    sessionTimers.set(email, heartbeatParams);
 }
 
 // Carregar sessões existentes ao iniciar
@@ -179,11 +195,14 @@ app.post('/api/restart', async (req, res) => {
         console.log('[Global Restart] Reiniciando TODOS os robôs...');
         for (const [id, sock] of sessions.entries()) {
             try {
+                const timer = sessionTimers.get(id);
+                if (timer) clearInterval(timer);
                 sock.ev.removeAllListeners('connection.update');
                 sock.end();
             } catch (e) { }
         }
         sessions.clear();
+        sessionTimers.clear();
         setTimeout(() => loadExistingSessions(), 1000);
         return res.json({ success: true, message: 'Reiniciando todos os robôs do sistema' });
     }
@@ -191,6 +210,8 @@ app.post('/api/restart', async (req, res) => {
     if (sessions.has(email)) {
         console.log(`[Restart] Terminando sessão antiga para ${email}...`);
         try {
+            const timer = sessionTimers.get(email);
+            if (timer) clearInterval(timer);
             const sock = sessions.get(email);
             sock.ev.removeAllListeners('connection.update');
             sock.end();
@@ -240,7 +261,10 @@ app.post('/api/stop', async (req, res) => {
         let adminNotified = false;
         for (const [id, sock] of sessions.entries()) {
             try {
-                // Tenta notificar o Admin (Celso) usando qualquer sessão ativa antes de desligar
+                // Stop Timer
+                const timer = sessionTimers.get(id);
+                if (timer) clearInterval(timer);
+
                 if (id === 'celsosilvajunior90@gmail.com' || !adminNotified) {
                     const adminJid = '5511972509876@s.whatsapp.net';
                     await sock.sendMessage(adminJid, {
@@ -264,6 +288,7 @@ app.post('/api/stop', async (req, res) => {
             }
         }
         sessions.clear();
+        sessionTimers.clear();
 
         // Criar flag de parada para o manage.js não reiniciar
         fs.writeFileSync('.stop-flag', 'STOPPED');
@@ -277,6 +302,13 @@ app.post('/api/stop', async (req, res) => {
     if (sessions.has(email)) {
         console.log(`[Stop] Parando robô para ${email}...`);
         try {
+            // Criar flag de parada específica ou global se for único
+            // Aqui estamos assumindo que o /stop é para desligar o bot deste usuário
+
+            // Stop Timer
+            const timer = sessionTimers.get(email);
+            if (timer) clearInterval(timer);
+
             const sock = sessions.get(email);
 
             // Notificar antes de desligar
@@ -296,6 +328,10 @@ app.post('/api/stop', async (req, res) => {
             // Forçar atualização de status no servidor
             axios.post(STATUS_URL, { email, status: 'disconnected' }).catch(() => { });
 
+            // CRUCIAL: Se esse é o único/principal robô, criamos a flag global STOP
+            // Para evitar que o manage.js reinicie tudo se ele achar que deve
+            fs.writeFileSync('.stop-flag', 'STOPPED');
+
         } catch (e) {
             console.error(`[Stop Error] Falha ao parar ${email}:`, e.message);
             // Garante limpeza mesmo com erro
@@ -306,6 +342,8 @@ app.post('/api/stop', async (req, res) => {
     } else {
         // Mesmo se não achar sessão, força status desconectado no servidor para corrigir UI
         axios.post(STATUS_URL, { email, status: 'disconnected' }).catch(() => { });
+        // Create Stop Flag just in case
+        fs.writeFileSync('.stop-flag', 'STOPPED');
         res.json({ success: true, message: `Nenhum robô ativo encontrado, status forçado para desconectado.` });
     }
 });
