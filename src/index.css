@@ -586,27 +586,21 @@ button {
 }
 
 .google-btn-container {
-  min-height: 44px;
+  width: 100%;
+  margin-bottom: 1.5rem;
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 100%;
-  margin-bottom: 1.5rem;
+  min-height: 44px;
   background: transparent !important;
   color-scheme: dark;
 }
 
-/* Force all internal divs from Google to be transparent */
+/* Limpa o fundo branco que o Google injeta via iframe/divs internas */
 .google-btn-container div,
 .google-btn-container iframe {
   background: transparent !important;
   color-scheme: dark !important;
-}
-
-.google-btn-container>div {
-  display: flex !important;
-  justify-content: center !important;
-  width: 100% !important;
 }
 
 .login-card input:focus {
