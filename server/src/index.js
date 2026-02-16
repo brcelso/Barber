@@ -24,30 +24,15 @@ export default {
 
         try {
             // --- Helper: Notify WhatsApp (Custom Bridge Script) ---
+            // --- Helper: Notify WhatsApp (Custom Bridge Script) ---
             const notifyWhatsApp = async (appointmentId, status) => {
-                const BRIDGE_URL = env.WA_BRIDGE_URL; // e.g., https://seu-tunnel-ngrok.com
+                const BRIDGE_URL = env.WA_BRIDGE_URL;
                 const BRIDGE_KEY = env.WA_BRIDGE_KEY;
 
-                if (!BRIDGE_URL || !BRIDGE_KEY) {
-                    console.log('[WhatsApp] Bridge credentials not set. Message logged instead.');
-                }
-
                 try {
-                    // Check Subscription of the BARBER
-                    const apptData = await env.DB.prepare('SELECT barber_email FROM appointments WHERE id = ?').bind(appointmentId).first();
-                    const barberEmail = apptData?.barber_email || 'celsosilvajunior90@gmail.com';
-
-                    const barberUser = await env.DB.prepare('SELECT subscription_expires FROM users WHERE email = ?').bind(barberEmail).first();
-                    const now = new Date();
-                    const expires = barberUser?.subscription_expires ? new Date(barberUser.subscription_expires) : null;
-
-                    if (!expires || expires < now) {
-                        console.log(`[WhatsApp] AVISO: Assinatura do barbeiro ${barberEmail} vencida. Mensagem não enviada.`);
-                        return;
-                    }
-
                     const appt = await env.DB.prepare(`
-                        SELECT a.*, s.name as service_name, u.phone, u.name as user_name, b.name as barber_name
+                        SELECT a.*, s.name as service_name, u.phone, u.name as user_name, b.name as barber_name, 
+                               b.welcome_message, b.business_type, b.bot_name
                         FROM appointments a
                         JOIN services s ON a.service_id = s.id
                         JOIN users u ON a.user_email = u.email
@@ -57,42 +42,49 @@ export default {
 
                     if (!appt || !appt.phone) return;
 
+                    const barberEmail = appt.barber_email || MASTER_EMAIL;
+                    const barberUser = await env.DB.prepare('SELECT subscription_expires FROM users WHERE email = ?').bind(barberEmail).first();
+                    const now = new Date();
+                    const expires = barberUser?.subscription_expires ? new Date(barberUser.subscription_expires) : null;
+
+                    if (!expires || expires < now) {
+                        console.log(`[WhatsApp] AVISO: Assinatura do barbeiro ${barberEmail} vencida.`);
+                        return;
+                    }
+
                     let message = "";
                     const dateParts = appt.appointment_date.split('-');
                     const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
 
                     if (status === 'confirmed') {
-                        message = `✅ *Agendamento Confirmado!* \n\nOlá ${appt.user_name}, seu horário para *${appt.service_name}* com o barbeiro *${appt.barber_name || 'Barbearia'}* no dia *${formattedDate}* às *${appt.appointment_time}* foi confirmado. \n\nTe esperamos lá! ✂️`;
+                        // Use template from DB or default
+                        const template = appt.welcome_message || `✅ *Agendamento Confirmado!* \n\nOlá {{user_name}}, seu horário para *{{service_name}}* com {{barber_name}} no dia *{{date}}* às *{{time}}* foi confirmado. \n\nTe esperamos lá! ✂️`;
+                        message = template
+                            .replace(/{{user_name}}/g, appt.user_name)
+                            .replace(/{{service_name}}/g, appt.service_name)
+                            .replace(/{{barber_name}}/g, appt.barber_name || 'Profissional')
+                            .replace(/{{date}}/g, formattedDate)
+                            .replace(/{{time}}/g, appt.appointment_time);
                     } else if (status === 'cancelled') {
-                        message = `❌ *Agendamento Cancelado* \n\nOlá ${appt.user_name}, informamos que o agendamento para *${appt.service_name}* com o barbeiro *${appt.barber_name || 'Barbearia'}* no dia *${formattedDate}* às *${appt.appointment_time}* foi cancelado.`;
+                        message = `❌ *Agendamento Cancelado* \n\nOlá ${appt.user_name}, informamos que o agendamento para *${appt.service_name}* com *${appt.barber_name || 'Profissional'}* no dia *${formattedDate}* às *${appt.appointment_time}* foi cancelado.`;
                     } else if (status === 'pending') {
-                        message = `⏳ *Agendamento Recebido* \n\nOlá ${appt.user_name}, seu agendamento para *${appt.service_name}* com o barbeiro *${appt.barber_name || 'Barbearia'}* no dia *${formattedDate}* às *${appt.appointment_time}* foi recebido e está sendo processado.`;
+                        message = `⏳ *Agendamento Recebido* \n\nOlá ${appt.user_name}, seu agendamento para *${appt.service_name}* com *${appt.barber_name || 'Profissional'}* no dia *${formattedDate}* às *${appt.appointment_time}* foi recebido e está sendo processado.`;
                     }
 
                     if (message) {
                         const cleanPhone = appt.phone.replace(/\D/g, "");
                         const finalPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
-
-                        console.log(`[WhatsApp Auto-Notify] TO: ${finalPhone} MSG: ${message}`);
-
                         if (BRIDGE_URL && BRIDGE_KEY) {
-                            try {
-                                const waRes = await fetch(`${BRIDGE_URL}/send-message`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        key: BRIDGE_KEY,
-                                        number: finalPhone,
-                                        message: message,
-                                        barber_email: barberEmail
-                                    })
-                                });
-                                const waData = await waRes.json();
-                                if (!waRes.ok) console.error('[Bridge Error Response]', waData);
-                                else console.log('[Bridge Success Response]', waData);
-                            } catch (fetchErr) {
-                                console.error('[Bridge Connection Failed]', fetchErr.message);
-                            }
+                            await fetch(`${BRIDGE_URL}/send-message`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    key: BRIDGE_KEY,
+                                    number: finalPhone,
+                                    message: message,
+                                    barber_email: barberEmail
+                                })
+                            });
                         }
                     }
                 } catch (e) {
@@ -104,7 +96,11 @@ export default {
 
             // Health check
             if (url.pathname === '/') {
-                return json({ status: 'Barber API Online', time: new Date().toISOString() });
+                return json({
+                    status: 'API Online',
+                    app_name: env.GLOBAL_APP_NAME || 'Barber API',
+                    time: new Date().toISOString()
+                });
             }
 
             // Test AI Response
@@ -112,16 +108,19 @@ export default {
                 const message = url.searchParams.get('message');
                 const botBarberEmail = url.searchParams.get('email') || MASTER_EMAIL;
 
-                // --- Repetir lógica de busca de contexto aqui para o teste ---
-                const barber = await env.DB.prepare('SELECT name FROM users WHERE email = ?').bind(botBarberEmail).first();
-                const barberName = barber ? barber.name : 'Barber Central';
+                const barber = await env.DB.prepare('SELECT name, bot_name, business_type, bot_tone FROM users WHERE email = ?').bind(botBarberEmail).first();
+                const bName = barber?.bot_name || 'Leo';
+                const bType = barber?.business_type || 'barbearia';
+                const bTone = barber?.bot_tone || 'prestativo e amigável';
+                const barberName = barber ? barber.name : 'Central';
+
                 const services = await env.DB.prepare('SELECT * FROM services WHERE id != "block" AND barber_email = ?').bind(botBarberEmail).all();
                 const servicesList = services.results.length > 0
                     ? services.results.map((s, i) => `✂️ ${s.name}: R$ ${s.price}`).join('\n')
                     : "Consulte nossos serviços no agendamento.";
 
-                const systemPrompt = `Você é o Leo, o assistente virtual da barbearia ${barberName}. 
-Seu objetivo é ser extremamente educado, eficiente e focado em converter conversas em agendamentos.
+                const systemPrompt = `Você é o ${bName}, o assistente virtual do(a) ${bType} ${barberName}. 
+Seu objetivo é ser extremamente ${bTone}, eficiente e focado em converter conversas em agendamentos.
 INSTRUÇÕES DE FLUXO:
 - Se o cliente quiser agendar, diga para ele digitar "1".
 - Se ele quiser ver ou cancelar agendamentos existentes, diga para digitar "2".
@@ -130,7 +129,7 @@ SERVIÇOS E PREÇOS:
 ${servicesList}
 REGRAS DE RESPOSTA:
 1. Seja amigável mas direto. Use no máximo 3 frases.
-2. Use emojis moderadamente: ✂️, 💈, ✅.
+2. Use emojis moderadamente condizentes com o negócio (${bType}).
 3. SEMPRE termine sua resposta chamando para uma ação numérica, por exemplo: 
    "Digite *1* para garantir seu horário ou *2* para ver seus agendamentos."
 4. NUNCA invente serviços ou preços que não estão na lista acima.
@@ -859,39 +858,35 @@ REGRAS DE RESPOSTA:
                 // AI Agent Helper with refined personality
                 const askAI = async (userMessage, _sessionState = 'main_menu') => {
                     try {
-                        const barber = await env.DB.prepare('SELECT name FROM users WHERE email = ?').bind(botBarberEmail).first();
+                        const barber = await env.DB.prepare('SELECT name, bot_name, business_type, bot_tone FROM users WHERE email = ?').bind(botBarberEmail).first();
+                        const bName = barber?.bot_name || 'Leo';
+                        const bType = barber?.business_type || 'barbearia';
+                        const bTone = barber?.bot_tone || 'prestativo e amigável';
                         const barberName = barber ? barber.name : 'Barber Shop';
 
                         const servicesData = await env.DB.prepare('SELECT * FROM services WHERE id != "block" AND barber_email = ?').bind(botBarberEmail).all();
                         const servicesList = servicesData.results.map(s => `✂️ ${s.name}: R$ ${s.price}`).join('\n');
 
-                        const systemPrompt = `Você é o Leo, o assistente virtual gente boa da barbearia ${barberName}. 💈
-Seu tom é amigável, direto e profissional, como um barbeiro experiente.
+                        const systemPrompt = `Você é o ${bName}, o assistente virtual do(a) ${bType} ${barberName}. 💈
+Seu tom é ${bTone}, direto e profissional.
 
 OBJETIVO:
 Tirar dúvidas sobre serviços/preços e SEMPRE guiar o cliente para uma das opções do menu numerado abaixo.
 
 IMPORTANTE:
-Você DEVE SEMPRE incluir as seguintes opções ao final de sua resposta para que o cliente saiba o que fazer a seguir:
-1️⃣ - Para AGENDAR um novo corte ou serviço.
+Você DEVE SEMPRE incluir as seguintes opções ao final de sua resposta:
+1️⃣ - Para AGENDAR um novo atendimento.
 2️⃣ - Para CONSULTAR ou CANCELAR agendamentos existentes.
-3️⃣ - Para tirar dúvidas com você (Leo).
+3️⃣ - Para tirar dúvidas com você (${bName}).
 
 SEUS SERVIÇOS E PREÇOS ATUAIS:
 ${servicesList}
 
 DIRETRIZES DE COMPORTAMENTO:
-1. SEJA ÚTIL: Se o cliente perguntar o preço de um corte, RESPONDA o preço antes de mostrar o menu.
-2. SEJA CONVERSADOR: Use emojis (✂️, 💈, ✅) e linguagem natural, mas não seja prolixo.
-3. SEMPRE MOSTRE O MENU: Não deixe o cliente sem saber o próximo passo. Termine com "Como posso te ajudar agora? Escolha uma opção:" seguido do menu 1, 2 e 3.
-4. NÃO INVENTE: Não invente horários. Diga para ele digitar 1 para ver a disponibilidade real.
-
-EXEMPLOS:
-Cliente: "Quanto é a barba?"
-Leo: "A barba sai por R$ 35, campeão! 💈 Como posso te ajudar agora? Escolha uma opção:
-1️⃣ - Agendar
-2️⃣ - Meus Agendamentos
-3️⃣ - Dúvidas"`;
+1. SEJA ÚTIL: Responda perguntas antes de mostrar o menu.
+2. SEJA CONVERSADOR: Use emojis condizentes com ${bType} e linguagem natural.
+3. SEMPRE MOSTRE O MENU: Não deixe o cliente sem saber o próximo passo.
+4. NÃO INVENTE: Não invente horários.`;
 
                         const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
                             messages: [
@@ -899,9 +894,9 @@ Leo: "A barba sai por R$ 35, campeão! 💈 Como posso te ajudar agora? Escolha 
                                 { role: 'user', content: userMessage }
                             ]
                         });
-                        return response.response || "Estou aqui para ajudar! Digite '1' para agendar, '2' para ver seus horários ou 'Menu' para o início.";
+                        return response.response || `Estou aqui para ajudar! Digite '1' para agendar, '2' para ver seus horários ou '3' para falar comigo.`;
                     } catch (_e) {
-                        return "Olá! ✂️ Como posso te ajudar? Digite '1' para agendar ou 'Menu' para o menu principal.";
+                        return "Olá! Como posso te ajudar? Digite '1' para agendar ou 'Menu' para o início.";
                     }
                 };
 
@@ -911,40 +906,41 @@ Leo: "A barba sai por R$ 35, campeão! 💈 Como posso te ajudar agora? Escolha 
                 if (!session || textLower === 'oi' || textLower === 'ola' || textLower === 'menu' || textLower === 'sair' || textLower === 'ajuda' || (session.state === 'main_menu' && !session.selected_barber_email)) {
                     const userEmail = userInDb ? userInDb.email : (session ? session.user_email : null);
 
-                    // Se o bot já veio com o e-mail do barbeiro vinculado (visto no bridge)
                     if (botBarberEmail) {
-                        const b = await env.DB.prepare('SELECT email, name FROM users WHERE email = ?').bind(botBarberEmail).first();
+                        const b = await env.DB.prepare('SELECT email, name, business_type FROM users WHERE email = ?').bind(botBarberEmail).first();
                         if (b) {
                             await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email, selected_barber_email) VALUES (?, "main_menu", ?, ?)').bind(from, userEmail, b.email).run();
-                            let msg = `✂️ *Bem-vindo à Barber!* \n\nVocê está sendo atendido por *${b.name}*. 💈\n\nO que deseja fazer?\n\n`;
+                            const type = b.business_type || 'nosso estabelecimento';
+                            let msg = `✨ *Bem-vindo(a)!* \n\nVocê está sendo atendido(a) por *${b.name}*. 📍\n\nO que deseja fazer?\n\n`;
                             msg += "1️⃣ - Agendar novo horário\n";
                             msg += "2️⃣ - Meus Agendamentos (Ver/Cancelar)\n";
-                            msg += "3️⃣ - Dúvidas com o Leo (Chat IA)\n";
+                            msg += "3️⃣ - Dúvidas (Falar com Assistente IA)\n";
                             msg += "\nDigite 'Menu' a qualquer momento para voltar.";
                             await sendMessage(from, msg);
                             return json({ success: true });
                         }
                     }
 
-                    const barbers = await env.DB.prepare('SELECT email, name FROM users WHERE is_barber = 1').all();
+                    const barbers = await env.DB.prepare('SELECT email, name, business_type FROM users WHERE is_barber = 1').all();
 
                     if (barbers.results.length === 1) {
                         const b = barbers.results[0];
                         await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email, selected_barber_email) VALUES (?, "main_menu", ?, ?)').bind(from, userEmail, b.email).run();
-                        let msg = `✂️ *Bem-vindo à Barber!* \n\nVocê está sendo atendido por *${b.name}*. 💈\n\nO que deseja fazer?\n\n`;
+                        const type = b.business_type || 'nosso estabelecimento';
+                        let msg = `✨ *Bem-vindo(a)!* \n\nVocê está sendo atendido(a) por *${b.name}*. 📍\n\nO que deseja fazer?\n\n`;
                         msg += "1️⃣ - Agendar novo horário\n";
                         msg += "2️⃣ - Meus Agendamentos (Ver/Cancelar)\n";
-                        msg += "3️⃣ - Dúvidas com o Leo (Chat IA)\n";
+                        msg += "3️⃣ - Dúvidas (Chat IA)\n";
                         msg += "\nDigite 'Menu' a qualquer momento para voltar.";
                         await sendMessage(from, msg);
                     } else if (barbers.results.length > 1) {
                         await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email) VALUES (?, "awaiting_barber", ?)').bind(from, userEmail).run();
-                        let msg = "✂️ *Bem-vindo à Barber!* \n\nPara começar, selecione o *Barbeiro* desejado:\n\n";
+                        let msg = "✨ *Bem-vindo(a)!* \n\nPara começar, selecione o *Profissional* desejado:\n\n";
                         barbers.results.forEach((b, i) => { msg += `*${i + 1}* - ${b.name}\n`; });
                         msg += "\nDigite o número correspondente!";
                         await sendMessage(from, msg);
                     } else {
-                        await sendMessage(from, "⚠️ Desculpe, não encontramos barbeiros ativos no momento. Tente novamente mais tarde.");
+                        await sendMessage(from, "⚠️ Desculpe, não encontramos profissionais ativos no momento. Tente novamente mais tarde.");
                     }
                     return json({ success: true });
                 }
@@ -1337,6 +1333,34 @@ Leo: "A barba sai por R$ 35, campeão! 💈 Como posso te ajudar agora? Escolha 
                     }
                 }
                 return json({ received: true });
+            }
+
+            // Admin: Get Bot Settings
+            if (url.pathname === '/api/admin/bot/settings' && request.method === 'GET') {
+                const email = request.headers.get('X-User-Email');
+                const user = await env.DB.prepare('SELECT bot_name, business_type, bot_tone, welcome_message FROM users WHERE email = ?').bind(email).first();
+                if (!user) return json({ error: 'User not found' }, 404);
+                return json(user);
+            }
+
+            // Admin: Update Bot Settings
+            if (url.pathname === '/api/admin/bot/settings' && request.method === 'POST') {
+                const email = request.headers.get('X-User-Email');
+                const { bot_name, business_type, bot_tone, welcome_message } = await request.json();
+
+                await env.DB.prepare(`
+                    UPDATE users 
+                    SET bot_name = ?, business_type = ?, bot_tone = ?, welcome_message = ?
+                    WHERE email = ?
+                `).bind(
+                    bot_name || 'Leo',
+                    business_type || 'barbearia',
+                    bot_tone || 'prestativo e amigável',
+                    welcome_message || 'Olá {{user_name}}, seu horário para *{{service_name}}* foi confirmado!',
+                    email
+                ).run();
+
+                return json({ success: true });
             }
 
             // Admin: Update Bridge URL (Called by manage.js on startup)

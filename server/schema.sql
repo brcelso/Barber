@@ -12,6 +12,10 @@ CREATE TABLE IF NOT EXISTS users (
   subscription_expires TEXT,
   trial_used INTEGER DEFAULT 0,
   plan TEXT,
+  bot_name TEXT DEFAULT 'Leo',
+  business_type TEXT DEFAULT 'barbearia',
+  bot_tone TEXT DEFAULT 'prestativo e amigável',
+  welcome_message TEXT DEFAULT 'Olá {{user_name}}, seu horário para *{{service_name}}* foi confirmado!',
   last_login TEXT DEFAULT CURRENT_TIMESTAMP,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );

@@ -56,6 +56,13 @@ function App() {
   const [waStatus, setWaStatus] = useState({ status: 'disconnected', qr: null });
   const [masterStats, setMasterStats] = useState(null);
   const [masterUsers, setMasterUsers] = useState([]);
+  const [botSettings, setBotSettings] = useState({
+    bot_name: 'Leo',
+    business_type: 'barbearia',
+    bot_tone: 'prestativo e amigável',
+    welcome_message: ''
+  });
+
 
   // Auto-scroll when editing
   useEffect(() => {
@@ -88,6 +95,7 @@ function App() {
       }, 5000);
       fetchWaStatus();
       if (user?.isMaster) fetchMasterData();
+      if (user?.isBarber) fetchBotSettings();
     }
     return () => clearInterval(interval);
   }, [view, user]);
@@ -228,6 +236,7 @@ function App() {
 
   const fetchWaStatus = async () => {
     try {
+      if (!user?.email) return;
       const res = await fetch(`${API_URL}/whatsapp/status`, {
         headers: { 'X-User-Email': user.email }
       });
@@ -237,6 +246,44 @@ function App() {
       console.error('Erro ao buscar status WhatsApp:', e);
     }
   };
+
+  const fetchBotSettings = async () => {
+    try {
+      if (!user?.email) return;
+      const res = await fetch(`${API_URL}/admin/bot/settings`, {
+        headers: { 'X-User-Email': user.email }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBotSettings(data);
+      }
+    } catch (e) {
+      console.error('Erro ao buscar configurações do robô');
+    }
+  };
+
+  const handleUpdateBotSettings = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/admin/bot/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Email': user.email
+        },
+        body: JSON.stringify(botSettings)
+      });
+      if (res.ok) {
+        alert('Configurações do robô atualizadas com sucesso! Suas alterações já refletem na IA e notificações.');
+      }
+    } catch (e) {
+      alert('Erro ao salvar as configurações.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   // Handle Manual Login Submission
   const handleManualLogin = async (e) => {
@@ -1741,6 +1788,73 @@ function App() {
                     </div>
                   </div>
                 </div>
+
+                <div className="glass-card" style={{ padding: '2rem', marginBottom: '3rem' }}>
+                  <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
+                    <Scissors className="text-primary" size={24} /> Personalização do Robô & Negócio
+                  </h2>
+
+                  <form onSubmit={handleUpdateBotSettings} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+                    <div className="input-field">
+                      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Nome do Robô / Assistente</label>
+                      <input
+                        type="text"
+                        value={botSettings.bot_name}
+                        onChange={e => setBotSettings({ ...botSettings, bot_name: e.target.value })}
+                        placeholder="Ex: Leo, Sara, Jarvis"
+                        style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '10px', borderRadius: '10px' }}
+                      />
+                    </div>
+
+                    <div className="input-field">
+                      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Tipo de Negócio</label>
+                      <input
+                        type="text"
+                        value={botSettings.business_type}
+                        onChange={e => setBotSettings({ ...botSettings, business_type: e.target.value })}
+                        placeholder="Ex: barbearia, petshop, estúdio de tattoo"
+                        style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '10px', borderRadius: '10px' }}
+                      />
+                    </div>
+
+                    <div className="input-field">
+                      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Tom de Voz da IA</label>
+                      <select
+                        value={botSettings.bot_tone}
+                        onChange={e => setBotSettings({ ...botSettings, bot_tone: e.target.value })}
+                        style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '10px', borderRadius: '10px', appearance: 'none' }}
+                      >
+                        <option value="prestativo e amigável">Prestativo e Amigável</option>
+                        <option value="formal e profissional">Formal e Profissional</option>
+                        <option value="descontraído e engraçado">Descontraído e Engraçado</option>
+                        <option value="curto e direto">Curto e Direto (Objetivo)</option>
+                      </select>
+                    </div>
+
+                    <div className="input-field" style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Template de Confirmação (WhatsApp)</label>
+                      <textarea
+                        value={botSettings.welcome_message}
+                        onChange={e => setBotSettings({ ...botSettings, welcome_message: e.target.value })}
+                        placeholder="Template para mensagem confirmada..."
+                        style={{ width: '100%', height: '80px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '10px', borderRadius: '10px', resize: 'vertical' }}
+                      />
+                      <p style={{ fontSize: '0.7rem', color: 'var(--primary)', marginTop: '5px' }}>
+                        Variáveis: {'{{user_name}}'}, {'{{service_name}}'}, {'{{barber_name}}'}, {'{{date}}'}, {'{{time}}'}
+                      </p>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      style={{ gridColumn: '1 / -1', marginTop: '10px' }}
+                      disabled={loading}
+                    >
+                      {loading ? 'Salvando...' : 'Salvar Alterações'}
+                    </button>
+                  </form>
+                </div>
+
               </>
             )}
           </main>

@@ -14,6 +14,8 @@ MP_ACCESS_TOKEN = "APP_USR-1253235899009881-021420-881c35d24b04f32cf875035eeb71f
 FRONTEND_URL = "https://brcelso.github.io/Barber"
 WA_BRIDGE_URL = "https://nisi-marbly-maeve.ngrok-free.dev"
 WA_BRIDGE_KEY = "barber-secret-key"
+GLOBAL_APP_NAME = "Agende Fácil"
+GLOBAL_BRAND_COLOR = "#007AFF"
 
 [ai]
 binding = "AI"
