@@ -234,6 +234,7 @@ function App() {
           picture: data.user.picture,
           isAdmin: data.user.isAdmin,
           isMaster: data.user.isMaster,
+          isBarber: data.user.isBarber,
           phone: data.user.phone
         };
         setUser(finalUser);
@@ -395,6 +396,7 @@ function App() {
           picture: data.user.picture,
           isAdmin: data.user.isAdmin,
           isMaster: data.user.isMaster,
+          isBarber: data.user.isBarber,
           phone: data.user.phone
         };
         setUser(finalUser);
@@ -448,11 +450,22 @@ function App() {
       const data = await res.json();
       setSubscription(data);
 
-      // Auto-update isMaster if server says so (fixes old sessions)
+      // Auto-update if server says so (fixes old sessions or roles updates)
+      let updatedUser = { ...user };
+      let changed = false;
+
       if (data.isMaster && !user.isMaster) {
-        const updated = { ...user, isMaster: true };
-        setUser(updated);
-        localStorage.setItem('barber_user', JSON.stringify(updated));
+        updatedUser.isMaster = true;
+        changed = true;
+      }
+      if (data.isBarber && !user.isBarber) {
+        updatedUser.isBarber = true;
+        changed = true;
+      }
+
+      if (changed) {
+        setUser(updatedUser);
+        localStorage.setItem('barber_user', JSON.stringify(updatedUser));
       }
     } catch (e) {
       console.error('Falha ao buscar assinatura');
