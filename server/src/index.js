@@ -281,9 +281,22 @@ REGRAS DE RESPOSTA:
                     console.error('[Cleanup Error]', e.message);
                 }
 
-                const user = await env.DB.prepare('SELECT wa_status, wa_qr FROM users WHERE email = ?').bind(email).first();
+                const user = await env.DB.prepare('SELECT wa_status, wa_qr, wa_last_seen FROM users WHERE email = ?').bind(email).first();
                 if (!user) return json({ error: 'User not found' }, 404);
-                return json({ status: user.wa_status || 'disconnected', qr: user.wa_qr });
+
+                // Heartbeat Check: Se não houve sinal de vida em 2 minutos, considera desconectado
+                let status = user.wa_status || 'disconnected';
+                if (status === 'connected' && user.wa_last_seen) {
+                    const lastSeen = new Date(user.wa_last_seen);
+                    const now = new Date();
+                    if ((now - lastSeen) > 120000) { // 2 minutos de tolerância
+                        status = 'disconnected';
+                        // Opcional: Atualizar no banco para não precisar recalcular sempre
+                        // await env.DB.prepare('UPDATE users SET wa_status = "disconnected" WHERE email = ?').bind(email).run();
+                    }
+                }
+
+                return json({ status, qr: user.wa_qr });
             }
 
             // Mock Payment (3-day trial)
