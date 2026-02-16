@@ -5,6 +5,13 @@ CREATE TABLE IF NOT EXISTS users (
   phone TEXT,
   picture TEXT,
   is_admin INTEGER DEFAULT 0,
+  is_barber INTEGER DEFAULT 0,
+  wa_status TEXT,
+  wa_qr TEXT,
+  wa_last_seen TEXT,
+  subscription_expires TEXT,
+  trial_used INTEGER DEFAULT 0,
+  plan TEXT,
   last_login TEXT DEFAULT CURRENT_TIMESTAMP,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -21,6 +28,7 @@ CREATE TABLE IF NOT EXISTS services (
 CREATE TABLE IF NOT EXISTS appointments (
   id TEXT PRIMARY KEY,
   user_email TEXT NOT NULL,
+  barber_email TEXT,
   service_id TEXT NOT NULL,
   appointment_date TEXT NOT NULL, -- YYYY-MM-DD
   appointment_time TEXT NOT NULL, -- HH:mm
@@ -39,6 +47,18 @@ CREATE TABLE IF NOT EXISTS availability (
   end_time TEXT
 );
 
+CREATE TABLE IF NOT EXISTS whatsapp_sessions (
+  phone TEXT PRIMARY KEY,
+  state TEXT,
+  service_id TEXT,
+  appointment_date TEXT,
+  appointment_time TEXT,
+  user_email TEXT,
+  selected_barber_email TEXT,
+  metadata TEXT,
+  last_interaction TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Seed defaults
 INSERT OR IGNORE INTO services (id, name, price, duration_minutes, description, barber_email) VALUES 
 ('corte-simples', 'Corte de Cabelo', 70.0, 30, 'Corte tradicional', 'celsosilvajunior90@gmail.com'),
@@ -52,13 +72,3 @@ INSERT OR IGNORE INTO services (id, name, price, duration_minutes, description, 
 -- Ensure a system user exists for system-generated appointments/blocks
 INSERT OR IGNORE INTO users (email, name, is_admin, created_at) VALUES
 ('system', 'System', 0, CURRENT_TIMESTAMP);
-
-CREATE TABLE IF NOT EXISTS whatsapp_sessions (
-  phone TEXT PRIMARY KEY,
-  state TEXT,
-  service_id TEXT,
-  appointment_date TEXT,
-  appointment_time TEXT,
-  user_email TEXT,
-  last_interaction TEXT DEFAULT CURRENT_TIMESTAMP
-);
