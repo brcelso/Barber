@@ -83,7 +83,8 @@ export default {
                                     body: JSON.stringify({
                                         key: BRIDGE_KEY,
                                         number: finalPhone,
-                                        message: message
+                                        message: message,
+                                        barber_email: barberEmail
                                     })
                                 });
                                 const waData = await waRes.json();
@@ -552,6 +553,8 @@ REGRAS DE RESPOSTA:
                     SET payment_status = 'confirmed', status = 'confirmed', payment_id = ?
                     WHERE id = ? AND (user_email = ? OR barber_email = ?)
                 `).bind(payMethod, appointmentId, email, email).run();
+
+                await notifyWhatsApp(appointmentId, 'confirmed');
 
                 return json({ success: true, message: 'Pagamento confirmado localmente!' });
             }
