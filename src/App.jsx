@@ -420,7 +420,7 @@ function App() {
             window.google.accounts.id.renderButton(btnElem, {
               theme: "outline",
               size: "large",
-              shape: "pill",
+              shape: "rectangular",
               width: 280,
               logo_alignment: "left"
             });

@@ -587,10 +587,15 @@ button {
 
 .google-btn-container {
   width: 100%;
-  margin-bottom: 2rem;
+  max-width: 280px;
+  margin: 0 auto 2rem;
   display: flex;
   justify-content: center;
   align-items: center;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  min-height: 48px;
+  overflow: hidden;
 }
 
 #googleBtn {
