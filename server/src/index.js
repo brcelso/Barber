@@ -896,10 +896,21 @@ REGRAS RÍGIDAS:
                 }
 
                 // AI Intercept: Se não for um número de escolha e não for um fluxo de dados crítico
-                const criticalStates = ['awaiting_email', 'awaiting_confirmation'];
+                // Lista de estados onde a IA NÃO deve interferir se o usuário digitar texto (blindagem de fluxo)
+                const criticalStates = ['awaiting_barber', 'awaiting_service', 'awaiting_date', 'awaiting_time', 'awaiting_email', 'awaiting_confirmation'];
+
+                // Se o usuário está num fluxo crítico e digita algo que não é "Menu", o handlers específicos leem.
+                // Se não for fluxo crítico, ou se for algo genérico fora do contexto, a IA assume.
                 if (!isNumericChoice && !criticalStates.includes(session.state)) {
                     const aiMsg = await askAI(text, session.state);
                     await sendMessage(from, aiMsg);
+                    return json({ success: true });
+                }
+
+                // Handler Genérico para "Voltar" ou Reinício forçado dentro de fluxos
+                if (textLower === 'voltar' || textLower === 'cancelar') {
+                    await env.DB.prepare('UPDATE whatsapp_sessions SET state = "main_menu" WHERE phone = ?').bind(from).run();
+                    await sendMessage(from, "🔙 *Menu Principal*\n\n1️⃣ - Agendar\n2️⃣ - Meus Agendamentos\n3️⃣ - Falar com Leo");
                     return json({ success: true });
                 }
 
@@ -994,11 +1005,11 @@ REGRAS RÍGIDAS:
                 // 4. AWAITING SERVICE
                 if (session.state === 'awaiting_service') {
                     const services = await env.DB.prepare('SELECT * FROM services WHERE barber_email = ? AND id != "block"').bind(session.selected_barber_email).all();
-                    const s = services.results[parseInt(text) - 1];
-                    if (!s) {
-                        await sendMessage(from, "❌ Serviço inválido. Escolha um da lista.");
+                    if (isNaN(parseInt(text)) || parseInt(text) < 1 || parseInt(text) > services.results.length) {
+                        await sendMessage(from, "⚠️ Opção inválida! Digite apenas o NÚMERO do serviço desejado (ex: 1).");
                         return json({ success: true });
                     }
+                    const s = services.results[parseInt(text) - 1];
 
                     await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_date", service_id = ? WHERE phone = ?').bind(s.id, from).run();
                     let msg = `✅ *${s.name}* selecionado.\n\n📅 *Escolha a data:*`;
@@ -1015,8 +1026,8 @@ REGRAS RÍGIDAS:
                 // 5. AWAITING DATE
                 if (session.state === 'awaiting_date') {
                     const idx = parseInt(text) - 1;
-                    if (idx < 0 || idx > 6) {
-                        await sendMessage(from, "❌ Escolha uma data de 1 a 7.");
+                    if (isNaN(idx) || idx < 0 || idx > 6) {
+                        await sendMessage(from, "⚠️ Data inválida! Escolha uma opção de 1 a 7.");
                         return json({ success: true });
                     }
                     const d = new Date(); d.setDate(d.getDate() + idx);
@@ -1050,7 +1061,7 @@ REGRAS RÍGIDAS:
                     const tm = av[parseInt(text) - 1];
 
                     if (!tm) {
-                        await sendMessage(from, "❌ Horário inválido.");
+                        await sendMessage(from, "⚠️ Horário inválido! Escolha um número da lista de horários disponíveis.");
                         return json({ success: true });
                     }
 
@@ -1081,10 +1092,8 @@ REGRAS RÍGIDAS:
 
                 // 8. FINAL CONFIRMATION & SAVE
                 if (session.state === 'awaiting_confirmation') {
-                    if (text === '1') {
-                        const aid = crypto.randomUUID();
-                        const s = await env.DB.prepare('SELECT * FROM services WHERE id = ?').bind(session.service_id).first();
-
+                    if (text === '1' || textLower === 'sim' || textLower === 's') {
+                        // RE-VALIDAÇÃO FINAL DOS DADOS
                         const userEmail = session.user_email;
                         const barberEmail = session.selected_barber_email || botBarberEmail;
                         const appDate = session.appointment_date;
@@ -1092,37 +1101,66 @@ REGRAS RÍGIDAS:
                         const serviceId = session.service_id;
 
                         if (!userEmail || !barberEmail || !appDate || !appTime || !serviceId) {
-                            await sendMessage(from, "❌ Ops, faltaram dados para concluir seu agendamento (Barbeiro ou Serviço). Digite 'Menu' para recomeçar.");
+                            console.error('[Booking Error] Missing Data:', { userEmail, barberEmail, appDate, appTime, serviceId });
+                            await sendMessage(from, "❌ Erro técnico: Dados da sessão perdidos. Por favor, digite 'Menu' para recomeçar.");
+                            await env.DB.prepare('DELETE FROM whatsapp_sessions WHERE phone = ?').bind(from).run();
                             return json({ success: true });
                         }
 
-                        await env.DB.prepare(`
-                            INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status)
-                            VALUES (?, ?, ?, ?, ?, ?, 'pending')
-                        `).bind(aid, userEmail, barberEmail, serviceId, appDate, appTime).run();
+                        const aid = crypto.randomUUID();
+                        const s = await env.DB.prepare('SELECT * FROM services WHERE id = ?').bind(serviceId).first();
 
-                        const mpPref = {
-                            items: [{ title: `Barber - ${s.name}`, quantity: 1, unit_price: s.price, currency_id: 'BRL' }],
-                            external_reference: aid,
-                            back_urls: { success: `${env.FRONTEND_URL}/success?id=${aid}`, failure: `${env.FRONTEND_URL}/cancel?id=${aid}`, pending: `${env.FRONTEND_URL}/pending?id=${aid}` },
-                            auto_return: 'approved'
-                        };
+                        try {
+                            // 1. Criar Agendamento
+                            await env.DB.prepare(`
+                                INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status)
+                                VALUES (?, ?, ?, ?, ?, ?, 'pending')
+                            `).bind(aid, userEmail, barberEmail, serviceId, appDate, appTime).run();
 
-                        const mpRes = await fetch('https://api.mercadopago.com/checkout/preferences', {
-                            method: 'POST',
-                            headers: { 'Authorization': `Bearer ${env.MP_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
-                            body: JSON.stringify(mpPref)
-                        });
-                        const mpD = await mpRes.json();
-                        const payUrl = mpD.init_point || `${env.FRONTEND_URL}/?payment=${aid}`;
+                            // 2. Gerar Pagamento (Opcional, não bloqueante)
+                            let payMsg = "";
+                            try {
+                                const mpPref = {
+                                    items: [{ title: `Barber - ${s.name}`, quantity: 1, unit_price: s.price, currency_id: 'BRL' }],
+                                    external_reference: aid,
+                                    back_urls: { success: `${env.FRONTEND_URL}/success?id=${aid}`, failure: `${env.FRONTEND_URL}/cancel?id=${aid}`, pending: `${env.FRONTEND_URL}/pending?id=${aid}` },
+                                    auto_return: 'approved'
+                                };
+                                const mpRes = await fetch('https://api.mercadopago.com/checkout/preferences', {
+                                    method: 'POST',
+                                    headers: { 'Authorization': `Bearer ${env.MP_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(mpPref)
+                                });
+                                const mpD = await mpRes.json();
+                                if (mpD.init_point) {
+                                    payMsg = `\n\n💳 *Pagamento (PIX/Cartão):*\n${mpD.init_point}`;
+                                }
+                            } catch (mpErr) {
+                                console.error('MP Error', mpErr);
+                            }
 
-                        await env.DB.prepare('DELETE FROM whatsapp_sessions WHERE phone = ?').bind(from).run();
+                            // 3. Limpar Sessão e Confirmar
+                            await env.DB.prepare('DELETE FROM whatsapp_sessions WHERE phone = ?').bind(from).run();
 
-                        let finMsg = `⌛ *Quase tudo pronto!* \n\nSeu agendamento foi registrado e está *pendente* aguardando a confirmação do barbeiro. \n\nPara garantir sua preferência, realize o pagamento no link abaixo:\n\n🔗 ${payUrl}\n\nObrigado! ✂️`;
-                        await sendMessage(from, finMsg);
+                            const dateParts = appDate.split('-');
+                            const fmtDate = `${dateParts[2]}/${dateParts[1]}`;
+
+                            let finMsg = `✅ *Agendamento Realizado!* \n\n✂️ *Serviço:* ${s.name}\n📅 *Data:* ${fmtDate}\n⏰ *Horário:* ${appTime}\n👤 *Barbeiro:* ${barberEmail === botBarberEmail ? 'Leo' : 'Selecionado'}`;
+                            finMsg += payMsg;
+                            finMsg += `\n\nO status atual é *Pendente*. Você receberá uma confirmação assim que o barbeiro aprovar!`;
+
+                            await sendMessage(from, finMsg);
+
+                        } catch (dbErr) {
+                            console.error('[DB Insert Error]', dbErr);
+                            await sendMessage(from, "❌ Falha ao salvar no banco de dados. Tente novamente mais tarde.");
+                        }
+
+                    } else if (text === '2' || textLower === 'nao' || textLower === 'não') {
+                        await env.DB.prepare('UPDATE whatsapp_sessions SET state = "main_menu" WHERE phone = ?').bind(from).run();
+                        await sendMessage(from, "🔄 Agendamento cancelado. Voltamos ao Menu Principal.\n\n1️⃣ - Agendar\n2️⃣ - Meus Agendamentos");
                     } else {
-                        await env.DB.prepare('DELETE FROM whatsapp_sessions WHERE phone = ?').bind(from).run();
-                        await sendMessage(from, "❌ Operação cancelada. Digite 'Menu' quando precisar!");
+                        await sendMessage(from, "⚠️ Opção inválida. Digite *1* para Confirmar ou *2* para Cancelar.");
                     }
                     return json({ success: true });
                 }
