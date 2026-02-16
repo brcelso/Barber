@@ -93,9 +93,28 @@ async function run() {
         }
 
         if (license.isActive) {
-            if (!isActive) {
+            // Se existir a flag de parada manual, não liga nada
+            // Se existir a flag de parada manual, apenas loga que está em modo "Standby"
+            // O index.js que deve tratar de não conectar as sessões, mas o servidor precisa ficar ON para receber o comando de volta
+            if (fs.existsSync('.stop-flag')) {
+                if (!isActive) {
+                    process.stdout.write(`\r🛑 Sistema Pausado (API Online)... [${new Date().toLocaleTimeString()}]`);
+                    // Se caiu por algum motivo, levanta de novo para manter a API no ar
+                    if (!whatsappProcess) {
+                        console.log('\n🔄 Reiniciando servidor em modo Standby...');
+                        await startNgrok();
+                        await startWhatsApp();
+                        isActive = true;
+                    }
+                } else {
+                    process.stdout.write(`\r🛑 Sistema Pausado (API Online)... [${new Date().toLocaleTimeString()}]`);
+                }
+            } else if (!isActive) {
                 console.log(`\n✅ Assinatura Ativada! (Restam ${license.daysLeft} dias)`);
                 console.log('🚀 Iniciando serviços...');
+                // Garante que não tem flag antiga
+                if (fs.existsSync('.stop-flag')) fs.unlinkSync('.stop-flag');
+
                 await startNgrok();
                 await startWhatsApp();
                 isActive = true;

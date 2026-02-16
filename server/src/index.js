@@ -1336,6 +1336,32 @@ Leo: "A barba sai por R$ 35, campeão! 💈 Como posso te ajudar agora? Escolha 
                 return json({ received: true });
             }
 
+            // Admin: Remote Start/Stop Bot (Proxy to Bridge)
+            if ((url.pathname === '/api/admin/bot/start' || url.pathname === '/api/admin/bot/stop') && request.method === 'POST') {
+                const email = request.headers.get('X-User-Email');
+                const user = await env.DB.prepare('SELECT is_admin, is_barber FROM users WHERE email = ?').bind(email).first();
+                if (!user || (user.is_admin !== 1 && user.is_barber !== 1)) return json({ error: 'Permission Denied' }, 403);
+
+                const { targetEmail } = await request.json();
+                const BRIDGE_URL = env.WA_BRIDGE_URL;
+                const BRIDGE_KEY = env.WA_BRIDGE_KEY;
+                const endpoint = url.pathname.includes('stop') ? '/api/stop' : '/api/start';
+
+                if (!BRIDGE_URL || !BRIDGE_KEY) return json({ error: 'Bridge not configured' }, 503);
+
+                try {
+                    const bridgeRes = await fetch(`${BRIDGE_URL}${endpoint}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ key: BRIDGE_KEY, email: targetEmail || email })
+                    });
+                    const data = await bridgeRes.json();
+                    return json(data, bridgeRes.status);
+                } catch (e) {
+                    return json({ error: 'Failed to contact bridge', details: e.message }, 502);
+                }
+            }
+
             return json({ error: 'Not Found' }, 404);
         } catch (err) {
             return json({ error: err.message, stack: err.stack }, 500);

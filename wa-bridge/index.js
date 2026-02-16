@@ -149,6 +149,12 @@ async function loadExistingSessions() {
     const root = 'auth_sessions';
     if (!fs.existsSync(root)) fs.mkdirSync(root);
 
+    // Check for Manual Stop Flag
+    if (fs.existsSync('.stop-flag')) {
+        console.log('[Boot] 🛑 Sistema em modo STANDBY (Flag .stop-flag encontrada). Sessões não serão iniciadas.');
+        return;
+    }
+
     const folders = fs.readdirSync(root);
     for (const folder of folders) {
         if (folder.startsWith('session_') && fs.lstatSync(path.join(root, folder)).isDirectory()) {
@@ -203,8 +209,25 @@ app.post('/api/init', async (req, res) => {
     if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });
     if (!email) return res.status(400).json({ error: 'Email necessário' });
 
+    if (fs.existsSync('.stop-flag')) fs.unlinkSync('.stop-flag');
+    if (sessions.has(email)) return res.json({ success: true, message: 'Já está online' });
+
     connectToWhatsApp(email);
     res.json({ success: true, message: `Iniciando sessão para ${email}` });
+});
+
+app.post('/api/start', async (req, res) => {
+    const { key } = req.body;
+    if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });
+
+    if (fs.existsSync('.stop-flag')) {
+        fs.unlinkSync('.stop-flag');
+        console.log('[API Start] Flag removida. Iniciando sessões...');
+        loadExistingSessions();
+        return res.json({ success: true, message: 'Sistema reiniciado com sucesso.' });
+    } else {
+        return res.json({ success: true, message: 'O sistema já está ativo.' });
+    }
 });
 
 app.post('/api/stop', async (req, res) => {
@@ -242,6 +265,9 @@ app.post('/api/stop', async (req, res) => {
         }
         sessions.clear();
 
+        // Criar flag de parada para o manage.js não reiniciar
+        fs.writeFileSync('.stop-flag', 'STOPPED');
+        console.log('[Global Stop] Flag de parada criada (.stop-flag).');
 
         console.log('[Global Stop] Todos os robôs foram desconectados. O servidor permanece online.');
 
