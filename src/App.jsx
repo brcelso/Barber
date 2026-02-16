@@ -287,7 +287,7 @@ function App() {
   useEffect(() => {
     if (user) {
       fetchAppointments();
-      if (user.isAdmin) {
+      if (user.isAdmin || user.isBarber) {
         fetchAdminAppointments();
       }
     }
@@ -358,7 +358,7 @@ function App() {
   };
 
   const fetchAdminAppointments = async (ts = '') => {
-    if (!user?.isAdmin) return;
+    if (!user?.isAdmin && !user?.isBarber) return;
     try {
       const res = await fetch(`${API_URL}/admin/appointments?_t=${ts || Date.now()}`, {
         headers: { 'X-User-Email': user.email }
@@ -442,7 +442,7 @@ function App() {
   };
 
   const fetchSubscription = async (ts = '') => {
-    if (!user?.isAdmin) return;
+    if (!user?.isAdmin && !user?.isBarber) return;
     try {
       const res = await fetch(`${API_URL}/admin/subscription?t=${ts}`, {
         headers: { 'X-User-Email': user.email }
@@ -1117,7 +1117,7 @@ function App() {
             >
               <History size={18} /> <span>Histórico</span>
             </button>
-            {user.isAdmin && (
+            {(user.isAdmin || user.isBarber) && (
               <button
                 className={`nav-item-fluid ${view === 'admin' ? 'active' : ''}`}
                 onClick={() => setView('admin')}
@@ -1169,7 +1169,7 @@ function App() {
         </div>
       </header>
 
-      {view === 'admin' && user?.isAdmin && (
+      {view === 'admin' && (user?.isAdmin || user?.isBarber) && (
         <main className="fade-in">
           {/* MASTER PANEL: Painel de Controle Global */}
           {user?.isMaster && (

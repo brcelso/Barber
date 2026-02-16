@@ -150,8 +150,8 @@ REGRAS DE RESPOSTA:
             // Subscription Status
             if (url.pathname === '/api/admin/subscription' && request.method === 'GET') {
                 const email = request.headers.get('X-User-Email');
-                const user = await env.DB.prepare('SELECT is_admin, subscription_expires, trial_used, plan FROM users WHERE email = ?').bind(email).first();
-                if (!user || user.is_admin !== 1) return json({ error: 'Permission Denied' }, 403);
+                const user = await env.DB.prepare('SELECT is_admin, is_barber, subscription_expires, trial_used, plan FROM users WHERE email = ?').bind(email).first();
+                if (!user || (user.is_admin !== 1 && user.is_barber !== 1)) return json({ error: 'Permission Denied' }, 403);
 
                 const now = new Date();
                 const expires = user.subscription_expires ? new Date(user.subscription_expires) : new Date();
@@ -164,7 +164,8 @@ REGRAS DE RESPOSTA:
                     isActive: diffTime > 0,
                     trialUsed: !!user.trial_used,
                     isMaster: email === MASTER_EMAIL,
-                    plan: user.plan
+                    plan: user.plan,
+                    isBarber: user.is_barber === 1
                 });
             }
 
@@ -371,7 +372,14 @@ REGRAS DE RESPOSTA:
                 `).bind(userData.email, userData.name, userData.picture, userData.phone || null).run();
 
                 const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(userData.email).first();
-                return json({ user: { ...user, isAdmin: user.is_admin === 1, isMaster: user.email === MASTER_EMAIL } });
+                return json({
+                    user: {
+                        ...user,
+                        isAdmin: user.is_admin === 1,
+                        isMaster: user.email === MASTER_EMAIL,
+                        isBarber: user.is_barber === 1
+                    }
+                });
             }
 
             // Get Styles/Services (exclude internal 'block' service)
@@ -413,9 +421,9 @@ REGRAS DE RESPOSTA:
             // Admin: Get ALL Appointments
             if (url.pathname === '/api/admin/appointments' && request.method === 'GET') {
                 const email = request.headers.get('X-User-Email');
-                const user = await env.DB.prepare('SELECT is_admin FROM users WHERE email = ?').bind(email).first();
+                const user = await env.DB.prepare('SELECT is_admin, is_barber FROM users WHERE email = ?').bind(email).first();
 
-                if (!user || user.is_admin !== 1) {
+                if (!user || (user.is_admin !== 1 && user.is_barber !== 1)) {
                     return json({ error: 'Permission Denied' }, 403);
                 }
 
@@ -660,8 +668,8 @@ REGRAS DE RESPOSTA:
             // Admin: Toggle Block Slot
             if (url.pathname === '/api/admin/toggle-block' && request.method === 'POST') {
                 const { date, time, adminEmail } = await request.json();
-                const admin = await env.DB.prepare('SELECT is_admin FROM users WHERE email = ?').bind(adminEmail).first();
-                if (!admin || admin.is_admin !== 1) return json({ error: 'Forbidden' }, 403);
+                const admin = await env.DB.prepare('SELECT is_admin, is_barber FROM users WHERE email = ?').bind(adminEmail).first();
+                if (!admin || (admin.is_admin !== 1 && admin.is_barber !== 1)) return json({ error: 'Forbidden' }, 403);
 
                 // Check if already blocked
                 const existing = await env.DB.prepare('SELECT id FROM appointments WHERE appointment_date = ? AND appointment_time = ? AND status = "blocked"').bind(date, time).first();
