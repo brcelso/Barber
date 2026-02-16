@@ -1197,50 +1197,32 @@ function App() {
                   <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <Activity className="text-primary" size={24} /> Centro de Controle Master
                   </h2>
-                  <button
-                    style={{
-                      padding: '8px 15px',
-                      fontSize: '0.75rem',
-                      background: 'rgba(231, 76, 60, 0.1)',
-                      color: '#e74c3c',
-                      border: '1px solid rgba(231, 76, 60, 0.3)',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      fontWeight: 700
-                    }}
-                    onClick={() => {
-                      if (confirm('Isso reiniciará todos os robôs ativos. Continuar?')) {
-                        handleMasterRestartBot('ALL');
-                      }
-                    }}
-                  >
-                    <RefreshCw size={14} /> Reiniciar Sistema Geral
-                  </button>
-                  <button
-                    style={{
-                      padding: '8px 15px',
-                      fontSize: '0.75rem',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      color: 'white',
-                      border: '1px solid var(--border)',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      fontWeight: 700
-                    }}
-                    onClick={() => {
-                      if (confirm('Deseja parar todos os robôs ativos?')) {
-                        handleMasterStopBot('ALL');
-                      }
-                    }}
-                  >
-                    <X size={14} /> Parar Todos os Robôs
-                  </button>
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    <button
+                      className="btn-icon"
+                      style={{ padding: '6px', width: '30px', height: '30px' }}
+                      title="Reiniciar Sistema Geral"
+                      onClick={() => {
+                        if (confirm('Isso reiniciará todos os robôs ativos. Continuar?')) {
+                          handleMasterRestartBot('ALL');
+                        }
+                      }}
+                    >
+                      <RefreshCw size={14} />
+                    </button>
+                    <button
+                      className="btn-icon"
+                      style={{ padding: '6px', width: '30px', height: '30px', color: '#e74c3c' }}
+                      title="Parar Todos os Robôs"
+                      onClick={() => {
+                        if (confirm('Deseja parar todos os robôs ativos?')) {
+                          handleMasterStopBot('ALL');
+                        }
+                      }}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
                 </div>
 
                 {masterStats && (

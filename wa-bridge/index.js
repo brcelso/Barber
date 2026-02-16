@@ -224,11 +224,17 @@ app.post('/api/stop', async (req, res) => {
 
             sock.ev.removeAllListeners('connection.update');
             sock.end();
+            sessions.delete(email);
+
+            // Forçar atualização de status no servidor
+            axios.post(STATUS_URL, { email, status: 'disconnected' }).catch(() => { });
+
         } catch (e) { }
-        sessions.delete(email);
         res.json({ success: true, message: `Robô parado para ${email}` });
     } else {
-        res.json({ success: true, message: `Nenhum robô ativo para ${email}` });
+        // Mesmo se não achar sessão, força status desconectado no servidor para corrigir UI
+        axios.post(STATUS_URL, { email, status: 'disconnected' }).catch(() => { });
+        res.json({ success: true, message: `Nenhum robô ativo encontrado, status forçado para desconectado.` });
     }
 });
 
