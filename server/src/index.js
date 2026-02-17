@@ -476,6 +476,24 @@ REGRAS DE RESPOSTA:
                 return json({ success: true, message: 'Barbeiro recrutado com sucesso!' });
             }
 
+            // Remove Team Member (Shop Owner removes staff)
+            if (url.pathname === '/api/team/remove' && request.method === 'POST') {
+                const { memberEmail, ownerEmail } = await request.json();
+
+                // 1. Verify Owner (requester)
+                const owner = await env.DB.prepare('SELECT is_barber FROM users WHERE email = ?').bind(ownerEmail).first();
+                if (!owner || owner.is_barber !== 1) return json({ error: 'Unauthorized' }, 401);
+
+                // 2. Execute Removal (Set owner_id to NULL and business_type back to 'individual')
+                await env.DB.prepare(`
+                    UPDATE users 
+                    SET owner_id = NULL, business_type = 'individual' 
+                    WHERE email = ? AND owner_id = ?
+                `).bind(memberEmail, ownerEmail).run();
+
+                return json({ success: true, message: 'Barbeiro removido da equipe.' });
+            }
+
             // Promote to Barber (3-day trial)
             if (url.pathname === '/api/user/promote' && request.method === 'POST') {
                 const { email } = await request.json();
@@ -915,16 +933,24 @@ REGRAS DE RESPOSTA:
                 // AI Agent Helper with refined personality
                 const askAI = async (userMessage, _sessionState = 'main_menu') => {
                     try {
-                        const barber = await env.DB.prepare('SELECT name, bot_name, business_type, bot_tone FROM users WHERE email = ?').bind(botBarberEmail).first();
+                        const barber = await env.DB.prepare('SELECT name, shop_name, bot_name, business_type, bot_tone FROM users WHERE email = ?').bind(botBarberEmail).first();
                         const bName = barber?.bot_name || 'Leo';
-                        const bType = barber?.business_type || 'barbearia';
+                        const bType = (barber?.business_type === 'barbearia') ? 'a barbearia' : 'o profissional';
                         const bTone = barber?.bot_tone || 'prestativo e amigável';
-                        const barberName = barber ? barber.name : 'Barber Shop';
+                        const establishmentName = barber?.shop_name || barber?.name || 'Barber Shop';
 
                         const servicesData = await env.DB.prepare('SELECT * FROM services WHERE id != "block" AND barber_email = ?').bind(botBarberEmail).all();
                         const servicesList = servicesData.results.map(s => `✂️ ${s.name}: R$ ${s.price}`).join('\n');
 
-                        const systemPrompt = `Você é o ${bName}, o assistente virtual do(a) ${bType} ${barberName}. 💈
+                        let teamContext = "";
+                        if (barber?.business_type === 'barbearia') {
+                            const team = await env.DB.prepare('SELECT name FROM users WHERE is_barber = 1 AND (owner_id = ? OR email = ?)').bind(botBarberEmail, botBarberEmail).all();
+                            if (team.results.length > 0) {
+                                teamContext = `\nNOSSA EQUIPE DE PROFISSIONAIS:\n${team.results.map(t => `- ${t.name}`).join('\n')}`;
+                            }
+                        }
+
+                        const systemPrompt = `Você é o ${bName}, o assistente virtual de ${establishmentName}. 💈
 Seu tom é ${bTone}, direto e profissional.
 
 OBJETIVO:
@@ -938,12 +964,13 @@ Você DEVE SEMPRE incluir as seguintes opções ao final de sua resposta:
 
 SEUS SERVIÇOS E PREÇOS ATUAIS:
 ${servicesList}
+${teamContext}
 
 DIRETRIZES DE COMPORTAMENTO:
 1. SEJA ÚTIL: Responda perguntas antes de mostrar o menu.
-2. SEJA CONVERSADOR: Use emojis condizentes com ${bType} e linguagem natural.
+2. SEJA CONVERSADOR: Use emojis condizentes com barbearia e linguagem natural.
 3. SEMPRE MOSTRE O MENU: Não deixe o cliente sem saber o próximo passo.
-4. NÃO INVENTE: Não invente horários.`;
+4. NÃO INVENTE: Não invente horários ou serviços que não estão na lista.`;
 
                         const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
                             messages: [
@@ -964,11 +991,31 @@ DIRETRIZES DE COMPORTAMENTO:
                     const userEmail = userInDb ? userInDb.email : (session ? session.user_email : null);
 
                     if (botBarberEmail) {
-                        const b = await env.DB.prepare('SELECT email, name, business_type FROM users WHERE email = ?').bind(botBarberEmail).first();
+                        const b = await env.DB.prepare('SELECT email, name, business_type, shop_name FROM users WHERE email = ?').bind(botBarberEmail).first();
+
                         if (b) {
+                            const establishmentName = b.shop_name || b.name;
+
+                            // Se for uma Barbearia, listar a equipe (Dono + Staff)
+                            if (b.business_type === 'barbearia') {
+                                const team = await env.DB.prepare('SELECT email, name FROM users WHERE is_barber = 1 AND (owner_id = ? OR email = ?)').bind(botBarberEmail, botBarberEmail).all();
+
+                                if (team.results.length > 1) {
+                                    await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email) VALUES (?, "awaiting_barber", ?)').bind(from, userEmail).run();
+                                    let msg = `✨ *Bem-vindo(a) à ${establishmentName}!* \n\nPara começar, selecione o *Profissional* desejado:\n\n`;
+                                    // Ordenar para o dono (b.email) aparecer primeiro
+                                    const sortedTeam = team.results.sort((x, y) => x.email === botBarberEmail ? -1 : 1);
+                                    sortedTeam.forEach((member, i) => { msg += `*${i + 1}* - ${member.name}\n`; });
+                                    msg += "\nDigite o número correspondente!";
+                                    await sendMessage(from, msg);
+                                    return json({ success: true });
+                                }
+                                // Se só tiver 1 pessoa (o dono), cai no fluxo direto abaixo
+                            }
+
+                            // Fluxo Direto (Individual ou Loja com 1 pessoa)
                             await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email, selected_barber_email) VALUES (?, "main_menu", ?, ?)').bind(from, userEmail, b.email).run();
-                            const type = b.business_type || 'nosso estabelecimento';
-                            let msg = `✨ *Bem-vindo(a)!* \n\nVocê está sendo atendido(a) por *${b.name}*. 📍\n\nO que deseja fazer?\n\n`;
+                            let msg = `✨ *Bem-vindo(a)!* \n\nVocê está sendo atendido(a) por *${establishmentName}*. 📍\n\nO que deseja fazer?\n\n`;
                             msg += "1️⃣ - Agendar novo horário\n";
                             msg += "2️⃣ - Meus Agendamentos (Ver/Cancelar)\n";
                             msg += "3️⃣ - Dúvidas (Falar com Assistente IA)\n";
@@ -978,12 +1025,12 @@ DIRETRIZES DE COMPORTAMENTO:
                         }
                     }
 
+                    // MODO GLOBAL (Caso o bot barbearia email não esteja setado via Webhook params)
                     const barbers = await env.DB.prepare('SELECT email, name, business_type FROM users WHERE is_barber = 1').all();
 
                     if (barbers.results.length === 1) {
                         const b = barbers.results[0];
                         await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email, selected_barber_email) VALUES (?, "main_menu", ?, ?)').bind(from, userEmail, b.email).run();
-                        const type = b.business_type || 'nosso estabelecimento';
                         let msg = `✨ *Bem-vindo(a)!* \n\nVocê está sendo atendido(a) por *${b.name}*. 📍\n\nO que deseja fazer?\n\n`;
                         msg += "1️⃣ - Agendar novo horário\n";
                         msg += "2️⃣ - Meus Agendamentos (Ver/Cancelar)\n";
@@ -1026,11 +1073,20 @@ DIRETRIZES DE COMPORTAMENTO:
 
                 // 1. AWAITING BARBER -> MAIN MENU
                 if (session.state === 'awaiting_barber') {
-                    const barbers = await env.DB.prepare('SELECT email, name FROM users WHERE is_barber = 1').all();
+                    let team;
+                    if (botBarberEmail) {
+                        // Resgata a mesma lista mostrada no Início
+                        const res = await env.DB.prepare('SELECT email, name FROM users WHERE is_barber = 1 AND (owner_id = ? OR email = ?)').bind(botBarberEmail, botBarberEmail).all();
+                        team = res.results.sort((x, y) => x.email === botBarberEmail ? -1 : 1);
+                    } else {
+                        const res = await env.DB.prepare('SELECT email, name FROM users WHERE is_barber = 1').all();
+                        team = res.results;
+                    }
+
                     const idx = parseInt(text) - 1;
-                    const b = barbers.results[idx];
+                    const b = team[idx];
                     if (!b) {
-                        await sendMessage(from, "❌ Opção inválida. Escolha um barbeiro da lista acima.");
+                        await sendMessage(from, "❌ Opção inválida. Escolha um profissional da lista acima.");
                         return json({ success: true });
                     }
 
