@@ -447,6 +447,30 @@ REGRAS DE RESPOSTA:
                 }
             }
 
+            // Recruit Existing Barber (Shop Owner recruits independent barber)
+            if (url.pathname === '/api/team/recruit' && request.method === 'POST') {
+                const { email, ownerEmail } = await request.json();
+
+                // 1. Verify Owner
+                const owner = await env.DB.prepare('SELECT is_barber, business_type FROM users WHERE email = ?').bind(ownerEmail).first();
+                if (!owner || owner.is_barber !== 1) return json({ error: 'Apenas barbeiros/donos podem recrutar' }, 403);
+
+                // 2. Verify Target (Must be barber and independent)
+                const target = await env.DB.prepare('SELECT is_barber, owner_id FROM users WHERE email = ?').bind(email).first();
+                if (!target) return json({ error: 'Usuário não encontrado' }, 404);
+                if (target.is_barber !== 1) return json({ error: 'Apenas barbeiros podem ser recrutados. Promova o usuário primeiro.' }, 400);
+                if (target.owner_id) return json({ error: 'Este barbeiro já pertence a uma equipe.' }, 409);
+
+                // 3. Execute Recruitment
+                await env.DB.prepare(`
+                    UPDATE users 
+                    SET owner_id = ?, business_type = 'staff' 
+                    WHERE email = ?
+                `).bind(ownerEmail, email).run();
+
+                return json({ success: true, message: 'Barbeiro recrutado com sucesso!' });
+            }
+
             // Promote to Barber (3-day trial)
             if (url.pathname === '/api/user/promote' && request.method === 'POST') {
                 const { email } = await request.json();

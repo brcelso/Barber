@@ -1264,6 +1264,43 @@ function App() {
     }
   };
 
+  // Nova função para Recrutar Barbeiro Existente
+  const handleRecruitBarber = async () => {
+    const select = document.getElementById('recruitSelect');
+    const email = select.value;
+    if (!email) return alert('Selecione um barbeiro para recrutar.');
+
+    if (!confirm('Deseja trazer este barbeiro para sua equipe? Ele deixará de ser independente.')) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/team/recruit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, ownerEmail: user.email })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao recrutar');
+
+      // Atualizar estado local
+      const updatedBarbers = barbers.map(b => {
+        if (b.email === email) {
+          return { ...b, ownerId: user.email, business_type: 'staff' };
+        }
+        return b;
+      });
+      setBarbers(updatedBarbers);
+      alert('Barbeiro recrutado com sucesso!');
+      select.value = "";
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       {showPhoneSetup && (
@@ -1800,9 +1837,27 @@ function App() {
                           <input name="memberEmail" type="email" placeholder="email@exemplo.com" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'white' }} required />
                         </div>
                         <button type="submit" className="btn-primary" style={{ height: '42px' }}>
-                          <Plus size={18} /> Adicionar
+                          <Plus size={18} /> Novo
                         </button>
                       </form>
+
+                      {/* Seção de Recrutamento */}
+                      <div style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '1px solid var(--border)' }}>
+                        <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Ou traga um barbeiro independente existente:</h3>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <select id="recruitSelect" style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--border)' }}>
+                            <option value="">Selecione um barbeiro disponível...</option>
+                            {barbers
+                              .filter(b => !b.ownerId && b.email !== user.email && b.business_type !== 'barbearia')
+                              .map(b => (
+                                <option key={b.email} value={b.email}>{b.name} ({b.email})</option>
+                              ))}
+                          </select>
+                          <button onClick={handleRecruitBarber} className="btn-primary" style={{ background: 'var(--secondary)', border: 'none' }}>
+                            Recrutar
+                          </button>
+                        </div>
+                      </div>
 
                       <div className="service-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}>
                         {barbers.filter(b => b.ownerId === user.email).map(member => (
