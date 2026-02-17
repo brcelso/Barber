@@ -1301,6 +1301,38 @@ function App() {
     }
   };
 
+  const handleRemoveTeamMember = async (memberEmail) => {
+    if (!confirm('Deseja remover este barbeiro da sua equipe? Ele voltará a ser independente.')) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/team/remove`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberEmail, ownerEmail: user.email })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao remover membro');
+      }
+
+      // Atualizar estado local
+      setBarbers(barbers.map(b => {
+        if (b.email === memberEmail) {
+          return { ...b, ownerId: null, business_type: 'individual' };
+        }
+        return b;
+      }));
+      alert('Membro removido com sucesso!');
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       {showPhoneSetup && (
@@ -1938,7 +1970,12 @@ function App() {
                               <h4 style={{ margin: 0 }}>{member.name}</h4>
                               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{member.email}</span>
                             </div>
-                            <button className="btn-icon" style={{ color: 'var(--danger)', opacity: 0.7 }} title="Remover (Em breve)">
+                            <button
+                              className="btn-icon"
+                              style={{ color: 'var(--danger)', opacity: 0.7 }}
+                              title="Remover da Equipe"
+                              onClick={() => handleRemoveTeamMember(member.email)}
+                            >
                               <Trash2 size={16} />
                             </button>
                           </div>
