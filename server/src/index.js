@@ -609,21 +609,43 @@ REGRAS DE RESPOSTA:
             // Admin: Get ALL Appointments
             if (url.pathname === '/api/admin/appointments' && request.method === 'GET') {
                 const email = request.headers.get('X-User-Email');
-                const user = await env.DB.prepare('SELECT is_admin, is_barber FROM users WHERE email = ?').bind(email).first();
+                const user = await env.DB.prepare('SELECT is_admin, is_barber, owner_id FROM users WHERE email = ?').bind(email).first();
 
                 if (!user || (user.is_admin !== 1 && user.is_barber !== 1)) {
                     return json({ error: 'Permission Denied' }, 403);
                 }
 
-                const allAppointments = await env.DB.prepare(`
-                    SELECT a.*, s.name as service_name, s.price, u.name as user_name, u.picture as user_picture, u.phone as user_phone, b.name as barber_name
-                    FROM appointments a
-                    LEFT JOIN services s ON a.service_id = s.id
-                    LEFT JOIN users u ON a.user_email = u.email
-                    LEFT JOIN users b ON a.barber_email = b.email
-                    WHERE a.barber_email = ?
-                    ORDER BY a.appointment_date DESC, a.appointment_time DESC
-                `).bind(email).all();
+                let allAppointments;
+
+                // If user is a shop owner (no owner_id), get appointments for entire team
+                if (!user.owner_id) {
+                    // Get all team members (owner + staff)
+                    const teamEmails = await env.DB.prepare('SELECT email FROM users WHERE owner_id = ? OR email = ?').bind(email, email).all();
+                    const emails = teamEmails.results.map(t => t.email);
+
+                    // Build query with IN clause for all team members
+                    const placeholders = emails.map(() => '?').join(',');
+                    allAppointments = await env.DB.prepare(`
+                        SELECT a.*, s.name as service_name, s.price, u.name as user_name, u.picture as user_picture, u.phone as user_phone, b.name as barber_name
+                        FROM appointments a
+                        LEFT JOIN services s ON a.service_id = s.id
+                        LEFT JOIN users u ON a.user_email = u.email
+                        LEFT JOIN users b ON a.barber_email = b.email
+                        WHERE a.barber_email IN (${placeholders})
+                        ORDER BY a.appointment_date DESC, a.appointment_time DESC
+                    `).bind(...emails).all();
+                } else {
+                    // Staff member: only their own appointments
+                    allAppointments = await env.DB.prepare(`
+                        SELECT a.*, s.name as service_name, s.price, u.name as user_name, u.picture as user_picture, u.phone as user_phone, b.name as barber_name
+                        FROM appointments a
+                        LEFT JOIN services s ON a.service_id = s.id
+                        LEFT JOIN users u ON a.user_email = u.email
+                        LEFT JOIN users b ON a.barber_email = b.email
+                        WHERE a.barber_email = ?
+                        ORDER BY a.appointment_date DESC, a.appointment_time DESC
+                    `).bind(email).all();
+                }
 
                 return json(allAppointments.results);
             }
