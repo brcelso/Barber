@@ -58,12 +58,26 @@ export default {
                     if (!appt || !appt.phone) return;
 
                     const barberEmail = appt.barber_email || MASTER_EMAIL;
-                    const barberUser = await env.DB.prepare('SELECT subscription_expires FROM users WHERE email = ?').bind(barberEmail).first();
+                    const barberUser = await env.DB.prepare('SELECT subscription_expires, owner_id FROM users WHERE email = ?').bind(barberEmail).first();
+
+                    let expiresStr = barberUser?.subscription_expires;
+
+                    // INHERITANCE: If staff, use owner's subscription
+                    if (barberUser?.owner_id) {
+                        const owner = await env.DB.prepare('SELECT subscription_expires FROM users WHERE email = ?').bind(barberUser.owner_id).first();
+                        expiresStr = owner?.subscription_expires;
+                    }
+
                     const now = new Date();
-                    const expires = barberUser?.subscription_expires ? new Date(barberUser.subscription_expires) : null;
+                    let expires = expiresStr ? new Date(expiresStr) : null;
+
+                    // MASTER PRIVILEGE: Master is always active
+                    if (barberEmail === MASTER_EMAIL) {
+                        expires = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 365); // 1 year fake buffer
+                    }
 
                     if (!expires || expires < now) {
-                        console.log(`[WhatsApp] AVISO: Assinatura do barbeiro ${barberEmail} vencida.`);
+                        console.log(`[WhatsApp] AVISO: Assinatura do barbeiro ${barberEmail} (ou seu dono) vencida.`);
                         return;
                     }
 
@@ -165,22 +179,42 @@ REGRAS DE RESPOSTA:
             // Subscription Status
             if (url.pathname === '/api/admin/subscription' && request.method === 'GET') {
                 const email = request.headers.get('X-User-Email');
-                const user = await env.DB.prepare('SELECT is_admin, is_barber, subscription_expires, trial_used, plan FROM users WHERE email = ?').bind(email).first();
+                const user = await env.DB.prepare('SELECT is_admin, is_barber, subscription_expires, trial_used, plan, owner_id FROM users WHERE email = ?').bind(email).first();
                 if (!user || (user.is_admin !== 1 && user.is_barber !== 1)) return json({ error: 'Permission Denied' }, 403);
 
+                let expiresStr = user.subscription_expires;
+                let activePlan = user.plan;
+                let isStaff = !!user.owner_id;
+
+                // INHERITANCE LOGIC
+                if (isStaff) {
+                    const owner = await env.DB.prepare('SELECT subscription_expires, plan FROM users WHERE email = ?').bind(user.owner_id).first();
+                    expiresStr = owner?.subscription_expires;
+                    activePlan = 'Barber Shop (Staff)';
+                }
+
                 const now = new Date();
-                const expires = user.subscription_expires ? new Date(user.subscription_expires) : new Date();
+                let expires = expiresStr ? new Date(expiresStr) : new Date();
+
+                // MASTER UI REPAIR
+                if (email === MASTER_EMAIL) {
+                    expires = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 3650); // 10 years
+                    expiresStr = expires.toISOString();
+                    activePlan = 'Lifetime (Master)';
+                }
+
                 const diffTime = expires - now;
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
                 return json({
                     daysLeft: Math.max(0, diffDays),
-                    expires: user.subscription_expires,
+                    expires: expiresStr,
                     isActive: diffTime > 0,
                     trialUsed: !!user.trial_used,
                     isMaster: email === MASTER_EMAIL,
-                    plan: user.plan,
-                    isBarber: user.is_barber === 1
+                    plan: activePlan,
+                    isBarber: user.is_barber === 1,
+                    isStaff: isStaff
                 });
             }
 
@@ -197,6 +231,21 @@ REGRAS DE RESPOSTA:
                 } else {
                     await env.DB.prepare('UPDATE users SET wa_status = "disconnected", wa_qr = NULL, wa_last_seen = ? WHERE email = ?').bind(now, email).run();
                 }
+
+                // AUTO-REPAIR MASTER SUBSCRIPTION: Ensure Celso is always active
+                if (email === MASTER_EMAIL) {
+                    const check = await env.DB.prepare('SELECT subscription_expires FROM users WHERE email = ?').bind(MASTER_EMAIL).first();
+                    const exp = check?.subscription_expires ? new Date(check.subscription_expires) : null;
+                    const future = new Date();
+                    future.setFullYear(future.getFullYear() + 10); // 10 years
+
+                    if (!exp || exp < new Date()) {
+                        console.log('[Auto-Repair] Renewing Master Subscription...');
+                        await env.DB.prepare('UPDATE users SET subscription_expires = ?, plan = "Barber Shop", business_type = "barbearia" WHERE email = ?')
+                            .bind(future.toISOString(), MASTER_EMAIL).run();
+                    }
+                }
+
                 return json({ success: true });
             }
 
@@ -453,9 +502,21 @@ REGRAS DE RESPOSTA:
             if (url.pathname === '/api/team/add' && request.method === 'POST') {
                 const { name, email, ownerEmail } = await request.json();
 
-                // Verify if requester is really the owner
-                const requester = await env.DB.prepare('SELECT is_barber, subscription_expires FROM users WHERE email = ?').bind(ownerEmail).first();
+                // Verify if requester is really the owner AND has a Barber Shop plan
+                const requester = await env.DB.prepare('SELECT is_barber, plan, subscription_expires FROM users WHERE email = ?').bind(ownerEmail).first();
                 if (!requester || requester.is_barber !== 1) return json({ error: 'Unauthorized' }, 401);
+
+                const now = new Date();
+                const expires = requester.subscription_expires ? new Date(requester.subscription_expires) : null;
+                const hasBarberShopPlan = requester.plan?.includes('Barber Shop') || ownerEmail === MASTER_EMAIL;
+
+                if (!hasBarberShopPlan) {
+                    return json({ error: 'Você precisa do plano "Barber Shop" para gerenciar uma equipe.' }, 403);
+                }
+
+                if (!expires || expires < now) {
+                    return json({ error: 'Sua assinatura expirou. Renove para adicionar membros.' }, 403);
+                }
 
                 // Insert new staff member linked to owner
                 try {
@@ -481,9 +542,21 @@ REGRAS DE RESPOSTA:
             if (url.pathname === '/api/team/recruit' && request.method === 'POST') {
                 const { email, ownerEmail } = await request.json();
 
-                // 1. Verify Owner
-                const owner = await env.DB.prepare('SELECT is_barber, business_type FROM users WHERE email = ?').bind(ownerEmail).first();
+                // 1. Verify Owner and Plan
+                const owner = await env.DB.prepare('SELECT is_barber, plan, subscription_expires FROM users WHERE email = ?').bind(ownerEmail).first();
                 if (!owner || owner.is_barber !== 1) return json({ error: 'Apenas barbeiros/donos podem recrutar' }, 403);
+
+                const now = new Date();
+                const expires = owner.subscription_expires ? new Date(owner.subscription_expires) : null;
+                const hasBarberShopPlan = owner.plan?.includes('Barber Shop') || ownerEmail === MASTER_EMAIL;
+
+                if (!hasBarberShopPlan) {
+                    return json({ error: 'Você precisa do plano "Barber Shop" para recrutar barbeiros para sua equipe.' }, 403);
+                }
+
+                if (!expires || expires < now) {
+                    return json({ error: 'Sua assinatura expirou. Renove para recrutar membros.' }, 403);
+                }
 
                 // 2. Verify Target (Must be barber and independent)
                 const target = await env.DB.prepare('SELECT is_barber, owner_id FROM users WHERE email = ?').bind(email).first();
@@ -509,10 +582,10 @@ REGRAS DE RESPOSTA:
                 const owner = await env.DB.prepare('SELECT is_barber FROM users WHERE email = ?').bind(ownerEmail).first();
                 if (!owner || owner.is_barber !== 1) return json({ error: 'Unauthorized' }, 401);
 
-                // 2. Execute Removal (Set owner_id to NULL and business_type back to 'individual')
+                // 2. Execute Removal (Set owner_id to NULL, business_type back to 'individual' and CLEAR PLAN)
                 await env.DB.prepare(`
                     UPDATE users 
-                    SET owner_id = NULL, business_type = 'individual' 
+                    SET owner_id = NULL, business_type = 'individual', subscription_expires = NULL, plan = NULL 
                     WHERE email = ? AND owner_id = ?
                 `).bind(memberEmail, ownerEmail).run();
 
@@ -527,7 +600,7 @@ REGRAS DE RESPOSTA:
 
                 await env.DB.prepare(`
                     UPDATE users 
-                    SET is_barber = 1, is_admin = 1, subscription_expires = ?, trial_used = 1
+                    SET is_barber = 1, is_admin = 1, subscription_expires = ?, trial_used = 1, plan = 'Individual PRO (Trial)'
                     WHERE email = ?
                 `).bind(expires, email).run();
 
