@@ -1924,7 +1924,7 @@ function App() {
                       {/* Seção de Recrutamento */}
                       <div style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '1px solid var(--border)' }}>
                         <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Ou traga um barbeiro independente existente:</h3>
-                        <div style={{ display: 'flex', gap: '10px' }}>
+                        <div className="btn-group-responsive" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                           <select id="recruitSelect" style={{
                             flex: 1,
                             padding: '12px',
@@ -1933,7 +1933,8 @@ function App() {
                             color: 'white',
                             border: '1px solid var(--primary)',
                             outline: 'none',
-                            fontSize: '0.9rem'
+                            fontSize: '0.9rem',
+                            minWidth: '250px'
                           }}>
                             <option value="" style={{ background: '#1a1a1a', color: '#888' }}>Selecione um barbeiro disponível...</option>
                             {barbers
@@ -1954,7 +1955,10 @@ function App() {
                               fontWeight: '900',
                               padding: '0 25px',
                               height: '46px',
-                              boxShadow: '0 4px 15px rgba(212, 175, 55, 0.3)'
+                              boxShadow: '0 4px 15px rgba(212, 175, 55, 0.3)',
+                              flex: '1',
+                              minWidth: '150px',
+                              justifyContent: 'center'
                             }}
                           >
                             Recrutar
