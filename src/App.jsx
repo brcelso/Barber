@@ -1822,7 +1822,7 @@ function App() {
                         <Users className="text-primary" /> Minha Equipe
                       </h2>
                       <div className="glass-card" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-                        <span className="text-primary" style={{ fontWeight: 800 }}>{barbers.filter(b => b.ownerId === user.email).length}</span> membros
+                        <span className="text-primary" style={{ fontWeight: 800 }}>{barbers.filter(b => b.ownerId?.toLowerCase() === user.email?.toLowerCase()).length}</span> membros
                       </div>
                     </div>
 
@@ -1848,7 +1848,7 @@ function App() {
                           <select id="recruitSelect" style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--border)' }}>
                             <option value="">Selecione um barbeiro disponível...</option>
                             {barbers
-                              .filter(b => !b.ownerId && b.email !== user.email && b.business_type !== 'barbearia')
+                              .filter(b => !b.ownerId && b.email?.toLowerCase() !== user.email?.toLowerCase())
                               .map(b => (
                                 <option key={b.email} value={b.email}>{b.name} ({b.email})</option>
                               ))}
@@ -1860,7 +1860,7 @@ function App() {
                       </div>
 
                       <div className="service-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}>
-                        {barbers.filter(b => b.ownerId === user.email).map(member => (
+                        {barbers.filter(b => b.ownerId?.toLowerCase() === user.email?.toLowerCase()).map(member => (
                           <div key={member.email} className="glass-card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', background: 'rgba(0,0,0,0.2)' }}>
                             <img src={member.picture} alt={member.name} style={{ width: '50px', height: '50px', borderRadius: '50%' }} />
                             <div style={{ flex: 1 }}>
