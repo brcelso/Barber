@@ -64,7 +64,11 @@ function App() {
     bot_name: 'Leo',
     business_type: 'barbearia',
     bot_tone: 'prestativo e amigável',
-    welcome_message: ''
+    welcome_message: '',
+    msg_welcome: '',
+    msg_choose_barber: '',
+    msg_choose_service: '',
+    msg_confirm_booking: ''
   });
 
 
@@ -2281,6 +2285,57 @@ function App() {
                       />
                       <p style={{ fontSize: '0.7rem', color: 'var(--primary)', marginTop: '5px' }}>
                         Variáveis: {'{{user_name}}'}, {'{{service_name}}'}, {'{{barber_name}}'}, {'{{date}}'}, {'{{time}}'}
+                      </p>
+                    </div>
+
+                    <div style={{ gridColumn: '1 / -1', marginTop: '20px', padding: '15px', background: 'rgba(255,255,255,0.02)', borderRadius: '15px', border: '1px solid var(--border)' }}>
+                      <h4 style={{ fontSize: '0.85rem', marginBottom: '1rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <MessageSquare size={16} /> Mensagens do Fluxo de Agendamento
+                      </h4>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+                        <div className="input-field">
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>1. Saudação Inicial (Bem-vindo)</label>
+                          <textarea
+                            value={botSettings.msg_welcome}
+                            onChange={e => setBotSettings({ ...botSettings, msg_welcome: e.target.value })}
+                            placeholder="Ex: Olá! Você está na {{establishment_name}}. Como podemos ajudar?"
+                            style={{ width: '100%', height: '70px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '10px', borderRadius: '10px', resize: 'vertical', fontSize: '0.85rem' }}
+                          />
+                        </div>
+
+                        <div className="input-field">
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>2. Seleção de Profissional</label>
+                          <textarea
+                            value={botSettings.msg_choose_barber}
+                            onChange={e => setBotSettings({ ...botSettings, msg_choose_barber: e.target.value })}
+                            placeholder="Ex: Selecione quem irá te atender hoje:"
+                            style={{ width: '100%', height: '70px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '10px', borderRadius: '10px', resize: 'vertical', fontSize: '0.85rem' }}
+                          />
+                        </div>
+
+                        <div className="input-field">
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>3. Seleção de Serviço</label>
+                          <textarea
+                            value={botSettings.msg_choose_service}
+                            onChange={e => setBotSettings({ ...botSettings, msg_choose_service: e.target.value })}
+                            placeholder="Ex: Perfeito! Agora escolha o serviço desejado:"
+                            style={{ width: '100%', height: '70px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '10px', borderRadius: '10px', resize: 'vertical', fontSize: '0.85rem' }}
+                          />
+                        </div>
+
+                        <div className="input-field">
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>4. Resumo/Confirmação Final</label>
+                          <textarea
+                            value={botSettings.msg_confirm_booking}
+                            onChange={e => setBotSettings({ ...botSettings, msg_confirm_booking: e.target.value })}
+                            placeholder="Ex: Confira os dados do seu agendamento:"
+                            style={{ width: '100%', height: '70px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '10px', borderRadius: '10px', resize: 'vertical', fontSize: '0.85rem' }}
+                          />
+                        </div>
+                      </div>
+                      <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '10px' }}>
+                        Dica: Deixe em branco para usar o padrão do sistema. Variáveis aceitas: {'{{establishment_name}}'}
                       </p>
                     </div>
 
