@@ -2547,7 +2547,7 @@ function App() {
                   const displayTitle = isProfessional ? `Cliente: ${a.client_name || a.user_name || 'Cliente'}` : a.service_name;
                   const displaySubtitle = `${a.appointment_time} - ${a.service_name} - Barbeiro: ${a.barber_name || 'Barbeiro'}`;
                   const displayPicture = isProfessional ? (a.client_picture || a.user_picture) : a.barber_picture;
-                  const isPaid = a.payment_status === 'confirmed' || a.status === 'confirmed';
+                  const isPaid = a.payment_status === 'confirmed' || a.payment_status === 'paid';
                   const canManage = !isPaid && a.status !== 'cancelled' && a.status !== 'blocked';
 
                   return (
