@@ -2087,7 +2087,7 @@ function App() {
 
                   <div className="glass-card">
                     {/* Formulários de Adicionar/Recrutar - Apenas para Donos */}
-                    {!user.ownerId && (
+                    {!user.ownerId && !user.isStaff && (
                       <>
                         <form onSubmit={handleAddTeamMember} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'end', marginBottom: '2rem', borderBottom: '1px solid var(--border)', paddingBottom: '2rem' }}>
                           <div style={{ flex: 1, minWidth: '200px' }}>
@@ -2153,7 +2153,7 @@ function App() {
                     {/* Lista de Membros da Equipe */}
                     <div className="service-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}>
                       {/* Se for staff, mostra todos da equipe incluindo o dono */}
-                      {user.ownerId ? (
+                      {user.ownerId || user.isStaff ? (
                         <>
                           {/* Mostrar o dono primeiro */}
                           {barbers.filter(b => b.email?.toLowerCase() === user.ownerId?.toLowerCase()).map(owner => (
