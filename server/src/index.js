@@ -425,7 +425,17 @@ REGRAS DE RESPOSTA:
                     params.push(barberEmail);
                 }
 
-                const services = await env.DB.prepare(query).bind(...params).all();
+                let services = await env.DB.prepare(query).bind(...params).all();
+
+                // FALLBACK: If no services found for this barber specifically
+                if (barberEmail && services.results.length === 0) {
+                    const barber = await env.DB.prepare('SELECT owner_id FROM users WHERE email = ?').bind(barberEmail).first();
+                    if (barber && barber.owner_id) {
+                        const fallbackQuery = 'SELECT * FROM services WHERE id != ? AND (barber_email = ? OR barber_email IS NULL)';
+                        services = await env.DB.prepare(fallbackQuery).bind('block', barber.owner_id).all();
+                    }
+                }
+
                 return json(services.results);
             }
 
@@ -1150,7 +1160,16 @@ DIRETRIZES DE COMPORTAMENTO:
                             await sendMessage(from, "⚠️ Erro: Barbeiro não selecionado. Digite 'Menu' para escolher um barbeiro.");
                             return json({ success: true });
                         }
-                        const services = await env.DB.prepare('SELECT * FROM services WHERE barber_email = ? AND id != "block"').bind(session.selected_barber_email).all();
+                        let services = await env.DB.prepare('SELECT * FROM services WHERE barber_email = ? AND id != "block"').bind(session.selected_barber_email).all();
+
+                        // FALLBACK: If no services for this barber, try to get from the owner
+                        if (services.results.length === 0) {
+                            const barber = await env.DB.prepare('SELECT owner_id FROM users WHERE email = ?').bind(session.selected_barber_email).first();
+                            if (barber && barber.owner_id) {
+                                services = await env.DB.prepare('SELECT * FROM services WHERE barber_email = ? AND id != "block"').bind(barber.owner_id).all();
+                            }
+                        }
+
                         if (services.results.length === 0) {
                             await sendMessage(from, "❌ Este barbeiro ainda não cadastrou serviços. Escolha outro ou digite 'Menu'.");
                             return json({ success: true });
