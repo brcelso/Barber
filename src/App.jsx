@@ -1602,10 +1602,24 @@ function App() {
                   gap: '8px',
                   whiteSpace: 'nowrap',
                   cursor: 'pointer',
-                  transition: 'all 0.3s'
+                  transition: 'all 0.3s',
+                  position: 'relative'
                 }}
               >
                 <MessageSquare size={16} /> ROBÔ AI
+                {waStatus.status !== 'connected' && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '5px',
+                    right: '5px',
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: waStatus.status === 'awaiting_qr' ? '#f1c40f' : '#e74c3c',
+                    boxShadow: '0 0 5px rgba(0,0,0,0.5)',
+                    border: '1px solid white'
+                  }} />
+                )}
               </button>
               {user?.isMaster && (
                 <button
