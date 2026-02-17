@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
   trial_used INTEGER DEFAULT 0,
   plan TEXT,
   bot_name TEXT DEFAULT 'Leo',
+  owner_id TEXT DEFAULT NULL,
   business_type TEXT DEFAULT 'barbearia',
   bot_tone TEXT DEFAULT 'prestativo e amigável',
   welcome_message TEXT DEFAULT 'Olá {{user_name}}, seu horário para *{{service_name}}* foi confirmado!',

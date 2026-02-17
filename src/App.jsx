@@ -1233,20 +1233,35 @@ function App() {
 
     if (!name || !email) return alert('Preencha nome e email');
 
-    // MOCK: Adicionar ao state local para teste visual
-    const newMember = {
-      name,
-      email,
-      picture: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
-      business_type: 'staff',
-      ownerId: user.email,
-      isBarber: true
-    };
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/team/add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, ownerEmail: user.email })
+      });
 
-    // Na V1 Real, isso seria um POST /team/add
-    setBarbers([...barbers, newMember]);
-    alert(`Membro ${name} adicionado com sucesso! (Simulação)`);
-    form.reset();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao adicionar membro');
+
+      // Update local state to reflect change immediately
+      const newMember = {
+        name,
+        email,
+        picture: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
+        business_type: 'staff',
+        ownerId: user.email,
+        isBarber: true
+      };
+      setBarbers([...barbers, newMember]);
+      alert(`Membro ${name} adicionado com sucesso!`);
+      form.reset();
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

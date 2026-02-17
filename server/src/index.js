@@ -206,7 +206,7 @@ REGRAS DE RESPOSTA:
                 const email = request.headers.get('X-User-Email');
                 if (email !== MASTER_EMAIL) return json({ error: 'Unauthorized' }, 401);
 
-                const usersListing = await env.DB.prepare("SELECT email, name, phone, is_admin, is_barber, wa_status, wa_last_seen, subscription_expires, trial_used, plan FROM users WHERE email != 'sistema@leoai.br' ORDER BY created_at DESC").all();
+                const usersListing = await env.DB.prepare("SELECT email, name, phone, is_admin, is_barber, wa_status, wa_last_seen, subscription_expires, trial_used, plan, business_type, owner_id FROM users WHERE email != 'sistema@leoai.br' ORDER BY created_at DESC").all();
 
                 const now = new Date();
                 const results = usersListing.results.map(u => {
@@ -415,8 +415,36 @@ REGRAS DE RESPOSTA:
 
             // Get All Barbers
             if (url.pathname === '/api/barbers' && request.method === 'GET') {
-                const barbers = await env.DB.prepare('SELECT email, name, picture FROM users WHERE is_barber = 1').all();
+                const barbers = await env.DB.prepare('SELECT email, name, picture, business_type, owner_id FROM users WHERE is_barber = 1').all();
                 return json(barbers.results);
+            }
+
+            // Create Team Member (Shop Owner adds staff)
+            if (url.pathname === '/api/team/add' && request.method === 'POST') {
+                const { name, email, ownerEmail } = await request.json();
+
+                // Verify if requester is really the owner
+                const requester = await env.DB.prepare('SELECT is_barber, subscription_expires FROM users WHERE email = ?').bind(ownerEmail).first();
+                if (!requester || requester.is_barber !== 1) return json({ error: 'Unauthorized' }, 401);
+
+                // Insert new staff member linked to owner
+                try {
+                    await env.DB.prepare(`
+                        INSERT INTO users (email, name, is_admin, is_barber, owner_id, business_type, picture, created_at)
+                        VALUES (?, ?, 0, 1, ?, 'staff', ?, CURRENT_TIMESTAMP)
+                    `).bind(
+                        email,
+                        name,
+                        ownerEmail,
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`
+                    ).run();
+                    return json({ success: true });
+                } catch (e) {
+                    if (e.message.includes('UNIQUE')) {
+                        return json({ error: 'Email já cadastrado' }, 409);
+                    }
+                    return json({ error: e.message }, 500);
+                }
             }
 
             // Promote to Barber (3-day trial)
