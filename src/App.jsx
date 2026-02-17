@@ -2259,29 +2259,32 @@ function App() {
                         <User className="text-primary" /> Escolha o Local / Profissional
                       </h2>
                       <div className="service-grid">
-                        {barbers.filter(b => !b.ownerId).map(b => (
-                          <div
-                            key={b.email}
-                            className="glass-card service-card"
-                            onClick={() => {
-                              if (b.business_type === 'barbearia') {
-                                setSelectedShop(b); // Entra na loja
-                              } else {
-                                setSelectedBarber(b); // Seleciona direto
-                              }
-                            }}
-                            style={{ textAlign: 'center' }}
-                          >
-                            <img src={b.picture} alt={b.name} style={{ width: '80px', height: '80px', borderRadius: '50%', margin: '0 auto 1rem', border: `2px solid ${b.business_type === 'barbearia' ? 'var(--primary)' : 'var(--text-muted)'}` }} />
-                            <h3 style={{ fontSize: '1.1rem' }}>{b.name}</h3>
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '5px' }}>
-                              {b.business_type === 'barbearia' ? 'Barbearia • Equipe' : 'Profissional Independente'}
-                            </p>
-                            <button className="btn-primary" style={{ marginTop: '1rem', width: '100%' }}>
-                              {b.business_type === 'barbearia' ? 'Ver Equipe' : 'Agendar'}
-                            </button>
-                          </div>
-                        ))}
+                        {barbers
+                          .filter(b => !b.ownerId)
+                          .sort((a, b) => (a.business_type === 'barbearia' ? -1 : 1))
+                          .map(b => (
+                            <div
+                              key={b.email}
+                              className="glass-card service-card"
+                              onClick={() => {
+                                if (b.business_type === 'barbearia') {
+                                  setSelectedShop(b); // Entra na loja
+                                } else {
+                                  setSelectedBarber(b); // Seleciona direto
+                                }
+                              }}
+                              style={{ textAlign: 'center' }}
+                            >
+                              <img src={b.picture} alt={b.name} style={{ width: '80px', height: '80px', borderRadius: '50%', margin: '0 auto 1rem', border: `2px solid ${b.business_type === 'barbearia' ? 'var(--primary)' : 'var(--text-muted)'}` }} />
+                              <h3 style={{ fontSize: '1.1rem' }}>{b.shop_name || b.name}</h3>
+                              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '5px' }}>
+                                {b.business_type === 'barbearia' ? 'Barbearia • Equipe' : 'Profissional Independente'}
+                              </p>
+                              <button className="btn-primary" style={{ marginTop: '1rem', width: '100%' }}>
+                                {b.business_type === 'barbearia' ? 'Ver Equipe' : 'Agendar'}
+                              </button>
+                            </div>
+                          ))}
                       </div>
                     </>
                   ) : (
@@ -2300,20 +2303,23 @@ function App() {
                       </h2>
 
                       <div className="service-grid">
-                        {/* Listar Staff da Loja + O Próprio Dono se ele atender (opcional, aqui listando só quem tem ownerId da loja) */}
-                        {barbers.filter(b => b.ownerId === selectedShop.email).map(b => (
-                          <div
-                            key={b.email}
-                            className="glass-card service-card"
-                            onClick={() => setSelectedBarber(b)}
-                            style={{ textAlign: 'center' }}
-                          >
-                            <img src={b.picture} alt={b.name} style={{ width: '80px', height: '80px', borderRadius: '50%', margin: '0 auto 1rem', border: '2px solid var(--text-muted)' }} />
-                            <h3 style={{ fontSize: '1.2rem' }}>{b.name}</h3>
-                            <div style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 'bold', marginTop: '5px' }}>MEMBRO DA EQUIPE</div>
-                            <button className="btn-primary" style={{ marginTop: '1rem', width: '100%' }}>Escolher</button>
-                          </div>
-                        ))}
+                        {/* Listar Staff da Loja + O Próprio Dono se ele atender */}
+                        {barbers
+                          .filter(b => b.ownerId?.toLowerCase() === selectedShop.email?.toLowerCase() || b.email?.toLowerCase() === selectedShop.email?.toLowerCase())
+                          .sort((a, b) => (a.email?.toLowerCase() === selectedShop.email?.toLowerCase() ? -1 : 1))
+                          .map(b => (
+                            <div
+                              key={b.email}
+                              className="glass-card service-card"
+                              onClick={() => setSelectedBarber(b)}
+                              style={{ textAlign: 'center' }}
+                            >
+                              <img src={b.picture} alt={b.name} style={{ width: '80px', height: '80px', borderRadius: '50%', margin: '0 auto 1rem', border: '2px solid var(--text-muted)' }} />
+                              <h3 style={{ fontSize: '1.2rem' }}>{b.name}</h3>
+                              <div style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 'bold', marginTop: '5px' }}>MEMBRO DA EQUIPE</div>
+                              <button className="btn-primary" style={{ marginTop: '1rem', width: '100%' }}>Escolher</button>
+                            </div>
+                          ))}
                         {barbers.filter(b => b.ownerId === selectedShop.email).length === 0 && (
                           <p style={{ color: 'var(--text-muted)', textAlign: 'center', gridColumn: '1/-1' }}>Nenhum profissional cadastrado nesta equipe.</p>
                         )}
