@@ -47,6 +47,10 @@ function App() {
   const [barberFilter, setBarberFilter] = useState('all'); // all, individual, business
   const [masterFilter, setMasterFilter] = useState('all'); // all, individual, business
   const ENABLE_SIMULATION = false; // MANTENHA TRUE PARA VER A SIMULAÇÃO DOS 20 BARBEIROS
+
+  // Day Blocking Modal States
+  const [blockModalOpen, setBlockModalOpen] = useState(false);
+  const [blockConfig, setBlockConfig] = useState(null); // { isBlocking: boolean, date: Date }
   const [busySlots, setBusySlots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false); // Changed default to false
@@ -461,30 +465,31 @@ function App() {
     "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00"
   ];
 
-  const handleToggleFullDay = async () => {
-    if (!user?.isAdmin) return;
+  const handleToggleFullDay = () => {
+    if (!user?.isAdmin && !user?.isBarber) return;
     const isBlocking = busySlots.length < timeSlots.length;
-    const action = isBlocking ? 'bloquear o DIA TODO' : 'liberar o DIA TODO';
 
-    let scope = 'individual';
-    const isOwner = user?.isBarber && !user?.ownerId;
+    setBlockConfig({
+      isBlocking,
+      date: selectedDate
+    });
+    setBlockModalOpen(true);
+  };
 
-    if (isOwner) {
-      const choice = confirm(`Deseja ${action} SOMENTE PARA VOCÊ? \n\n(Clique em 'Cancelar' para aplicar a TODA A EQUIPE)`);
-      scope = choice ? 'individual' : 'shop';
-    } else {
-      if (!confirm(`Deseja ${action} para ${format(selectedDate, 'dd/MM/yyyy')}?`)) return;
-    }
+  const executeBlockDay = async (scope) => {
+    if (!blockConfig) return;
 
     setLoading(true);
+    setBlockModalOpen(false);
+
     try {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const dateStr = format(blockConfig.date, 'yyyy-MM-dd');
       const res = await fetch(`${API_URL}/admin/bulk-toggle-block`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           date: dateStr,
-          action: isBlocking ? 'block' : 'unblock',
+          action: blockConfig.isBlocking ? 'block' : 'unblock',
           adminEmail: user.email,
           times: timeSlots,
           scope
@@ -492,11 +497,23 @@ function App() {
       });
       const data = await res.json();
       if (data.error) alert(data.error);
-      await handleRefresh();
+
+      // Update UI
+      if (scope === 'shop' || !user.ownerId) {
+        // Force refresh for everyone logic if shop blocked
+        await handleRefresh();
+      } else {
+        fetchBusySlots(selectedDate, user);
+      }
+
+      alert(blockConfig.isBlocking ? '✅ Dia bloqueado com sucesso!' : '✅ Dia liberado com sucesso!');
+
     } catch (e) {
+      console.error(e);
       alert('Erro ao alterar o dia');
     } finally {
       setLoading(false);
+      setBlockConfig(null);
     }
   };
 
@@ -3025,6 +3042,96 @@ function App() {
           </div>
         )
       }
+
+
+      {/* Modal de Confirmação de Bloqueio de Dia */}
+      {blockModalOpen && blockConfig && (
+        <div className="modal-overlay" style={{ zIndex: 9999 }} onClick={() => setBlockModalOpen(false)}>
+          <div className="glass-card fade-in" style={{ width: '90%', maxWidth: '450px', padding: '2rem', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+            <div style={{ marginBottom: '1.5rem' }}>
+              {blockConfig.isBlocking ? (
+                <Lock size={48} style={{ color: 'var(--danger)', marginBottom: '1rem' }} />
+              ) : (
+                <CheckCircle size={48} style={{ color: 'var(--success)', marginBottom: '1rem' }} />
+              )}
+              <h2 style={{ marginBottom: '0.5rem', color: blockConfig.isBlocking ? 'var(--danger)' : 'var(--success)' }}>
+                {blockConfig.isBlocking ? 'Bloquear Agenda' : 'Liberar Agenda'}
+              </h2>
+              <p style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'white' }}>
+                {format(blockConfig.date, "dd 'de' MMMM", { locale: ptBR })}
+              </p>
+            </div>
+
+            <p style={{ marginBottom: '2rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+              Para quem você deseja aplicar esta ação?
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Opção 1: Individual */}
+              <button
+                className="action-item"
+                onClick={() => executeBlockDay('individual')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '15px',
+                  border: '1px solid var(--primary)',
+                  background: 'rgba(212, 175, 55, 0.1)',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s',
+                  textAlign: 'left'
+                }}
+              >
+                <div style={{ background: 'var(--primary)', padding: '8px', borderRadius: '50%', color: 'black', display: 'flex' }}>
+                  <User size={20} />
+                </div>
+                <div style={{ flex: 1, marginLeft: '15px' }}>
+                  <strong style={{ display: 'block', fontSize: '1rem', color: 'var(--primary)' }}>Apenas para Mim</strong>
+                  <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)' }}>Afeta somente seus horários</span>
+                </div>
+                <ChevronRight size={18} color="var(--primary)" />
+              </button>
+
+              {/* Opção 2: Barbearia (Apenas se for dono ou admin master) */}
+              {(!user.ownerId || user.isMaster) && (
+                <button
+                  className="action-item"
+                  onClick={() => executeBlockDay('shop')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '15px',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s',
+                    textAlign: 'left'
+                  }}
+                >
+                  <div style={{ background: 'rgba(255,255,255,0.2)', padding: '8px', borderRadius: '50%', color: 'white', display: 'flex' }}>
+                    <Users size={20} />
+                  </div>
+                  <div style={{ flex: 1, marginLeft: '15px' }}>
+                    <strong style={{ display: 'block', fontSize: '1rem', color: 'white' }}>Toda a Barbearia</strong>
+                    <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>Fecha a agenda de TODOS (Feriado/Folga)</span>
+                  </div>
+                  <ChevronRight size={18} color="rgba(255,255,255,0.5)" />
+                </button>
+              )}
+
+              <button
+                className="btn-close-sheet"
+                onClick={() => setBlockModalOpen(false)}
+                style={{ marginTop: '1rem', width: '100%', padding: '12px' }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
