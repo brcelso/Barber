@@ -1893,15 +1893,25 @@ function App() {
                       <div style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '1px solid var(--border)' }}>
                         <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Ou traga um barbeiro independente existente:</h3>
                         <div style={{ display: 'flex', gap: '10px' }}>
-                          <select id="recruitSelect" style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--border)' }}>
-                            <option value="">Selecione um barbeiro disponível...</option>
+                          <select id="recruitSelect" style={{
+                            flex: 1,
+                            padding: '10px',
+                            borderRadius: '8px',
+                            background: 'rgba(0,0,0,0.3)',
+                            color: 'white',
+                            border: '1px solid var(--border)',
+                            outline: 'none'
+                          }}>
+                            <option value="" style={{ background: '#1a1a1a', color: 'white' }}>Selecione um barbeiro disponível...</option>
                             {barbers
                               .filter(b => !b.ownerId && b.email?.toLowerCase() !== user.email?.toLowerCase())
                               .map(b => (
-                                <option key={b.email} value={b.email}>{b.name} ({b.email})</option>
+                                <option key={b.email} value={b.email} style={{ background: '#1a1a1a', color: 'white' }}>
+                                  {b.name} ({b.email})
+                                </option>
                               ))}
                           </select>
-                          <button onClick={handleRecruitBarber} className="btn-primary" style={{ background: 'var(--secondary)', border: 'none' }}>
+                          <button onClick={handleRecruitBarber} className="btn-primary" style={{ background: 'var(--secondary)', border: 'none', color: '#000', fontWeight: 'bold' }}>
                             Recrutar
                           </button>
                         </div>
