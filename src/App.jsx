@@ -1571,25 +1571,42 @@ function App() {
                         ) : masterUsers?.length > 0 ? (
                           Object.entries(
                             (masterUsers || []).reduce((acc, u) => {
-                              const key = u.shop_name || u.name;
-                              if (!acc[key]) acc[key] = [];
-                              acc[key].push(u);
+                              // Grupo Principal: D1 Database Users
+                              // 1. Identificar quem é o "Pai" (Dono da Loja)
+                              let groupEmail = u.owner_id ? u.owner_id.toLowerCase() : u.email.toLowerCase();
+
+                              // Se for usuário solto (não barbeiro), vai para um grupo "Clientes"
+                              if (!u.is_barber && !u.owner_id) {
+                                groupEmail = 'clientes_avulsos';
+                              }
+
+                              if (!acc[groupEmail]) {
+                                // Tenta achar o nome do dono na lista inteira
+                                const ownerObj = masterUsers.find(o => o.email.toLowerCase() === groupEmail);
+                                const ownerName = ownerObj ? (ownerObj.shop_name || ownerObj.name) : (groupEmail === 'clientes_avulsos' ? 'Clientes Avulsos' : 'Dono Desconhecido');
+
+                                acc[groupEmail] = {
+                                  name: ownerName,
+                                  users: []
+                                };
+                              }
+                              acc[groupEmail].users.push(u);
                               return acc;
                             }, {})
-                          ).map(([shopName, users]) => (
-                            <React.Fragment key={shopName}>
+                          ).map(([groupKey, group]) => (
+                            <React.Fragment key={groupKey}>
                               <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                 <td colSpan="6" style={{ padding: '15px 10px', color: 'var(--primary)', borderLeft: '2px solid var(--primary)' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <span style={{ fontSize: '1.1em' }}>🏢</span>
-                                    <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>{shopName}</span>
+                                    <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>{group.name || 'Dono Desconhecido'}</span>
                                     <span style={{ fontSize: '0.7rem', opacity: 0.6, background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '10px' }}>
-                                      {users.length} {users.length > 1 ? 'membros' : 'membro'}
+                                      {group.users.length} {group.users.length > 1 ? 'membros' : 'membro'}
                                     </span>
                                   </div>
                                 </td>
                               </tr>
-                              {users.map((u, idx) => (
+                              {group.users.map((u, idx) => (
                                 <tr key={u.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: idx % 2 === 0 ? 'rgba(0,0,0,0.1)' : 'transparent' }}>
                                   <td style={{ padding: '10px 10px 10px 25px' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '10px' }}>
@@ -1817,9 +1834,7 @@ function App() {
                 {/* SEÇÃO DE GESTÃO DE EQUIPE (Apenas para Dono da Barbearia) */}
                 {!user.ownerId && (
                   <div style={{ marginBottom: '2rem' }}>
-                    <div style={{ fontSize: '10px', color: 'red' }}>
-                      DEBUG: OwnerID={user.email} | FirstMemberOwner={barbers.find(b => b.name.includes('Ana'))?.ownerId}
-                    </div>
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                       <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <Users className="text-primary" /> Minha Equipe
