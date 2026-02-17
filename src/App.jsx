@@ -361,7 +361,15 @@ function App() {
       });
       if (res.ok) {
         const data = await res.json();
-        setBotSettings(data);
+        // Preencher com defaults se estiverem vazios para facilitar a edição
+        setBotSettings({
+          ...data,
+          welcome_message: data.welcome_message || `✅ *Agendamento Confirmado!* \n\nOlá {{user_name}}, seu horário para *{{service_name}}* com {{barber_name}} no dia *{{date}}* às *{{time}}* foi confirmado. \n\nTe esperamos lá! ✂️`,
+          msg_welcome: data.msg_welcome || `✨ *Bem-vindo(a)!* \n\nVocê está sendo atendido(a) por *{{establishment_name}}*. 📍\n\nO que deseja fazer?\n\n`,
+          msg_choose_barber: data.msg_choose_barber || `✨ *Bem-vindo(a) à {{establishment_name}}!* \n\nPara começar, selecione o *Profissional* desejado:\n\n`,
+          msg_choose_service: data.msg_choose_service || `📅 *Escolha o serviço:* \n`,
+          msg_confirm_booking: data.msg_confirm_booking || `📝 *Tudo pronto! Confirme:* \n\n👤 *Nome:* {{user_name}}\n📧 *E-mail:* {{user_email}}\n💇‍♂️ *Serviço:* {{service_name}}\n📅 *Data:* {{date}}\n⏰ *Hora:* {{time}}\n💈 *Barbeiro:* {{barber_name}}\n\n*1* - ✅ Confirmar\n*2* - ❌ Cancelar\n*3* - ✏️ Corrigir dados`
+        });
       }
     } catch (e) {
       console.error('Erro ao buscar configurações do robô');
@@ -2299,7 +2307,7 @@ function App() {
                           <textarea
                             value={botSettings.msg_welcome}
                             onChange={e => setBotSettings({ ...botSettings, msg_welcome: e.target.value })}
-                            placeholder="Ex: Olá! Você está na {{establishment_name}}. Como podemos ajudar?"
+                            placeholder="Ex: ✨ *Bem-vindo(a)!* \n\nVocê está sendo atendido(a) por *{{establishment_name}}*..."
                             style={{ width: '100%', height: '70px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '10px', borderRadius: '10px', resize: 'vertical', fontSize: '0.85rem' }}
                           />
                         </div>
@@ -2309,7 +2317,7 @@ function App() {
                           <textarea
                             value={botSettings.msg_choose_barber}
                             onChange={e => setBotSettings({ ...botSettings, msg_choose_barber: e.target.value })}
-                            placeholder="Ex: Selecione quem irá te atender hoje:"
+                            placeholder="Ex: ✨ *Bem-vindo(a) à {{establishment_name}}!* \n\nSelecione o Profissional:"
                             style={{ width: '100%', height: '70px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '10px', borderRadius: '10px', resize: 'vertical', fontSize: '0.85rem' }}
                           />
                         </div>
@@ -2319,7 +2327,7 @@ function App() {
                           <textarea
                             value={botSettings.msg_choose_service}
                             onChange={e => setBotSettings({ ...botSettings, msg_choose_service: e.target.value })}
-                            placeholder="Ex: Perfeito! Agora escolha o serviço desejado:"
+                            placeholder="Ex: 📅 *Escolha o serviço:* ..."
                             style={{ width: '100%', height: '70px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '10px', borderRadius: '10px', resize: 'vertical', fontSize: '0.85rem' }}
                           />
                         </div>
@@ -2329,7 +2337,7 @@ function App() {
                           <textarea
                             value={botSettings.msg_confirm_booking}
                             onChange={e => setBotSettings({ ...botSettings, msg_confirm_booking: e.target.value })}
-                            placeholder="Ex: Confira os dados do seu agendamento:"
+                            placeholder="Ex: 📝 *Tudo pronto! Confirme:* ..."
                             style={{ width: '100%', height: '70px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '10px', borderRadius: '10px', resize: 'vertical', fontSize: '0.85rem' }}
                           />
                         </div>
