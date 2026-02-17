@@ -1621,7 +1621,7 @@ function App() {
                                         placeholder="Nome"
                                         onBlur={(e) => {
                                           if (e.target.value !== (u.name || '')) {
-                                            handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: e.target.value, newEmail: u.email });
+                                            handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: e.target.value, newEmail: u.email, newShopName: u.shop_name });
                                           }
                                         }}
                                         style={{
@@ -1642,7 +1642,7 @@ function App() {
                                         placeholder="Email"
                                         onBlur={(e) => {
                                           if (e.target.value !== (u.email || '')) {
-                                            handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: u.name, newEmail: e.target.value });
+                                            handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: u.name, newEmail: e.target.value, newShopName: u.shop_name });
                                           }
                                         }}
                                         style={{
@@ -1656,6 +1656,29 @@ function App() {
                                           borderRadius: '8px'
                                         }}
                                       />
+                                      {u.role === 'owner' && (
+                                        <input
+                                          type="text"
+                                          defaultValue={u.shop_name || ''}
+                                          placeholder="Nome da Barbearia"
+                                          onBlur={(e) => {
+                                            if (e.target.value !== (u.shop_name || '')) {
+                                              handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newName: u.name, newEmail: u.email, newShopName: e.target.value });
+                                            }
+                                          }}
+                                          style={{
+                                            background: 'rgba(255,255,255,0.02)',
+                                            border: '1px solid var(--secondary)',
+                                            color: 'var(--secondary)',
+                                            fontSize: '0.7rem',
+                                            width: '100%',
+                                            outline: 'none',
+                                            padding: '4px 10px',
+                                            borderRadius: '8px',
+                                            marginTop: '4px'
+                                          }}
+                                        />
+                                      )}
                                     </div>
                                   </td>
                                   <td style={{ padding: '10px' }}>
@@ -1665,7 +1688,7 @@ function App() {
                                       placeholder="Sem tel"
                                       onBlur={(e) => {
                                         if (e.target.value !== (u.phone || '')) {
-                                          handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: e.target.value, newName: u.name, newEmail: u.email });
+                                          handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: e.target.value, newName: u.name, newEmail: u.email, newShopName: u.shop_name });
                                         }
                                       }}
                                       style={{
@@ -1687,7 +1710,7 @@ function App() {
                                           type="checkbox"
                                           defaultChecked={u.is_admin}
                                           disabled={u.email === 'celsosilvajunior90@gmail.com'}
-                                          onChange={(e) => handleMasterUpdate(u.email, { is_admin: e.target.checked, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone })}
+                                          onChange={(e) => handleMasterUpdate(u.email, { is_admin: e.target.checked, is_barber: u.is_barber, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newShopName: u.shop_name })}
                                           style={{ accentColor: 'var(--primary)', cursor: 'pointer' }}
                                         /> Adm
                                       </label>
@@ -1695,7 +1718,7 @@ function App() {
                                         <input
                                           type="checkbox"
                                           defaultChecked={u.is_barber}
-                                          onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: e.target.checked, expires: u.subscription_expires, plan: u.plan, phone: u.phone })}
+                                          onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: e.target.checked, expires: u.subscription_expires, plan: u.plan, phone: u.phone, newShopName: u.shop_name })}
                                           style={{ accentColor: 'var(--primary)', cursor: 'pointer' }}
                                         /> Barb
                                       </label>
@@ -1704,7 +1727,7 @@ function App() {
                                   <td style={{ padding: '10px' }}>
                                     <select
                                       value={u.plan || ''}
-                                      onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: e.target.value, phone: u.phone })}
+                                      onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: u.subscription_expires, plan: e.target.value, phone: u.phone, newShopName: u.shop_name })}
                                       style={{
                                         background: 'rgba(255,255,255,0.05)',
                                         border: '1px solid var(--border)',
@@ -1730,7 +1753,7 @@ function App() {
                                     <input
                                       type="date"
                                       value={u.subscription_expires ? u.subscription_expires.split('T')[0] : ''}
-                                      onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: e.target.value ? new Date(e.target.value).toISOString() : null, plan: u.plan, phone: u.phone })}
+                                      onChange={(e) => handleMasterUpdate(u.email, { is_admin: u.is_admin, is_barber: u.is_barber, expires: e.target.value ? new Date(e.target.value).toISOString() : null, plan: u.plan, phone: u.phone, newShopName: u.shop_name })}
                                       style={{
                                         background: 'rgba(255,255,255,0.05)',
                                         border: '1px solid var(--border)',

@@ -206,7 +206,7 @@ REGRAS DE RESPOSTA:
                 const email = request.headers.get('X-User-Email');
                 if (email !== MASTER_EMAIL) return json({ error: 'Unauthorized' }, 401);
 
-                const usersListing = await env.DB.prepare("SELECT email, name, phone, is_admin, is_barber, wa_status, wa_last_seen, subscription_expires, trial_used, plan, business_type, owner_id FROM users WHERE email != 'sistema@leoai.br' ORDER BY created_at DESC").all();
+                const usersListing = await env.DB.prepare("SELECT email, name, phone, is_admin, is_barber, wa_status, wa_last_seen, subscription_expires, trial_used, plan, business_type, owner_id, shop_name FROM users WHERE email != 'sistema@leoai.br' ORDER BY created_at DESC").all();
 
                 const now = new Date();
                 const results = usersListing.results.map(u => {
@@ -228,11 +228,11 @@ REGRAS DE RESPOSTA:
                 const email = request.headers.get('X-User-Email');
                 if (email !== MASTER_EMAIL) return json({ error: 'Unauthorized' }, 401);
 
-                const { targetEmail, is_admin, is_barber, expires, plan, phone, newName, newEmail } = await request.json();
+                const { targetEmail, is_admin, is_barber, expires, plan, phone, newName, newEmail, newShopName } = await request.json();
 
                 await env.DB.prepare(`
                     UPDATE users 
-                    SET is_admin = ?, is_barber = ?, subscription_expires = ?, plan = ?, phone = ?, name = ?, email = ?
+                    SET is_admin = ?, is_barber = ?, subscription_expires = ?, plan = ?, phone = ?, name = ?, email = ?, shop_name = ?
                     WHERE email = ?
                 `).bind(
                     is_admin ? 1 : 0,
@@ -242,6 +242,7 @@ REGRAS DE RESPOSTA:
                     phone || null,
                     newName || null,
                     newEmail || targetEmail,
+                    newShopName || null,
                     targetEmail
                 ).run();
 
@@ -415,7 +416,7 @@ REGRAS DE RESPOSTA:
 
             // Get All Barbers
             if (url.pathname === '/api/barbers' && request.method === 'GET') {
-                const barbers = await env.DB.prepare('SELECT email, name, picture, business_type, owner_id FROM users WHERE is_barber = 1').all();
+                const barbers = await env.DB.prepare('SELECT email, name, picture, business_type, owner_id, shop_name FROM users WHERE is_barber = 1').all();
                 const final = barbers.results.map(b => ({
                     ...b,
                     ownerId: b.owner_id // Map snake_case to camelCase
