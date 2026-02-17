@@ -466,26 +466,25 @@ REGRAS DE RESPOSTA:
             // Get Styles/Services (exclude internal 'block' service)
             if (url.pathname === '/api/services' && request.method === 'GET') {
                 const barberEmail = url.searchParams.get('barber_email');
-                let query = 'SELECT * FROM services WHERE id != ?';
-                let params = ['block'];
 
                 if (barberEmail) {
-                    query += ' AND (barber_email = ? OR barber_email IS NULL)';
-                    params.push(barberEmail);
-                }
+                    // First, try to get services specific to this barber
+                    let services = await env.DB.prepare('SELECT * FROM services WHERE id != ? AND barber_email = ?').bind('block', barberEmail).all();
 
-                let services = await env.DB.prepare(query).bind(...params).all();
-
-                // FALLBACK: If no services found for this barber specifically
-                if (barberEmail && services.results.length === 0) {
-                    const barber = await env.DB.prepare('SELECT owner_id FROM users WHERE email = ?').bind(barberEmail).first();
-                    if (barber && barber.owner_id) {
-                        const fallbackQuery = 'SELECT * FROM services WHERE id != ? AND (barber_email = ? OR barber_email IS NULL)';
-                        services = await env.DB.prepare(fallbackQuery).bind('block', barber.owner_id).all();
+                    // FALLBACK: If no services found for this barber, check if they're staff and use owner's services
+                    if (services.results.length === 0) {
+                        const barber = await env.DB.prepare('SELECT owner_id FROM users WHERE email = ?').bind(barberEmail).first();
+                        if (barber && barber.owner_id) {
+                            services = await env.DB.prepare('SELECT * FROM services WHERE id != ? AND barber_email = ?').bind('block', barber.owner_id).all();
+                        }
                     }
-                }
 
-                return json(services.results);
+                    return json(services.results);
+                } else {
+                    // No barber specified, return all services (excluding blocks)
+                    const services = await env.DB.prepare('SELECT * FROM services WHERE id != ?').bind('block').all();
+                    return json(services.results);
+                }
             }
 
             // Get All Barbers
