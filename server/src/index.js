@@ -749,8 +749,8 @@ REGRAS DE RESPOSTA:
             // Admin: Update Payment Manually (Fix mistakes)
             if (url.pathname === '/api/admin/appointments/update-payment' && request.method === 'POST') {
                 const { appointmentId, adminEmail, status, paymentId } = await request.json();
-                const admin = await env.DB.prepare('SELECT is_admin FROM users WHERE email = ?').bind(adminEmail).first();
-                if (!admin || admin.is_admin !== 1) return json({ error: 'Forbidden' }, 403);
+                const admin = await env.DB.prepare('SELECT is_admin, is_barber FROM users WHERE email = ?').bind(adminEmail).first();
+                if (!admin || (admin.is_admin !== 1 && admin.is_barber !== 1)) return json({ error: 'Forbidden' }, 403);
 
                 await env.DB.prepare(`
                     UPDATE appointments 
@@ -808,10 +808,10 @@ REGRAS DE RESPOSTA:
             // Update Appointment Status (General)
             if (url.pathname === '/api/appointments/update-status' && request.method === 'POST') {
                 const { appointmentId, status, userEmail } = await request.json();
-                const user = await env.DB.prepare('SELECT is_admin FROM users WHERE email = ?').bind(userEmail).first();
+                const user = await env.DB.prepare('SELECT is_admin, is_barber FROM users WHERE email = ?').bind(userEmail).first();
 
-                if (!user || user.is_admin !== 1) {
-                    return json({ error: 'Admin only' }, 403);
+                if (!user || (user.is_admin !== 1 && user.is_barber !== 1)) {
+                    return json({ error: 'Admin or Barber only' }, 403);
                 }
 
                 await env.DB.prepare('UPDATE appointments SET status = ? WHERE id = ?').bind(status, appointmentId).run();
