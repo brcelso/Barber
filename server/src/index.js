@@ -23,6 +23,21 @@ export default {
         }
 
         try {
+            // --- Schema Migration Check ---
+            try {
+                // Ensure columns exist in users table for bot templates
+                const colCheck = await env.DB.prepare('PRAGMA table_info(users)').all();
+                const cols = colCheck.results.map(r => r.name);
+                const newCols = ['msg_welcome', 'msg_choose_barber', 'msg_choose_service', 'msg_confirm_booking'];
+                for (const col of newCols) {
+                    if (!cols.includes(col)) {
+                        await env.DB.prepare(`ALTER TABLE users ADD COLUMN ${col} TEXT`).run();
+                    }
+                }
+            } catch (e) {
+                console.error('[Schema Migration] Failed:', e.message);
+            }
+
             // --- Helper: Notify WhatsApp (Custom Bridge Script) ---
             // --- Helper: Notify WhatsApp (Custom Bridge Script) ---
             const notifyWhatsApp = async (appointmentId, status) => {
@@ -991,7 +1006,7 @@ DIRETRIZES DE COMPORTAMENTO:
                     const userEmail = userInDb ? userInDb.email : (session ? session.user_email : null);
 
                     if (botBarberEmail) {
-                        const b = await env.DB.prepare('SELECT email, name, business_type, shop_name FROM users WHERE email = ?').bind(botBarberEmail).first();
+                        const b = await env.DB.prepare('SELECT email, name, business_type, shop_name, msg_welcome, msg_choose_barber FROM users WHERE email = ?').bind(botBarberEmail).first();
 
                         if (b) {
                             const establishmentName = b.shop_name || b.name;
@@ -1002,7 +1017,9 @@ DIRETRIZES DE COMPORTAMENTO:
 
                                 if (team.results.length > 1) {
                                     await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email) VALUES (?, "awaiting_barber", ?)').bind(from, userEmail).run();
-                                    let msg = `✨ *Bem-vindo(a) à ${establishmentName}!* \n\nPara começar, selecione o *Profissional* desejado:\n\n`;
+
+                                    let msg = b.msg_choose_barber || `✨ *Bem-vindo(a) à {{establishment_name}}!* \n\nPara começar, selecione o *Profissional* desejado:\n\n`;
+                                    msg = msg.replace(/{{establishment_name}}/g, establishmentName);
                                     // Ordenar para o dono (b.email) aparecer primeiro
                                     const sortedTeam = team.results.sort((x, y) => x.email === botBarberEmail ? -1 : 1);
                                     sortedTeam.forEach((member, i) => { msg += `*${i + 1}* - ${member.name}\n`; });
@@ -1015,7 +1032,8 @@ DIRETRIZES DE COMPORTAMENTO:
 
                             // Fluxo Direto (Individual ou Loja com 1 pessoa)
                             await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email, selected_barber_email) VALUES (?, "main_menu", ?, ?)').bind(from, userEmail, b.email).run();
-                            let msg = `✨ *Bem-vindo(a)!* \n\nVocê está sendo atendido(a) por *${establishmentName}*. 📍\n\nO que deseja fazer?\n\n`;
+                            let msgTemplate = b.msg_welcome || `✨ *Bem-vindo(a)!* \n\nVocê está sendo atendido(a) por *{{establishment_name}}*. 📍\n\nO que deseja fazer?\n\n`;
+                            let msg = msgTemplate.replace(/{{establishment_name}}/g, establishmentName);
                             msg += "1️⃣ - Agendar novo horário\n";
                             msg += "2️⃣ - Meus Agendamentos (Ver/Cancelar)\n";
                             msg += "3️⃣ - Dúvidas (Falar com Assistente IA)\n";
@@ -1114,7 +1132,8 @@ DIRETRIZES DE COMPORTAMENTO:
                             await sendMessage(from, "❌ Este barbeiro ainda não cadastrou serviços. Escolha outro ou digite 'Menu'.");
                             return json({ success: true });
                         }
-                        let msg = "📅 *Escolha o serviço:* \n";
+                        const b = await env.DB.prepare('SELECT msg_choose_service FROM users WHERE email = ?').bind(session.selected_barber_email).first();
+                        let msg = b?.msg_choose_service || "📅 *Escolha o serviço:* \n";
                         services.results.forEach((s, i) => { msg += `\n*${i + 1}* - ${s.name} (R$ ${s.price})`; });
                         msg += "\n\nOu digite 'Menu' para voltar.";
 
@@ -1324,9 +1343,16 @@ DIRETRIZES DE COMPORTAMENTO:
                     await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_confirmation", user_email = ? WHERE phone = ?').bind(email, from).run();
 
                     const s = await env.DB.prepare('SELECT name FROM services WHERE id = ?').bind(session.service_id).first();
-                    const barber = await env.DB.prepare('SELECT name FROM users WHERE email = ?').bind(session.selected_barber_email).first();
+                    const b = await env.DB.prepare('SELECT name, msg_confirm_booking FROM users WHERE email = ?').bind(session.selected_barber_email).first();
 
-                    await sendMessage(from, `📝 *Tudo pronto! Confirme:* \n\n👤 *Nome:* ${userName}\n📧 *E-mail:* ${email}\n💇‍♂️ *Serviço:* ${s.name}\n📅 *Data:* ${session.appointment_date}\n⏰ *Hora:* ${session.appointment_time}\n💈 *Barbeiro:* ${barber?.name || 'Barbearia'}\n\n*1* - ✅ Confirmar\n*2* - ❌ Cancelar\n*3* - ✏️ Corrigir dados`);
+                    let confirmMsg = b?.msg_confirm_booking || `📝 *Tudo pronto! Confirme:* \n\n👤 *Nome:* ${userName}\n📧 *E-mail:* ${email}\n💇‍♂️ *Serviço:* {{service_name}}\n📅 *Data:* {{date}}\n⏰ *Hora:* {{time}}\n💈 *Barbeiro:* {{barber_name}}\n\n*1* - ✅ Confirmar\n*2* - ❌ Cancelar\n*3* - ✏️ Corrigir dados`;
+                    confirmMsg = confirmMsg
+                        .replace(/{{service_name}}/g, s.name)
+                        .replace(/{{date}}/g, session.appointment_date)
+                        .replace(/{{time}}/g, session.appointment_time)
+                        .replace(/{{barber_name}}/g, b?.name || 'Barbearia');
+
+                    await sendMessage(from, confirmMsg);
                     return json({ success: true });
                 }
 
@@ -1451,7 +1477,7 @@ DIRETRIZES DE COMPORTAMENTO:
             // Admin: Get Bot Settings
             if (url.pathname === '/api/admin/bot/settings' && request.method === 'GET') {
                 const email = request.headers.get('X-User-Email');
-                const user = await env.DB.prepare('SELECT bot_name, business_type, bot_tone, welcome_message FROM users WHERE email = ?').bind(email).first();
+                const user = await env.DB.prepare('SELECT bot_name, business_type, bot_tone, welcome_message, msg_welcome, msg_choose_barber, msg_choose_service, msg_confirm_booking FROM users WHERE email = ?').bind(email).first();
                 if (!user) return json({ error: 'User not found' }, 404);
                 return json(user);
             }
@@ -1459,17 +1485,22 @@ DIRETRIZES DE COMPORTAMENTO:
             // Admin: Update Bot Settings
             if (url.pathname === '/api/admin/bot/settings' && request.method === 'POST') {
                 const email = request.headers.get('X-User-Email');
-                const { bot_name, business_type, bot_tone, welcome_message } = await request.json();
+                const { bot_name, business_type, bot_tone, welcome_message, msg_welcome, msg_choose_barber, msg_choose_service, msg_confirm_booking } = await request.json();
 
                 await env.DB.prepare(`
                     UPDATE users 
-                    SET bot_name = ?, business_type = ?, bot_tone = ?, welcome_message = ?
+                    SET bot_name = ?, business_type = ?, bot_tone = ?, welcome_message = ?, 
+                        msg_welcome = ?, msg_choose_barber = ?, msg_choose_service = ?, msg_confirm_booking = ?
                     WHERE email = ?
                 `).bind(
                     bot_name || 'Leo',
                     business_type || 'barbearia',
                     bot_tone || 'prestativo e amigável',
                     welcome_message || 'Olá {{user_name}}, seu horário para *{{service_name}}* foi confirmado!',
+                    msg_welcome || null,
+                    msg_choose_barber || null,
+                    msg_choose_service || null,
+                    msg_confirm_booking || null,
                     email
                 ).run();
 

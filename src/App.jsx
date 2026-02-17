@@ -70,6 +70,7 @@ function App() {
     msg_choose_service: '',
     msg_confirm_booking: ''
   });
+  const [adminTab, setAdminTab] = useState('agenda'); // agenda, team, bot, master
 
 
   // Auto-scroll when editing
@@ -1515,8 +1516,114 @@ function App() {
 
         {view === 'admin' && (user?.isAdmin || user?.isBarber) && (
           <main className="fade-in">
-            {/* MASTER PANEL: Painel de Controle Global */}
-            {user?.isMaster && (
+            {/* Tab Navigation */}
+            <div className="glass-card" style={{
+              display: 'flex',
+              gap: '5px',
+              padding: '6px',
+              marginBottom: '2rem',
+              borderRadius: '15px',
+              overflowX: 'auto',
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid var(--border)',
+              position: 'sticky',
+              top: '70px',
+              zIndex: 10
+            }}>
+              <button
+                onClick={() => setAdminTab('agenda')}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: adminTab === 'agenda' ? 'var(--primary)' : 'transparent',
+                  color: adminTab === 'agenda' ? 'black' : 'white',
+                  fontWeight: 800,
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s'
+                }}
+              >
+                <Calendar size={16} /> AGENDA
+              </button>
+              <button
+                onClick={() => setAdminTab('team')}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: adminTab === 'team' ? 'var(--primary)' : 'transparent',
+                  color: adminTab === 'team' ? 'black' : 'white',
+                  fontWeight: 800,
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s'
+                }}
+              >
+                <Users size={16} /> EQUIPE
+              </button>
+              <button
+                onClick={() => setAdminTab('bot')}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: adminTab === 'bot' ? 'var(--primary)' : 'transparent',
+                  color: adminTab === 'bot' ? 'black' : 'white',
+                  fontWeight: 800,
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s'
+                }}
+              >
+                <MessageSquare size={16} /> ROBÔ AI
+              </button>
+              {user?.isMaster && (
+                <button
+                  onClick={() => setAdminTab('master')}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: adminTab === 'master' ? 'var(--primary)' : 'transparent',
+                    color: adminTab === 'master' ? 'black' : 'white',
+                    fontWeight: 800,
+                    fontSize: '0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s'
+                  }}
+                >
+                  <Activity size={16} /> MASTER
+                </button>
+              )}
+            </div>
+
+            {/* MASTER PANEL */}
+            {user?.isMaster && adminTab === 'master' && (
               <div style={{ marginBottom: '2rem' }}>
                 <div className="glass-card" style={{ padding: '2rem', border: '1px solid var(--primary)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -1903,7 +2010,7 @@ function App() {
               </div>
             )}
 
-            {user?.isBarber && (
+            {user?.isBarber && adminTab === 'team' && (
               <>
                 {/* SEÇÃO DE GESTÃO DE EQUIPE (Apenas para Dono da Barbearia) */}
                 {!user.ownerId && (
@@ -2005,6 +2112,12 @@ function App() {
                     </div>
                   </div>
                 )}
+              </>
+            )}
+
+
+            {user?.isBarber && adminTab === 'agenda' && (
+              <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                   <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <History className="text-primary" /> Agendamentos Ativos
@@ -2126,7 +2239,11 @@ function App() {
                     * Clique nos horários para bloqueá-los (dourado) ou liberá-los. Horários acinzentados já possuem agendamentos.
                   </p>
                 </div>
+              </>
+            )}
 
+            {user?.isBarber && adminTab === 'bot' && (
+              <>
                 <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem', border: waStatus.status === 'connected' ? '1px solid #2ecc71' : '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                     <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -2359,8 +2476,9 @@ function App() {
                 </div>
 
               </>
-            )}
-          </main>
+            )
+            }
+          </main >
         )
         }
 
@@ -2702,99 +2820,103 @@ function App() {
         }
 
         {/* Fechamento do Container principal */}
-      </div>
+      </div >
 
       {renderActionSheet()}
 
-      {paymentSelectionAppt && (
-        <div className="bottom-sheet-overlay" onClick={() => setPaymentSelectionAppt(null)}>
-          <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
-            <div className="sheet-header"></div>
-            <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--primary)' }}>Como deseja pagar?</h3>
-            <div className="action-list">
-              <button className="action-item" onClick={() => processPayment('real')}>
-                <div style={{ background: 'rgba(212, 175, 55, 0.1)', padding: '10px', borderRadius: '12px' }}>
-                  <CreditCard size={24} color="var(--primary)" />
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontWeight: 800 }}>Pagar com Mercado Pago</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>PIX ou Cartão de Crédito</div>
-                </div>
-              </button>
-
-              {(user?.isAdmin || user?.isBarber) && paymentSelectionAppt?.source === 'admin' && (
-                <button className="action-item" style={{ borderColor: 'rgba(46, 204, 113, 0.2)' }} onClick={() => processPayment('local')}>
-                  <div style={{ background: 'rgba(46, 204, 113, 0.1)', padding: '10px', borderRadius: '12px' }}>
-                    <Shield size={24} color="#2ecc71" />
+      {
+        paymentSelectionAppt && (
+          <div className="bottom-sheet-overlay" onClick={() => setPaymentSelectionAppt(null)}>
+            <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
+              <div className="sheet-header"></div>
+              <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--primary)' }}>Como deseja pagar?</h3>
+              <div className="action-list">
+                <button className="action-item" onClick={() => processPayment('real')}>
+                  <div style={{ background: 'rgba(212, 175, 55, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                    <CreditCard size={24} color="var(--primary)" />
                   </div>
                   <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 800, color: '#2ecc71' }}>Pagamento no Local</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Registrar pagamento manual</div>
+                    <div style={{ fontWeight: 800 }}>Pagar com Mercado Pago</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>PIX ou Cartão de Crédito</div>
                   </div>
                 </button>
-              )}
 
-              {(user?.isAdmin || user?.isBarber) && paymentSelectionAppt?.source === 'admin' && (
-                <button className="action-item" style={{ opacity: 0.5 }} onClick={() => processPayment('mock')}>
-                  <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '10px', borderRadius: '12px' }}>
-                    <RefreshCw size={24} color="white" />
-                  </div>
-                  <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 800 }}>Simular Online</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Apenas para teste rápido (Admin)</div>
-                  </div>
+                {(user?.isAdmin || user?.isBarber) && paymentSelectionAppt?.source === 'admin' && (
+                  <button className="action-item" style={{ borderColor: 'rgba(46, 204, 113, 0.2)' }} onClick={() => processPayment('local')}>
+                    <div style={{ background: 'rgba(46, 204, 113, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                      <Shield size={24} color="#2ecc71" />
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontWeight: 800, color: '#2ecc71' }}>Pagamento no Local</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Registrar pagamento manual</div>
+                    </div>
+                  </button>
+                )}
+
+                {(user?.isAdmin || user?.isBarber) && paymentSelectionAppt?.source === 'admin' && (
+                  <button className="action-item" style={{ opacity: 0.5 }} onClick={() => processPayment('mock')}>
+                    <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '10px', borderRadius: '12px' }}>
+                      <RefreshCw size={24} color="white" />
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontWeight: 800 }}>Simular Online</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Apenas para teste rápido (Admin)</div>
+                    </div>
+                  </button>
+                )}
+
+                <button className="btn-close-sheet" onClick={() => setPaymentSelectionAppt(null)}>
+                  Fechar
                 </button>
-              )}
-
-              <button className="btn-close-sheet" onClick={() => setPaymentSelectionAppt(null)}>
-                Fechar
-              </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
-      {showPlanSelection && (
-        <div className="modal-overlay" onClick={() => setShowPlanSelection(false)}>
-          <div className="glass-card fade-in" style={{ width: '90%', maxWidth: '450px', padding: '2rem' }} onClick={e => e.stopPropagation()}>
-            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              <Shield size={48} className="text-primary" style={{ marginBottom: '1rem' }} />
-              <h2>Escolha seu Plano</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Selecione o plano ideal para sua barbearia</p>
-            </div>
+      {
+        showPlanSelection && (
+          <div className="modal-overlay" onClick={() => setShowPlanSelection(false)}>
+            <div className="glass-card fade-in" style={{ width: '90%', maxWidth: '450px', padding: '2rem' }} onClick={e => e.stopPropagation()}>
+              <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                <Shield size={48} className="text-primary" style={{ marginBottom: '1rem' }} />
+                <h2>Escolha seu Plano</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Selecione o plano ideal para sua barbearia</p>
+              </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <div className="action-item" onClick={() => handleSubscriptionPayment('pro')} style={{ cursor: 'pointer', border: '1px solid var(--primary)', background: 'rgba(212, 175, 55, 0.05)' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 800, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    Pro AI <span style={{ fontSize: '0.6rem', background: 'var(--primary)', color: 'black', padding: '2px 6px', borderRadius: '4px' }}>POPULAR</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <div className="action-item" onClick={() => handleSubscriptionPayment('pro')} style={{ cursor: 'pointer', border: '1px solid var(--primary)', background: 'rgba(212, 175, 55, 0.05)' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 800, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      Pro AI <span style={{ fontSize: '0.6rem', background: 'var(--primary)', color: 'black', padding: '2px 6px', borderRadius: '4px' }}>POPULAR</span>
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Mestre Leo AI + Pagamentos</div>
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Mestre Leo AI + Pagamentos</div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 119,90</div>
+                    <div style={{ fontSize: '0.7rem' }}>/mês</div>
+                  </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 119,90</div>
-                  <div style={{ fontSize: '0.7rem' }}>/mês</div>
-                </div>
-              </div>
 
-              <div className="action-item" onClick={() => handleSubscriptionPayment('business')} style={{ cursor: 'pointer', border: '1px solid var(--border)' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>Barber Shop</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Múltiplos Barbeiros + Equipes</div>
+                <div className="action-item" onClick={() => handleSubscriptionPayment('business')} style={{ cursor: 'pointer', border: '1px solid var(--border)' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>Barber Shop</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Múltiplos Barbeiros + Equipes</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 189,90</div>
+                    <div style={{ fontSize: '0.7rem' }}>/mês</div>
+                  </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 900, color: 'var(--primary)' }}>R$ 189,90</div>
-                  <div style={{ fontSize: '0.7rem' }}>/mês</div>
-                </div>
-              </div>
 
-              <button className="btn-close-sheet" onClick={() => setShowPlanSelection(false)} style={{ marginTop: '1rem' }}>
-                Cancelar
-              </button>
+                <button className="btn-close-sheet" onClick={() => setShowPlanSelection(false)} style={{ marginTop: '1rem' }}>
+                  Cancelar
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </>
   );
 }
