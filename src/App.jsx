@@ -798,6 +798,23 @@ function App() {
     finally { setLoading(false); }
   };
 
+  const fetchUserData = async () => {
+    if (!user?.email) return;
+    try {
+      const res = await fetch(`${API_URL}/auth/me`, { headers: { 'X-User-Email': user.email } });
+      if (res.ok) {
+        const userData = await res.json();
+        // Merge existing user data (like photo from Google) with new backend data
+        const updatedUser = { ...user, ...userData };
+        setUser(updatedUser);
+        localStorage.setItem('barber_user', JSON.stringify(updatedUser));
+        console.log('👤 Perfil atualizado:', userData.isStaff ? 'Staff' : 'Owner');
+      }
+    } catch (e) {
+      console.error('Erro ao atualizar perfil:', e);
+    }
+  };
+
   const handleRefresh = async () => {
     setLoading(true);
 
@@ -806,6 +823,9 @@ function App() {
       setAdminAppointments([]);
     }
     setAppointments([]);
+
+    // Refresh User Data FIRST to ensure permissions are correct
+    await fetchUserData();
 
     const ts = Date.now(); // Cache-busting timestamp
     const promises = [
@@ -1593,7 +1613,8 @@ function App() {
               >
                 <Users size={16} /> EQUIPE
               </button>
-              {!user?.ownerId && (
+              {/* Hide AI Bot Tab for Staff */}
+              {!user?.ownerId && !user?.isStaff && (
                 <button
                   onClick={() => setAdminTab('bot')}
                   style={{

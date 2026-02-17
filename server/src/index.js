@@ -214,7 +214,48 @@ REGRAS DE RESPOSTA:
                     isMaster: email === MASTER_EMAIL,
                     plan: activePlan,
                     isBarber: user.is_barber === 1,
-                    isStaff: isStaff
+                    isStaff: isStaff,
+                    ownerId: user.owner_id, // Return owner_id so frontend knows who the boss is
+                    ownerEmail: user.owner_id // Alias for clarity if needed
+                });
+            }
+
+            // Get Current User Data (Refresh Profile)
+            if (url.pathname === '/api/auth/me' && request.method === 'GET') {
+                const email = request.headers.get('X-User-Email');
+                const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
+                if (!user) return json({ error: 'User not found' }, 404);
+
+                const now = new Date();
+                let expiresStr = user.subscription_expires;
+                let activePlan = user.plan;
+                let isStaff = !!user.owner_id;
+
+                // INHERITANCE LOGIC
+                if (isStaff) {
+                    const owner = await env.DB.prepare('SELECT subscription_expires, plan FROM users WHERE email = ?').bind(user.owner_id).first();
+                    expiresStr = owner?.subscription_expires;
+                    activePlan = 'Barber Shop (Staff)';
+                } else if (user.business_type === 'barbearia') {
+                    activePlan = 'Barber Shop';
+                }
+
+                let expires = expiresStr ? new Date(expiresStr) : new Date();
+                const diffTime = expires - now;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                return json({
+                    ...user, // Return full user object
+                    daysLeft: Math.max(0, diffDays),
+                    expires: expiresStr,
+                    isActive: diffTime > 0,
+                    trialUsed: !!user.trial_used,
+                    isMaster: email === MASTER_EMAIL,
+                    plan: activePlan,
+                    isBarber: user.is_barber === 1,
+                    isStaff: isStaff,
+                    ownerId: user.owner_id,
+                    ownerEmail: user.owner_id
                 });
             }
 
