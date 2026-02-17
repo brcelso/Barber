@@ -1895,23 +1895,36 @@ function App() {
                         <div style={{ display: 'flex', gap: '10px' }}>
                           <select id="recruitSelect" style={{
                             flex: 1,
-                            padding: '10px',
-                            borderRadius: '8px',
-                            background: 'rgba(0,0,0,0.3)',
+                            padding: '12px',
+                            borderRadius: '10px',
+                            background: '#1a1a1a',
                             color: 'white',
-                            border: '1px solid var(--border)',
-                            outline: 'none'
+                            border: '1px solid var(--primary)',
+                            outline: 'none',
+                            fontSize: '0.9rem'
                           }}>
-                            <option value="" style={{ background: '#1a1a1a', color: 'white' }}>Selecione um barbeiro disponível...</option>
+                            <option value="" style={{ background: '#1a1a1a', color: '#888' }}>Selecione um barbeiro disponível...</option>
                             {barbers
                               .filter(b => !b.ownerId && b.email?.toLowerCase() !== user.email?.toLowerCase())
                               .map(b => (
                                 <option key={b.email} value={b.email} style={{ background: '#1a1a1a', color: 'white' }}>
-                                  {b.name} ({b.email})
+                                  {b.name} — ({b.email})
                                 </option>
                               ))}
                           </select>
-                          <button onClick={handleRecruitBarber} className="btn-primary" style={{ background: 'var(--secondary)', border: 'none', color: '#000', fontWeight: 'bold' }}>
+                          <button
+                            onClick={handleRecruitBarber}
+                            className="btn-primary"
+                            style={{
+                              background: 'var(--primary)',
+                              border: 'none',
+                              color: 'black',
+                              fontWeight: '900',
+                              padding: '0 25px',
+                              height: '46px',
+                              boxShadow: '0 4px 15px rgba(212, 175, 55, 0.3)'
+                            }}
+                          >
                             Recrutar
                           </button>
                         </div>
