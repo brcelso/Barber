@@ -800,16 +800,24 @@ function App() {
 
   const handleRefresh = async () => {
     setLoading(true);
+
+    // Force a brief state reset to ensure re-render
+    if (user?.isAdmin || user?.isBarber) {
+      setAdminAppointments([]);
+    }
+    setAppointments([]);
+
     const ts = Date.now(); // Cache-busting timestamp
     const promises = [
       fetchServices(ts),
       fetchAppointments(ts),
     ];
 
-    if (user?.isAdmin) {
+    if (user?.isAdmin || user?.isBarber) {
       promises.push(fetchAdminAppointments(ts));
       promises.push(fetchSubscription(ts));
       promises.push(fetchWaStatus());
+      promises.push(fetchBotSettings());
     }
 
     if (user?.isMaster) {
@@ -822,10 +830,10 @@ function App() {
 
     try {
       await Promise.all(promises);
-      console.log('Dados atualizados:', new Date().toLocaleTimeString());
+      console.log('✅ Dados atualizados:', new Date().toLocaleTimeString());
     } catch (e) {
-      console.error('Erro na sincronização:', e);
-      // Fallback option: window.location.reload();
+      console.error('❌ Erro na sincronização:', e);
+      alert('Erro ao atualizar dados. Tente novamente.');
     } finally {
       setLoading(false);
     }
