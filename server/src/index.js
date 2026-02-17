@@ -1312,7 +1312,16 @@ DIRETRIZES DE COMPORTAMENTO:
 
                 // 4. AWAITING SERVICE
                 if (session.state === 'awaiting_service') {
-                    const services = await env.DB.prepare('SELECT * FROM services WHERE barber_email = ? AND id != "block"').bind(session.selected_barber_email).all();
+                    let services = await env.DB.prepare('SELECT * FROM services WHERE barber_email = ? AND id != "block"').bind(session.selected_barber_email).all();
+
+                    // FALLBACK: If no services for this barber, try to get from the owner
+                    if (services.results.length === 0) {
+                        const barber = await env.DB.prepare('SELECT owner_id FROM users WHERE email = ?').bind(session.selected_barber_email).first();
+                        if (barber && barber.owner_id) {
+                            services = await env.DB.prepare('SELECT * FROM services WHERE barber_email = ? AND id != "block"').bind(barber.owner_id).all();
+                        }
+                    }
+
                     if (isNaN(parseInt(text)) || parseInt(text) < 1 || parseInt(text) > services.results.length) {
                         await sendMessage(from, "⚠️ Opção inválida! Digite apenas o NÚMERO do serviço desejado (ex: 1).");
                         return json({ success: true });
