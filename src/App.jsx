@@ -1817,6 +1817,9 @@ function App() {
                 {/* SEÇÃO DE GESTÃO DE EQUIPE (Apenas para Dono da Barbearia) */}
                 {!user.ownerId && (
                   <div style={{ marginBottom: '2rem' }}>
+                    <div style={{ fontSize: '10px', color: 'red' }}>
+                      DEBUG: OwnerID={user.email} | FirstMemberOwner={barbers.find(b => b.name.includes('Ana'))?.ownerId}
+                    </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                       <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <Users className="text-primary" /> Minha Equipe
