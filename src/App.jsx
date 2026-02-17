@@ -1590,6 +1590,13 @@ function App() {
                                   users: []
                                 };
                               }
+                              // Definir papel (role) para a UI
+                              if (u.is_barber) {
+                                u.role = u.owner_id ? 'barber' : 'owner';
+                              } else {
+                                u.role = 'client';
+                              }
+
                               acc[groupEmail].users.push(u);
                               return acc;
                             }, {})
