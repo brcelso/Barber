@@ -1625,7 +1625,7 @@ function App() {
             {/* MASTER PANEL */}
             {user?.isMaster && adminTab === 'master' && (
               <div style={{ marginBottom: '2rem' }}>
-                <div className="glass-card" style={{ padding: '2rem', border: '1px solid var(--primary)' }}>
+                <div className="glass-card" style={{ border: '1px solid var(--primary)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                     <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <Activity className="text-primary" size={24} /> Centro de Controle Master
@@ -1659,7 +1659,7 @@ function App() {
                   </div>
 
                   {masterStats && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
                       <div className="glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
                         <Users size={20} className="text-primary" />
                         <div style={{ fontSize: '1.2rem', fontWeight: 900, marginTop: '5px' }}>{masterStats?.totalUsers?.count || 0}</div>
@@ -2025,7 +2025,7 @@ function App() {
                       </div>
                     </div>
 
-                    <div className="glass-card" style={{ padding: '2rem' }}>
+                    <div className="glass-card">
                       <form onSubmit={handleAddTeamMember} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'end', marginBottom: '2rem', borderBottom: '1px solid var(--border)', paddingBottom: '2rem' }}>
                         <div style={{ flex: 1, minWidth: '200px' }}>
                           <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Nome do Profissional</label>
@@ -2244,7 +2244,7 @@ function App() {
 
             {user?.isBarber && adminTab === 'bot' && (
               <>
-                <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem', border: waStatus.status === 'connected' ? '1px solid #2ecc71' : '1px solid var(--border)' }}>
+                <div className="glass-card" style={{ marginBottom: '2rem', border: waStatus.status === 'connected' ? '1px solid #2ecc71' : '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                     <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <MessageSquare className="text-primary" size={24} /> Robô de WhatsApp
@@ -2358,12 +2358,12 @@ function App() {
                   </div>
                 </div>
 
-                <div className="glass-card" style={{ padding: '2rem', marginBottom: '3rem' }}>
+                <div className="glass-card" style={{ marginBottom: '3rem' }}>
                   <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
                     <Scissors className="text-primary" size={24} /> Personalização do Robô & Negócio
                   </h2>
 
-                  <form onSubmit={handleUpdateBotSettings} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+                  <form onSubmit={handleUpdateBotSettings} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '20px' }}>
                     <div className="input-field">
                       <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Nome do Robô / Assistente</label>
                       <input
@@ -2413,12 +2413,12 @@ function App() {
                       </p>
                     </div>
 
-                    <div style={{ gridColumn: '1 / -1', marginTop: '20px', padding: '15px', background: 'rgba(255,255,255,0.02)', borderRadius: '15px', border: '1px solid var(--border)' }}>
+                    <div style={{ gridColumn: '1 / -1', marginTop: '20px', padding: 'clamp(10px, 3vw, 15px)', background: 'rgba(255,255,255,0.02)', borderRadius: '15px', border: '1px solid var(--border)' }}>
                       <h4 style={{ fontSize: '0.85rem', marginBottom: '1rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <MessageSquare size={16} /> Mensagens do Fluxo de Agendamento
                       </h4>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '15px' }}>
                         <div className="input-field">
                           <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>1. Saudação Inicial (Bem-vindo)</label>
                           <textarea
