@@ -107,9 +107,10 @@ async function connectToWhatsApp(email) {
 
             axios.post(STATUS_URL, { email, status: 'disconnected', reason }).catch(() => { });
 
-            if (reason === DisconnectReason.loggedOut) {
+            if (reason === DisconnectReason.loggedOut || reason === DisconnectReason.connectionReplaced) {
                 sessions.delete(email);
-                console.log(`[Session] (${email}) LogOUT - Removendo sessão.`);
+                const msg = reason === DisconnectReason.loggedOut ? 'LogOUT - Removendo sessão.' : 'Conexão Substituída - Outro dispositivo conectou.';
+                console.log(`[Session] (${email}) ${msg}`);
             } else {
                 // Só reconecta se a sessão ainda existir no mapa (ou seja, não foi removida manualmente pelo /stop)
                 // E SE NÃO TIVER FLAG DE PARADA
@@ -123,7 +124,7 @@ async function connectToWhatsApp(email) {
                         }
                     }, 5000);
                 } else {
-                    console.log(`[Session] (${email}) Desconexão manual confirmada. Não reconectando.`);
+                    console.log(`[Session] (${email}) Desconexão manual ou substituída confirmada. Não reconectando.`);
                 }
             }
         } else if (connection === 'open') {
