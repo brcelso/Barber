@@ -461,7 +461,7 @@ REGRAS DE RESPOSTA:
                 try {
                     await env.DB.prepare(`
                         INSERT INTO users (email, name, is_admin, is_barber, owner_id, business_type, picture, created_at)
-                        VALUES (?, ?, 0, 1, ?, 'staff', ?, CURRENT_TIMESTAMP)
+                        VALUES (?, ?, 1, 1, ?, 'staff', ?, CURRENT_TIMESTAMP)
                     `).bind(
                         email,
                         name,

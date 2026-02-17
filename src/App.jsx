@@ -1502,7 +1502,7 @@ function App() {
               <img src={user.picture} alt={user.name} />
             </div>
 
-            {!user.isAdmin && (
+            {!user.isAdmin && !user.isBarber && (
               <button
                 className="btn-primary"
                 style={{ fontSize: '0.7rem', padding: '5px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--primary)', color: 'var(--primary)' }}
