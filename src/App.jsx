@@ -2047,106 +2047,158 @@ function App() {
 
             {user?.isBarber && adminTab === 'team' && (
               <>
-                {/* SEÇÃO DE GESTÃO DE EQUIPE (Apenas para Dono da Barbearia) */}
-                {!user.ownerId && (
-                  <div style={{ marginBottom: '2rem' }}>
+                {/* SEÇÃO DE GESTÃO DE EQUIPE - Owners: Full Control, Staff: Read-only */}
+                <div style={{ marginBottom: '2rem' }}>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                      <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <Users className="text-primary" /> Minha Equipe
-                      </h2>
-                      <div className="glass-card" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-                        <span className="text-primary" style={{ fontWeight: 800 }}>{barbers.filter(b => b.ownerId?.toLowerCase() === user.email?.toLowerCase()).length}</span> membros
-                      </div>
-                    </div>
-
-                    <div className="glass-card">
-                      <form onSubmit={handleAddTeamMember} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'end', marginBottom: '2rem', borderBottom: '1px solid var(--border)', paddingBottom: '2rem' }}>
-                        <div style={{ flex: 1, minWidth: '200px' }}>
-                          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Nome do Profissional</label>
-                          <input name="memberName" type="text" placeholder="Ex: João Barbeiro" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'white' }} required />
-                        </div>
-                        <div style={{ flex: 1, minWidth: '200px' }}>
-                          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Email (Login)</label>
-                          <input name="memberEmail" type="email" placeholder="email@exemplo.com" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'white' }} required />
-                        </div>
-                        <button type="submit" className="btn-primary" style={{ height: '42px' }}>
-                          <Plus size={18} /> Novo
-                        </button>
-                      </form>
-
-                      {/* Seção de Recrutamento */}
-                      <div style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '1px solid var(--border)' }}>
-                        <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Ou traga um barbeiro independente existente:</h3>
-                        <div className="btn-group-responsive" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                          <select id="recruitSelect" style={{
-                            flex: 1,
-                            padding: '12px',
-                            borderRadius: '10px',
-                            background: '#1a1a1a',
-                            color: 'white',
-                            border: '1px solid var(--primary)',
-                            outline: 'none',
-                            fontSize: '0.9rem',
-                            minWidth: '250px'
-                          }}>
-                            <option value="" style={{ background: '#1a1a1a', color: '#888' }}>Selecione um barbeiro disponível...</option>
-                            {barbers
-                              .filter(b => !b.ownerId && b.email?.toLowerCase() !== user.email?.toLowerCase())
-                              .map(b => (
-                                <option key={b.email} value={b.email} style={{ background: '#1a1a1a', color: 'white' }}>
-                                  {b.name} — ({b.email})
-                                </option>
-                              ))}
-                          </select>
-                          <button
-                            onClick={handleRecruitBarber}
-                            className="btn-primary"
-                            style={{
-                              background: 'var(--primary)',
-                              border: 'none',
-                              color: 'black',
-                              fontWeight: '900',
-                              padding: '0 25px',
-                              height: '46px',
-                              boxShadow: '0 4px 15px rgba(212, 175, 55, 0.3)',
-                              flex: '1',
-                              minWidth: '150px',
-                              justifyContent: 'center'
-                            }}
-                          >
-                            Recrutar
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="service-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}>
-                        {barbers.filter(b => b.ownerId?.toLowerCase() === user.email?.toLowerCase()).map(member => (
-                          <div key={member.email} className="glass-card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', background: 'rgba(0,0,0,0.2)' }}>
-                            <img src={member.picture} alt={member.name} style={{ width: '50px', height: '50px', borderRadius: '50%' }} />
-                            <div style={{ flex: 1 }}>
-                              <h4 style={{ margin: 0 }}>{member.name}</h4>
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{member.email}</span>
-                            </div>
-                            <button
-                              className="btn-icon"
-                              style={{ color: 'var(--danger)', opacity: 0.7 }}
-                              title="Remover da Equipe"
-                              onClick={() => handleRemoveTeamMember(member.email)}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        ))}
-                        {barbers.filter(b => b.ownerId === user.email).length === 0 && (
-                          <p style={{ color: 'var(--text-muted)', width: '100%', textAlign: 'center', fontStyle: 'italic' }}>
-                            Sua equipe está vazia. Adicione profissionais para que seus clientes possam agendar com eles.
-                          </p>
-                        )}
-                      </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Users className="text-primary" /> {user.ownerId ? 'Minha Equipe' : 'Minha Equipe'}
+                    </h2>
+                    <div className="glass-card" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                      <span className="text-primary" style={{ fontWeight: 800 }}>
+                        {user.ownerId
+                          ? barbers.filter(b => b.ownerId?.toLowerCase() === user.ownerId?.toLowerCase() || b.email?.toLowerCase() === user.ownerId?.toLowerCase()).length
+                          : barbers.filter(b => b.ownerId?.toLowerCase() === user.email?.toLowerCase()).length
+                        }
+                      </span> membros
                     </div>
                   </div>
-                )}
+
+                  <div className="glass-card">
+                    {/* Formulários de Adicionar/Recrutar - Apenas para Donos */}
+                    {!user.ownerId && (
+                      <>
+                        <form onSubmit={handleAddTeamMember} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'end', marginBottom: '2rem', borderBottom: '1px solid var(--border)', paddingBottom: '2rem' }}>
+                          <div style={{ flex: 1, minWidth: '200px' }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Nome do Profissional</label>
+                            <input name="memberName" type="text" placeholder="Ex: João Barbeiro" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'white' }} required />
+                          </div>
+                          <div style={{ flex: 1, minWidth: '200px' }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Email (Login)</label>
+                            <input name="memberEmail" type="email" placeholder="email@exemplo.com" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'white' }} required />
+                          </div>
+                          <button type="submit" className="btn-primary" style={{ height: '42px' }}>
+                            <Plus size={18} /> Novo
+                          </button>
+                        </form>
+
+                        {/* Seção de Recrutamento */}
+                        <div style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '1px solid var(--border)' }}>
+                          <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Ou traga um barbeiro independente existente:</h3>
+                          <div className="btn-group-responsive" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                            <select id="recruitSelect" style={{
+                              flex: 1,
+                              padding: '12px',
+                              borderRadius: '10px',
+                              background: '#1a1a1a',
+                              color: 'white',
+                              border: '1px solid var(--primary)',
+                              outline: 'none',
+                              fontSize: '0.9rem',
+                              minWidth: '250px'
+                            }}>
+                              <option value="" style={{ background: '#1a1a1a', color: '#888' }}>Selecione um barbeiro disponível...</option>
+                              {barbers
+                                .filter(b => !b.ownerId && b.email?.toLowerCase() !== user.email?.toLowerCase())
+                                .map(b => (
+                                  <option key={b.email} value={b.email} style={{ background: '#1a1a1a', color: 'white' }}>
+                                    {b.name} — ({b.email})
+                                  </option>
+                                ))}
+                            </select>
+                            <button
+                              onClick={handleRecruitBarber}
+                              className="btn-primary"
+                              style={{
+                                background: 'var(--primary)',
+                                border: 'none',
+                                color: 'black',
+                                fontWeight: '900',
+                                padding: '0 25px',
+                                height: '46px',
+                                boxShadow: '0 4px 15px rgba(212, 175, 55, 0.3)',
+                                flex: '1',
+                                minWidth: '150px',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              Recrutar
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Lista de Membros da Equipe */}
+                    <div className="service-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}>
+                      {/* Se for staff, mostra todos da equipe incluindo o dono */}
+                      {user.ownerId ? (
+                        <>
+                          {/* Mostrar o dono primeiro */}
+                          {barbers.filter(b => b.email?.toLowerCase() === user.ownerId?.toLowerCase()).map(owner => (
+                            <div key={owner.email} className="glass-card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', background: 'rgba(212, 175, 55, 0.1)', border: '1px solid var(--primary)' }}>
+                              <img src={owner.picture} alt={owner.name} style={{ width: '50px', height: '50px', borderRadius: '50%' }} />
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <h4 style={{ margin: 0 }}>{owner.name}</h4>
+                                  <span style={{ fontSize: '0.6rem', background: 'var(--primary)', color: 'black', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>DONO</span>
+                                </div>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{owner.email}</span>
+                              </div>
+                            </div>
+                          ))}
+                          {/* Mostrar outros membros da equipe */}
+                          {barbers.filter(b => b.ownerId?.toLowerCase() === user.ownerId?.toLowerCase() && b.email?.toLowerCase() !== user.email?.toLowerCase()).map(member => (
+                            <div key={member.email} className="glass-card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', background: 'rgba(0,0,0,0.2)' }}>
+                              <img src={member.picture} alt={member.name} style={{ width: '50px', height: '50px', borderRadius: '50%' }} />
+                              <div style={{ flex: 1 }}>
+                                <h4 style={{ margin: 0 }}>{member.name}</h4>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{member.email}</span>
+                              </div>
+                            </div>
+                          ))}
+                          {/* Mostrar a si mesmo */}
+                          <div className="glass-card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <img src={user.picture} alt={user.name} style={{ width: '50px', height: '50px', borderRadius: '50%' }} />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <h4 style={{ margin: 0 }}>{user.name}</h4>
+                                <span style={{ fontSize: '0.6rem', border: '1px solid var(--primary)', color: 'var(--primary)', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>VOCÊ</span>
+                              </div>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{user.email}</span>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        /* Se for dono, mostra apenas os membros da equipe com botão de remover */
+                        <>
+                          {barbers.filter(b => b.ownerId?.toLowerCase() === user.email?.toLowerCase()).map(member => (
+                            <div key={member.email} className="glass-card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', background: 'rgba(0,0,0,0.2)' }}>
+                              <img src={member.picture} alt={member.name} style={{ width: '50px', height: '50px', borderRadius: '50%' }} />
+                              <div style={{ flex: 1 }}>
+                                <h4 style={{ margin: 0 }}>{member.name}</h4>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{member.email}</span>
+                              </div>
+                              <button
+                                className="btn-icon"
+                                style={{ color: 'var(--danger)', opacity: 0.7 }}
+                                title="Remover da Equipe"
+                                onClick={() => handleRemoveTeamMember(member.email)}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          ))}
+                          {barbers.filter(b => b.ownerId === user.email).length === 0 && (
+                            <p style={{ color: 'var(--text-muted)', width: '100%', textAlign: 'center', fontStyle: 'italic' }}>
+                              Sua equipe está vazia. Adicione profissionais para que seus clientes possam agendar com eles.
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </>
             )}
 
