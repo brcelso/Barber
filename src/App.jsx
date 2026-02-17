@@ -465,7 +465,16 @@ function App() {
     if (!user?.isAdmin) return;
     const isBlocking = busySlots.length < timeSlots.length;
     const action = isBlocking ? 'bloquear o DIA TODO' : 'liberar o DIA TODO';
-    if (!confirm(`Deseja ${action} para ${format(selectedDate, 'dd/MM/yyyy')}?`)) return;
+
+    let scope = 'individual';
+    const isOwner = user?.isBarber && !user?.ownerId;
+
+    if (isOwner) {
+      const choice = confirm(`Deseja ${action} SOMENTE PARA VOCÊ? \n\n(Clique em 'Cancelar' para aplicar a TODA A EQUIPE)`);
+      scope = choice ? 'individual' : 'shop';
+    } else {
+      if (!confirm(`Deseja ${action} para ${format(selectedDate, 'dd/MM/yyyy')}?`)) return;
+    }
 
     setLoading(true);
     try {
@@ -477,7 +486,8 @@ function App() {
           date: dateStr,
           action: isBlocking ? 'block' : 'unblock',
           adminEmail: user.email,
-          times: timeSlots
+          times: timeSlots,
+          scope
         })
       });
       const data = await res.json();
@@ -504,17 +514,18 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (selectedBarber) {
-      fetchServices();
-      fetchBusySlots(selectedDate);
+    if (selectedBarber || user?.isBarber) {
+      if (selectedBarber) fetchServices();
+      fetchBusySlots(selectedDate, selectedBarber || user);
     }
-  }, [selectedBarber, selectedDate]);
+  }, [selectedBarber, selectedDate, user?.email]);
 
   const fetchBusySlots = async (date, barber = selectedBarber, ts = Date.now()) => {
-    if (!barber) return;
+    const effectiveBarber = barber || (user?.isBarber ? user : null);
+    if (!effectiveBarber) return;
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
-      const res = await fetch(`${API_URL}/appointments/busy-slots?date=${dateStr}&barber_email=${barber.email}&t=${ts}`);
+      const res = await fetch(`${API_URL}/appointments/busy-slots?date=${dateStr}&barber_email=${effectiveBarber.email}&t=${ts}`);
       const data = await res.json();
       setBusySlots(data || []);
     } catch (e) {
@@ -805,8 +816,8 @@ function App() {
       promises.push(fetchMasterData());
     }
 
-    if (selectedDate && selectedBarber) {
-      promises.push(fetchBusySlots(selectedDate, selectedBarber, ts));
+    if (selectedDate && (selectedBarber || user?.isBarber)) {
+      promises.push(fetchBusySlots(selectedDate, selectedBarber || user, ts));
     }
 
     try {
@@ -903,7 +914,7 @@ function App() {
     }
   };
 
-  const handleToggleBlock = async (time) => {
+  const handleToggleBlock = async (time, scope = 'individual') => {
     if (!user?.isAdmin) return;
     setLoading(true);
     try {
@@ -911,7 +922,7 @@ function App() {
       const res = await fetch(`${API_URL}/admin/toggle-block`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: dateStr, time, adminEmail: user.email })
+        body: JSON.stringify({ date: dateStr, time, adminEmail: user.email, scope })
       });
 
       const data = await res.json();
@@ -920,7 +931,7 @@ function App() {
         return;
       }
 
-      fetchBusySlots(selectedDate);
+      fetchBusySlots(selectedDate, user?.isBarber ? user : null);
       fetchAdminAppointments();
     } catch (e) {
       console.error(e);

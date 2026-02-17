@@ -779,46 +779,40 @@ REGRAS DE RESPOSTA:
                 const admin = await env.DB.prepare('SELECT is_admin, is_barber FROM users WHERE email = ?').bind(adminEmail).first();
                 if (!admin || (admin.is_admin !== 1 && admin.is_barber !== 1)) return json({ error: 'Forbidden' }, 403);
 
-                // Check if already blocked
-                const existing = await env.DB.prepare('SELECT id FROM appointments WHERE appointment_date = ? AND appointment_time = ? AND status = "blocked"').bind(date, time).first();
+                // Check if already blocked for THIS barber
+                const existing = await env.DB.prepare('SELECT id FROM appointments WHERE appointment_date = ? AND appointment_time = ? AND barber_email = ? AND status = "blocked"').bind(date, time, adminEmail).first();
 
                 if (existing) {
                     await env.DB.prepare('DELETE FROM appointments WHERE id = ?').bind(existing.id).run();
                     return json({ status: 'unblocked' });
                 } else {
-                    // Check for conflicts before blocking (don't block if there's a real appointment)
-                    const conflict = await env.DB.prepare('SELECT id FROM appointments WHERE appointment_date = ? AND appointment_time = ? AND status != "cancelled"').bind(date, time).first();
+                    // Check for conflicts before blocking
+                    const conflict = await env.DB.prepare('SELECT id FROM appointments WHERE appointment_date = ? AND appointment_time = ? AND barber_email = ? AND status != "cancelled"').bind(date, time, adminEmail).first();
                     if (conflict) return json({ error: 'Já existe um agendamento neste horário' }, 409);
 
                     const id = `block-${crypto.randomUUID()}`;
                     try {
-                        // Ensure 'system' user and 'block' service exist to satisfy FK constraints
-                        await env.DB.prepare(`
-                            INSERT OR IGNORE INTO users (email, name, is_admin, created_at)
-                            VALUES ('system', 'System', 0, CURRENT_TIMESTAMP)
-                        `).run();
-                        await env.DB.prepare(`
-                            INSERT OR IGNORE INTO services (id, name, price, duration_minutes, description)
-                            VALUES ('block', 'Blocked Slot', 0.0, 0, 'Reserved by admin')
-                        `).run();
+                        const { scope } = await request.json().catch(() => ({})); // Get scope if provided
+                        const me = await env.DB.prepare('SELECT owner_id FROM users WHERE email = ?').bind(adminEmail).first();
+                        const isOwner = me && !me.owner_id;
 
-                        // Verify seeds were created
-                        const sysUser = await env.DB.prepare('SELECT email FROM users WHERE email = ?').bind('system').first();
-                        const blockService = await env.DB.prepare('SELECT id FROM services WHERE id = ?').bind('block').first();
-
-                        console.log('[toggle-block] seed check', { sysUser, blockService });
-
-                        if (!sysUser || !blockService) {
-                            return json({ error: 'Seed creation failed', userExists: !!sysUser, serviceExists: !!blockService }, 500);
+                        if (isOwner && scope === 'shop') {
+                            const team = await env.DB.prepare('SELECT email FROM users WHERE owner_id = ? OR email = ?').bind(adminEmail, adminEmail).all();
+                            const statements = team.results.map(member => {
+                                const bid = `block-${crypto.randomUUID()}`;
+                                return env.DB.prepare(`
+                                    INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status)
+                                    VALUES (?, 'system', ?, 'block', ?, ?, 'blocked')
+                                `).bind(bid, member.email, date, time);
+                            });
+                            if (statements.length > 0) await env.DB.batch(statements);
+                        } else {
+                            // STAFF or INDIVIDUAL scope: Block only for ME
+                            await env.DB.prepare(`
+                                INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status)
+                                VALUES (?, 'system', ?, 'block', ?, ?, 'blocked')
+                            `).bind(id, adminEmail, date, time).run();
                         }
-
-                        // Debug logging to help diagnose FK issues
-                        console.log('[toggle-block] inserting block', { id, date, time });
-
-                        await env.DB.prepare(`
-                            INSERT INTO appointments (id, user_email, service_id, appointment_date, appointment_time, status)
-                            VALUES (?, 'system', 'block', ?, ?, 'blocked')
-                        `).bind(id, date, time).run();
                         return json({ status: 'blocked' });
                     } catch (e) {
                         console.error('[toggle-block] failed to insert block', e && e.message, e && e.stack);
@@ -866,25 +860,44 @@ REGRAS DE RESPOSTA:
                 if (!admin || admin.is_admin !== 1) return json({ error: 'Forbidden' }, 403);
 
                 if (action === 'block') {
-                    // Block all available times that don't have an appointment
-                    const existingTimes = await env.DB.prepare('SELECT appointment_time FROM appointments WHERE appointment_date = ? AND status != "cancelled"').bind(date).all();
-                    const busySet = new Set(existingTimes.results.map(r => r.appointment_time));
+                    const { scope } = await request.json().catch(() => ({}));
+                    const me = await env.DB.prepare('SELECT owner_id FROM users WHERE email = ?').bind(adminEmail).first();
+                    const isOwner = me && !me.owner_id;
+
+                    const targetBarbers = (isOwner && scope === 'shop')
+                        ? (await env.DB.prepare('SELECT email FROM users WHERE owner_id = ? OR email = ?').bind(adminEmail, adminEmail).all()).results.map(r => r.email)
+                        : [adminEmail];
 
                     const statements = [];
-                    for (const time of times) {
-                        if (!busySet.has(time)) {
-                            const id = `block-${crypto.randomUUID()}`;
-                            statements.push(env.DB.prepare(`
-                                INSERT INTO appointments (id, user_email, service_id, appointment_date, appointment_time, status)
-                                VALUES (?, 'system', 'block', ?, ?, 'blocked')
-                            `).bind(id, date, time));
+                    for (const bEmail of targetBarbers) {
+                        const existingTimes = await env.DB.prepare('SELECT appointment_time FROM appointments WHERE appointment_date = ? AND barber_email = ? AND status != "cancelled"').bind(date, bEmail).all();
+                        const busySet = new Set(existingTimes.results.map(r => r.appointment_time));
+
+                        for (const time of times) {
+                            if (!busySet.has(time)) {
+                                const id = `block-${crypto.randomUUID()}`;
+                                statements.push(env.DB.prepare(`
+                                    INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status)
+                                    VALUES (?, 'system', ?, 'block', ?, ?, 'blocked')
+                                `).bind(id, bEmail, date, time));
+                            }
                         }
                     }
                     if (statements.length > 0) await env.DB.batch(statements);
                     return json({ status: 'blocked' });
                 } else {
-                    // Unblock all previously blocked slots
-                    await env.DB.prepare('DELETE FROM appointments WHERE appointment_date = ? AND status = "blocked"').bind(date).run();
+                    const { scope } = await request.json().catch(() => ({}));
+                    const me = await env.DB.prepare('SELECT owner_id FROM users WHERE email = ?').bind(adminEmail).first();
+                    const isOwner = me && !me.owner_id;
+
+                    if (isOwner && scope === 'shop') {
+                        const team = await env.DB.prepare('SELECT email FROM users WHERE owner_id = ? OR email = ?').bind(adminEmail, adminEmail).all();
+                        const teamEmails = team.results.map(r => r.email);
+                        const placeholders = teamEmails.map(() => '?').join(',');
+                        await env.DB.prepare(`DELETE FROM appointments WHERE appointment_date = ? AND status = "blocked" AND barber_email IN (${placeholders})`).bind(date, ...teamEmails).run();
+                    } else {
+                        await env.DB.prepare('DELETE FROM appointments WHERE appointment_date = ? AND barber_email = ? AND status = "blocked"').bind(date, adminEmail).run();
+                    }
                     return json({ status: 'unblocked' });
                 }
             }
@@ -892,9 +905,19 @@ REGRAS DE RESPOSTA:
             // Public: Get Busy Slots for a Date
             if (url.pathname === '/api/appointments/busy-slots' && request.method === 'GET') {
                 const date = url.searchParams.get('date');
+                const barberEmail = url.searchParams.get('barber_email');
                 if (!date) return json({ error: 'Missing date' }, 400);
 
-                const busy = await env.DB.prepare('SELECT appointment_time as time, status FROM appointments WHERE appointment_date = ? AND status != "cancelled"').bind(date).all();
+                let query = 'SELECT appointment_time as time, status FROM appointments WHERE appointment_date = ? AND status != "cancelled"';
+                let params = [date];
+
+                if (barberEmail) {
+                    // We fetch slots that are busy for THIS barber specifically
+                    query += ' AND barber_email = ?';
+                    params.push(barberEmail);
+                }
+
+                const busy = await env.DB.prepare(query).bind(...params).all();
                 return json(busy.results);
             }
 
