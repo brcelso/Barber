@@ -416,7 +416,11 @@ REGRAS DE RESPOSTA:
             // Get All Barbers
             if (url.pathname === '/api/barbers' && request.method === 'GET') {
                 const barbers = await env.DB.prepare('SELECT email, name, picture, business_type, owner_id FROM users WHERE is_barber = 1').all();
-                return json(barbers.results);
+                const final = barbers.results.map(b => ({
+                    ...b,
+                    ownerId: b.owner_id // Map snake_case to camelCase
+                }));
+                return json(final);
             }
 
             // Create Team Member (Shop Owner adds staff)
