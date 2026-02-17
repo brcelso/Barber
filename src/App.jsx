@@ -1095,7 +1095,7 @@ function App() {
                   <MessageSquare size={20} color="#25D366" /> Enviar WhatsApp
                 </button>
 
-                {user.isAdmin && (
+                {(user.isAdmin || user.isBarber) && (
                   <>
                     <button className="action-item" onClick={() => setSheetView('status')}>
                       <Edit2 size={20} color="#3498db" /> Alterar Status do Agendamento
