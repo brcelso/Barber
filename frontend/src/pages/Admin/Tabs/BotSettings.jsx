@@ -1,5 +1,5 @@
-import React from 'react';
-import { MessageSquare, Save, Play, Power, Activity } from 'lucide-react';
+import React, { useState } from 'react';
+import { MessageSquare, Save, Play, Power, Activity, Wifi, WifiOff } from 'lucide-react';
 
 export const BotSettingsTab = ({
     botSettings,
@@ -25,12 +25,7 @@ export const BotSettingsTab = ({
                 </div>
 
                 {!waStatus.qr && waStatus.status !== 'connected' && (
-                    <div style={{ marginTop: '1.5rem', textAlign: 'center', padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '10px' }}>
-                        <p style={{ fontSize: '0.9rem', marginBottom: '1rem' }}>O servidor da ponte está {waStatus.status}.</p>
-                        <button className="btn-primary" onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8787/api'}/admin/bot/start?email=${localStorage.getItem('barber_user') ? JSON.parse(localStorage.getItem('barber_user')).email : ''}`, '_blank')}>
-                            <Play size={16} /> Iniciar Servidor Local
-                        </button>
-                    </div>
+                    <LocalBridgeStarter userEmail={JSON.parse(localStorage.getItem('barber_user') || '{}').email} />
                 )}
 
                 {waStatus.qr && waStatus.status !== 'connected' && (
