@@ -21,9 +21,12 @@ export const HistoryPage = ({
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     {appointments
-                        .filter(appt => appt.status !== 'blocked')
+                        .filter(appt => appt && appt.status !== 'blocked')
                         .map(appt => {
+                            if (!appt.appointment_date) return null;
                             const dateObj = parseISO(appt.appointment_date);
+                            if (isNaN(dateObj.getTime())) return null;
+
                             const isPast = dateObj < new Date() && !format(new Date(), 'yyyy-MM-dd').includes(appt.appointment_date);
 
                             return (

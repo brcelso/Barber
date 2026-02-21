@@ -21,12 +21,20 @@ export const BookingPage = ({
     editingAppointment,
     setEditingAppointment
 }) => {
-    const handleNextDay = () => setSelectedDate(prev => new Date(prev.setDate(prev.getDate() + 1)));
+    const handleNextDay = () => setSelectedDate(prev => {
+        const next = new Date(prev);
+        next.setDate(next.getDate() + 1);
+        return next;
+    });
     const handlePrevDay = () => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         if (selectedDate > today) {
-            setSelectedDate(prev => new Date(prev.setDate(prev.getDate() - 1)));
+            setSelectedDate(prev => {
+                const next = new Date(prev);
+                next.setDate(next.getDate() - 1);
+                return next;
+            });
         }
     };
 

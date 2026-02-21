@@ -67,17 +67,18 @@ function App() {
   const fetchBarbers = useCallback(async () => {
     try {
       const data = await api.getBarbers();
-      setBarbers(data || []);
-      if (data?.length === 1) setSelectedBarber(data[0]);
-    } catch { console.error('Error fetching barbers'); }
+      setBarbers(Array.isArray(data) ? data : []);
+      if (Array.isArray(data) && data.length === 1) setSelectedBarber(data[0]);
+    } catch { console.error('Error fetching barbers'); setBarbers([]); }
   }, []);
 
   const fetchServices = useCallback(async (ts = '') => {
     try {
       const data = await api.getServices(selectedBarber?.email, ts);
-      setServices(data || []);
+      setServices(Array.isArray(data) ? data : []);
     } catch {
       console.error('Error fetching services');
+      setServices([]);
     }
   }, [selectedBarber?.email]);
 
