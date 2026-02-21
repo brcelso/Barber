@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { MessageSquare, Save, Play, Power, Activity, Wifi, WifiOff } from 'lucide-react';
 
 export const BotSettingsTab = ({

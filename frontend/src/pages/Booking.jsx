@@ -4,7 +4,6 @@ import { ptBR } from 'date-fns/locale';
 import { Scissors, Clock, User, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const BookingPage = ({
-    user,
     barbers,
     selectedBarber,
     setSelectedBarber,

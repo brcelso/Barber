@@ -9,8 +9,7 @@ export const MasterPanelTab = ({
     handleMasterRestartBot,
     handleMasterStopBot,
     masterFilter,
-    setMasterFilter,
-    loading
+    setMasterFilter
 }) => {
     if (!masterStats) return <div className="glass-card" style={{ textAlign: 'center', padding: '3rem' }}><RefreshCw size={32} className="refresh-spin" /></div>;
 

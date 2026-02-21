@@ -8,8 +8,7 @@ export const HistoryPage = ({
     handleCancel,
     handleDelete,
     handlePayment,
-    handleEditStart,
-    loading
+    handleEditStart
 }) => {
     return (
         <main className="fade-in">

@@ -1,7 +1,7 @@
 import React from 'react';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Calendar, Clock, Lock, MessageSquare, Play, X, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Clock, Lock, Play, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const AgendaTab = ({
     selectedDate,
@@ -11,8 +11,7 @@ export const AgendaTab = ({
     adminAppointments,
     handleToggleBlock,
     handleToggleFullDay,
-    setSelectedActionAppt,
-    handleRefresh
+    setSelectedActionAppt
 }) => {
     const handleNextDay = () => setSelectedDate(prev => new Date(prev.setDate(prev.getDate() + 1)));
     const handlePrevDay = () => setSelectedDate(prev => new Date(prev.setDate(prev.getDate() - 1)));

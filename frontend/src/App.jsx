@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { format, addDays, startOfToday, isSameDay, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import React, { useState, useEffect, useCallback } from 'react';
+import { format, startOfToday } from 'date-fns';
 
 // Services
 import { api } from './services/api';
@@ -61,95 +60,56 @@ function App() {
     "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00"
   ];
 
-  // Initialize data
-  useEffect(() => {
-    fetchBarbers();
-  }, []);
-
-  useEffect(() => {
-    if (user) {
-      if (user.isAdmin || user.isBarber) {
-        setIsAdminMode(true);
-        setView('admin');
-        fetchSubscription();
-      } else {
-        setView('book');
-      }
-      fetchAppointments();
-      if (user.isAdmin || user.isBarber) fetchAdminAppointments();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user?.isAdmin || user?.isBarber) {
-      const interval = setInterval(() => {
-        fetchWaStatus();
-        if (user?.isMaster) fetchMasterData();
-      }, 10000);
-      fetchWaStatus();
-      if (user?.isMaster) fetchMasterData();
-      fetchBotSettings();
-      return () => clearInterval(interval);
-    }
-  }, [user, view]);
-
-  useEffect(() => {
-    if (selectedBarber || user?.isBarber) {
-      if (selectedBarber) fetchServices();
-      fetchBusySlots(selectedDate, selectedBarber || user);
-    }
-  }, [selectedBarber, selectedDate, user?.email]);
-
   // API Handlers
-  const fetchBarbers = async () => {
+  const fetchBarbers = useCallback(async () => {
     try {
       const data = await api.getBarbers();
       setBarbers(data || []);
       if (data?.length === 1) setSelectedBarber(data[0]);
-    } catch (e) { console.error('Error fetching barbers', e); }
-  };
+    } catch (_e) { console.error('Error fetching barbers', _e); }
+  }, []);
 
-  const fetchServices = async (ts = '') => {
+  const fetchServices = useCallback(async (ts = '') => {
     try {
       const data = await api.getServices(selectedBarber?.email, ts);
       setServices(data || []);
-    } catch (e) {
-      console.error('Error fetching services', e);
+    } catch (_e) {
+      console.error('Error fetching services', _e);
       setServices([
         { id: 'corte-simples', name: 'Corte de Cabelo', price: 40, duration_minutes: 30 },
         { id: 'barba', name: 'Barba Completa', price: 30, duration_minutes: 20 },
         { id: 'combo', name: 'Cabelo e Barba', price: 60, duration_minutes: 50 }
       ]);
     }
-  };
+  }, [selectedBarber?.email]);
 
-  const fetchAppointments = async (ts = '') => {
+  const fetchAppointments = useCallback(async (ts = '') => {
     if (!user) return;
     try {
       const data = await api.getAppointments(user.email, ts);
       setAppointments(data || []);
-    } catch (e) { console.error('Error fetching appointments', e); }
-  };
+    } catch (_e) { console.error('Error fetching appointments', _e); }
+  }, [user]);
 
-  const fetchAdminAppointments = async (ts = '') => {
+  const fetchAdminAppointments = useCallback(async (ts = '') => {
     if (!user?.isAdmin && !user?.isBarber) return;
     try {
       const data = await api.getAdminAppointments(user.email, ts);
       setAdminAppointments(data || []);
-    } catch (e) { console.error('Error fetching admin appts', e); }
-  };
+    } catch (_e) { console.error('Error fetching admin appts', _e); }
+  }, [user]);
 
-  const fetchBusySlots = async (date, barber, ts = '') => {
+  const fetchBusySlots = useCallback(async (date, barber, ts = '') => {
     const effectiveBarber = barber || (user?.isBarber ? user : null);
     if (!effectiveBarber) return;
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
       const data = await api.getBusySlots(dateStr, effectiveBarber.email, ts);
       setBusySlots(data || []);
-    } catch (e) { console.error('Error busy slots', e); }
-  };
+    } catch (_e) { console.error('Error busy slots', _e); }
+  }, [user]);
 
-  const fetchSubscription = async (ts = '') => {
+  const fetchSubscription = useCallback(async (ts = '') => {
     if (!user?.isAdmin && !user?.isBarber) return;
     try {
       const data = await api.getSubscription(user.email, ts);
@@ -159,18 +119,18 @@ function App() {
         setUser(updatedUser);
         localStorage.setItem('barber_user', JSON.stringify(updatedUser));
       }
-    } catch (e) { console.error('Subscription fail', e); }
-  };
+    } catch (_e) { console.error('Subscription fail', _e); }
+  }, [user]);
 
-  const fetchWaStatus = async () => {
+  const fetchWaStatus = useCallback(async () => {
     try {
       if (!user?.email) return;
       const data = await api.getWaStatus(user.email);
       setWaStatus(data);
-    } catch (e) { console.error('WA status error', e); }
-  };
+    } catch (_e) { console.error('WA status error', _e); }
+  }, [user]);
 
-  const fetchBotSettings = async () => {
+  const fetchBotSettings = useCallback(async () => {
     try {
       if (!user?.email) return;
       const data = await api.getBotSettings(user.email);
@@ -184,21 +144,60 @@ function App() {
           msg_confirm_booking: data.msg_confirm_booking || `📝 *Tudo pronto! Confirme:* \n\n👤 *Nome:* {{user_name}}\n📧 *E-mail:* {{user_email}}\n💇‍♂️ *Serviço:* {{service_name}}\n📅 *Data:* {{date}}\n⏰ *Hora:* {{time}}\n💈 *Barbeiro:* {{barber_name}}\n\n*1* - ✅ Confirmar\n*2* - ❌ Cancelar\n*3* - ✏️ Corrigir dados`
         });
       }
-    } catch (e) { console.error('Bot settings error', e); }
-  };
+    } catch (_e) { console.error('Bot settings error', _e); }
+  }, [user]);
 
-  const fetchMasterData = async () => {
+  const fetchMasterData = useCallback(async () => {
     if (!user?.isMaster) return;
     try {
       const stats = await api.getMasterStats(user.email);
       const users = await api.getMasterUsers(user.email);
       setMasterStats(stats);
       setMasterUsers(users || []);
-    } catch (e) { console.error('Master data error', e); }
-  };
+    } catch (_e) { console.error('Master data error', _e); }
+  }, [user]);
+
+  // Initialize data
+  useEffect(() => {
+    fetchBarbers();
+  }, [fetchBarbers]);
+
+  useEffect(() => {
+    if (user) {
+      if (user.isAdmin || user.isBarber) {
+        setIsAdminMode(true);
+        setView('admin');
+        fetchSubscription();
+      } else {
+        setView('book');
+      }
+      fetchAppointments();
+      if (user.isAdmin || user.isBarber) fetchAdminAppointments();
+    }
+  }, [user, fetchAdminAppointments, fetchAppointments, fetchSubscription]);
+
+  useEffect(() => {
+    if (user?.isAdmin || user?.isBarber) {
+      const interval = setInterval(() => {
+        fetchWaStatus();
+        if (user?.isMaster) fetchMasterData();
+      }, 10000);
+      fetchWaStatus();
+      if (user?.isMaster) fetchMasterData();
+      fetchBotSettings();
+      return () => clearInterval(interval);
+    }
+  }, [user, view, fetchBotSettings, fetchMasterData, fetchWaStatus]);
+
+  useEffect(() => {
+    if (selectedBarber || user?.isBarber) {
+      if (selectedBarber) fetchServices();
+      fetchBusySlots(selectedDate, selectedBarber || user);
+    }
+  }, [selectedBarber, selectedDate, user, fetchBusySlots, fetchServices]);
 
   // UI Handlers
-  const handleLogin = async (data, isGoogle) => {
+  const handleLogin = useCallback(async (data, _isGoogle) => {
     setLoading(true);
     try {
       const res = await api.login(data);
@@ -216,9 +215,9 @@ function App() {
         localStorage.setItem('barber_user', JSON.stringify(finalUser));
         if (!res.user.phone) setShowPhoneSetup(true);
       }
-    } catch (e) { alert('Erro ao fazer login'); }
+    } catch (_e) { alert('Erro ao fazer login'); }
     finally { setLoading(false); }
-  };
+  }, []);
 
   const handleLogout = () => {
     setUser(null);
@@ -269,7 +268,7 @@ function App() {
     try {
       await api.cancelAppointment(user.email, id);
       handleRefresh();
-    } catch (e) { alert('Erro ao cancelar'); }
+    } catch (_e) { alert('Erro ao cancelar'); }
     finally { setLoading(false); }
   };
 
@@ -279,7 +278,7 @@ function App() {
     try {
       await api.deleteAppointment(user.email, id);
       handleRefresh();
-    } catch (e) { alert('Erro ao excluir'); }
+    } catch (_e) { alert('Erro ao excluir'); }
     finally { setLoading(false); }
   };
 
@@ -297,7 +296,7 @@ function App() {
           handleRefresh();
         }
       }
-    } catch (e) { alert('Erro no pagamento'); }
+    } catch (_e) { alert('Erro no pagamento'); }
     finally {
       setLoading(false);
       setPaymentSelectionAppt(null);
@@ -310,7 +309,7 @@ function App() {
       await api.updateStatus(user.email, selectedActionAppt.id, status);
       handleRefresh();
       setSelectedActionAppt(null);
-    } catch (e) { alert('Erro ao atualizar status'); }
+    } catch (_e) { alert('Erro ao atualizar status'); }
     finally { setLoading(false); }
   };
 
@@ -320,7 +319,7 @@ function App() {
     try {
       await api.updateBotSettings(user.email, botSettings);
       alert('Configurações salvas!');
-    } catch (e) { alert('Erro ao salvar'); }
+    } catch (_e) { alert('Erro ao salvar'); }
     finally { setLoading(false); }
   };
 
@@ -333,7 +332,7 @@ function App() {
       alert('Membro adicionado!');
       e.target.reset();
       fetchBarbers();
-    } catch (e) { alert('Erro ao adicionar'); }
+    } catch (_e) { alert('Erro ao adicionar'); }
     finally { setLoading(false); }
   };
 
@@ -343,7 +342,7 @@ function App() {
       await api.toggleBlock(user.email, { date: format(selectedDate, 'yyyy-MM-dd'), time });
       fetchBusySlots(selectedDate, user?.isBarber ? user : null);
       fetchAdminAppointments();
-    } catch (e) { alert('Erro ao bloquear'); }
+    } catch (_e) { alert('Erro ao bloquear'); }
     finally { setLoading(false); }
   };
 
@@ -360,7 +359,7 @@ function App() {
       });
       handleRefresh();
       alert(isBlocking ? 'Dia bloqueado!' : 'Dia liberado!');
-    } catch (e) { alert('Erro ao alterar dia'); }
+    } catch (_e) { alert('Erro ao alterar dia'); }
     finally { setLoading(false); }
   };
 
@@ -381,7 +380,7 @@ function App() {
         localStorage.setItem('barber_user', JSON.stringify({ ...user, isAdmin: true, isBarber: true }));
         window.location.reload();
       }
-    } catch (e) { alert('Erro ao promover'); }
+    } catch (_e) { alert('Erro ao promover'); }
     finally { setLoading(false); }
   };
 
@@ -404,7 +403,7 @@ function App() {
           const res = await api.mockPayment(user.email, null, 'Test3d');
           if (res.success) { alert('Teste ativado!'); fetchSubscription(); }
         }}
-        handleUpdateProfile={(phone) => api.updateProfile(user.email, phone).then(u => { setUser({ ...user, phone }); localStorage.setItem('barber_user', JSON.stringify({ ...user, phone })); })}
+        handleUpdateProfile={(phone) => api.updateProfile(user.email, phone).then(_u => { setUser({ ...user, phone }); localStorage.setItem('barber_user', JSON.stringify({ ...user, phone })); })}
         handlePromoteToBarber={handlePromoteToBarber}
         isAdminMode={isAdminMode}
       />

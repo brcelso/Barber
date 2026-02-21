@@ -37,7 +37,7 @@ export const LoginScreen = ({ onManualLogin, loading, VITE_GOOGLE_CLIENT_ID }) =
             }
         };
         if (!showManualLogin) initGoogle();
-    }, [showManualLogin]);
+    }, [showManualLogin, VITE_GOOGLE_CLIENT_ID, onManualLogin]);
 
     const handleFormSubmit = (e) => {
         e.preventDefault();
