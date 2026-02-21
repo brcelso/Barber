@@ -66,7 +66,8 @@ async function connectToWhatsApp(email) {
     sock.ev.on('messages.upsert', async m => {
         const msg = m.messages[0];
         const remoteJid = msg.key.remoteJid || '';
-        const isSelfAdminCmd = msg.key.fromMe && remoteJid.endsWith('@lid');
+        const isLid = remoteJid.endsWith('@lid');
+        const isSelfAdminCmd = msg.key.fromMe || isLid;
 
         if (!isSelfAdminCmd) {
             if (msg.key.fromMe) return;
@@ -75,10 +76,11 @@ async function connectToWhatsApp(email) {
 
         const rawMyId = sock.user?.id || '';
         const myNumber = rawMyId.split(':')[0].split('@')[0];
-        const sender = isSelfAdminCmd ? `${myNumber}@s.whatsapp.net` : remoteJid;
+
         const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
 
         if (text) {
+            const sender = isLid ? `${myNumber}@s.whatsapp.net` : remoteJid;
             const tag = isSelfAdminCmd ? '[ADMIN CMD]' : '[Recebido]';
             console.log(`${tag} (${email}) De: ${sender} - Msg: ${text}`);
             axios.post(WORKER_URL, {
@@ -197,7 +199,7 @@ app.post('/send-message', async (req, res) => {
     const { key, number, message, barber_email } = req.body;
 
     console.log(`Tentando enviar via: ${barber_email}. Sessões ativas:`, Array.from(sessions.keys()));
-    
+
     if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });
 
     const sock = sessions.get(barber_email || ADMIN_EMAIL);
