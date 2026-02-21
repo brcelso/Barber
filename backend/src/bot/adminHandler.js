@@ -73,7 +73,7 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
                 bTone: adminInfo.bot_tone || 'profissional'
             };
 
-            const workerUrl = url.origin;
+            const workerUrl = env.SERVICE_URL || url.origin;
             // const workerUrl = env.SERVICE_URL || 'https://barber-server.celsosilvajunior90.workers.dev';
             
             const aiRequest = await fetch(`${workerUrl}/api/agent/chat`, {
