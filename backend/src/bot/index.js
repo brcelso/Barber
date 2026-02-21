@@ -30,40 +30,36 @@ export async function handleWhatsAppWebhook(request, env) {
 
     const cleanFrom = from.replace(/\D/g, "");
 
-    // Function to compare phone numbers by matching their last 9 digits (common in BR mobile) or exact match
+    // Stricter phone comparison for Brazil (DDD + Number)
     const isSamePhone = (p1, p2) => {
         if (!p1 || !p2) return false;
         const s1 = p1.replace(/\D/g, "");
         const s2 = p2.replace(/\D/g, "");
         if (s1 === s2) return true;
-        const tail = Math.min(s1.length, s2.length, 9);
-        return s1.slice(-tail) === s2.slice(-tail);
+        // Compare last 10 or 11 digits to ensure DDD + Number match
+        const len = Math.min(s1.length, s2.length);
+        if (len >= 10) {
+            const tail = Math.min(len, 11);
+            return s1.slice(-tail) === s2.slice(-tail);
+        }
+        return false;
     };
+
+    // Constant for Master Email
+    const MASTER_EMAIL = 'celsosilvajunior90@gmail.com';
 
     if (botBarberEmail) {
         const barberRow = await env.DB.prepare(
             'SELECT email, name, phone, is_barber, is_admin, shop_name, bot_name, bot_tone FROM users WHERE email = ?'
         ).bind(botBarberEmail).first();
 
+        // Check if the sender is the barber/owner of this bot
         if (barberRow && (barberRow.is_barber === 1 || barberRow.is_admin === 1) && isSamePhone(barberRow.phone, cleanFrom)) {
             isOwner = true;
             adminInfo = barberRow;
         }
+
     }
-
-    if (!isOwner) {
-        const adminCheck = await env.DB.prepare(
-            'SELECT email, name, phone, is_barber, is_admin, shop_name, bot_name, bot_tone FROM users WHERE (is_admin = 1 OR is_barber = 1) AND phone IS NOT NULL'
-        ).all();
-
-        const matched = adminCheck.results.find(u => isSamePhone(u.phone, cleanFrom));
-        if (matched) {
-            isOwner = true;
-            adminInfo = matched;
-        }
-    }
-
-    console.log(`[WhatsApp Webhook] From: ${from} | isOwner: ${isOwner} | Admin: ${adminInfo?.email || 'none'}`);
 
     // 3. Routing
     if (isOwner && adminInfo) {

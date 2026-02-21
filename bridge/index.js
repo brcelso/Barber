@@ -74,7 +74,9 @@ async function connectToWhatsApp(email) {
 
         const rawMyId = sock.user?.id || '';
         const myNumber = rawMyId.split(':')[0].split('@')[0];
-        const isSelfChat = remoteJid.startsWith(myNumber);
+
+        // Strict self-chat check
+        const isSelfChat = myNumber && remoteJid.startsWith(myNumber);
 
         // Se a mensagem foi enviada pelo bot/celular (fromMe):
         // Só processamos se for um comando enviado via LID ou conversando consigo mesmo.
