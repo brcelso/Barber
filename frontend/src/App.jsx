@@ -349,6 +349,15 @@ function App() {
   const handleToggleFullDay = async () => {
     const isBlocking = busySlots.length < timeSlots.length;
     const action = isBlocking ? 'block' : 'unblock';
+
+    // LOG DE DEBUG
+    console.log('Enviando para API:', {
+      date: format(selectedDate, 'yyyy-MM-dd'),
+      action,
+      totalTimes: timeSlots.length,
+      scope: user.ownerId ? 'individual' : 'shop'
+    });
+
     setLoading(true);
     try {
       await api.bulkToggleBlock(user.email, {
@@ -357,10 +366,18 @@ function App() {
         times: timeSlots,
         scope: user.ownerId ? 'individual' : 'shop'
       });
-      handleRefresh();
+
+      // Use await aqui para garantir que a tela só desbloqueie 
+      // após os dados novos chegarem
+      await handleRefresh();
+
       alert(isBlocking ? 'Dia bloqueado!' : 'Dia liberado!');
-    } catch { alert('Erro ao alterar dia'); }
-    finally { setLoading(false); }
+    } catch (error) {
+      console.error('Erro na API:', error);
+      alert('Erro ao alterar dia');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleWhatsAppNotify = (appt) => {
