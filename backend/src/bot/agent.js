@@ -18,6 +18,17 @@ export const BARBER_TOOLS = [
         }
     },
     {
+        name: 'get_user_history',
+        description: 'Retorna os últimos agendamentos do cliente para entender seu padrão de consumo.',
+        parameters: {
+            type: 'object',
+            properties: {
+                user_email: { type: 'string', description: 'E-mail do cliente' }
+            },
+            required: ['user_email']
+        }
+    },
+    {
         name: 'get_faturamento_hoje',
         description: 'Calcula o total de ganhos confirmados no dia de hoje.',
         parameters: {
@@ -34,7 +45,7 @@ export const BARBER_TOOLS = [
  * Runs the Agent Chat logic. 
  * Can be called from the API or directly from the bot handlers.
  */
-export async function runAgentChat(env, { prompt, isAdmin, barberContext }) {
+export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEmail }) {
     const { DB, AI } = env;
 
     // 1. O Modelo decide se precisa de ferramenta
@@ -58,6 +69,18 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext }) {
                 'SELECT appointment_time FROM appointments WHERE appointment_date = ? AND barber_email = ? AND status != "cancelled"'
             ).bind(call.arguments.data, call.arguments.barbeiro_email).all();
             toolData = `Horários ocupados: ${res.results.map(r => r.appointment_time).join(', ') || 'Nenhum'}`;
+        }
+
+        if (call.name === 'get_user_history') {
+            const history = await DB.prepare(
+                'SELECT appointment_date, appointment_time, (SELECT name FROM services WHERE id = service_id) as service_name FROM appointments WHERE user_email = ? AND status = "completed" ORDER BY appointment_date DESC LIMIT 3'
+            ).bind(call.arguments.user_email || userEmail).all();
+
+            if (history.results.length > 0) {
+                toolData = "Histórico do cliente:\n" + history.results.map(h => `- ${h.appointment_date} às ${h.appointment_time}: ${h.service_name}`).join('\n');
+            } else {
+                toolData = "O cliente não possui histórico de agendamentos concluídos.";
+            }
         }
 
         if (call.name === 'get_faturamento_hoje' && isAdmin) {

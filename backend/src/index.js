@@ -146,5 +146,17 @@ export default {
             console.error('[Global Error]', e);
             return json({ error: 'Internal Server Error', message: e.message }, 500);
         }
+    },
+
+    async scheduled(event, env, ctx) {
+        console.log('[Cron] Running scheduled tasks...');
+        const { handleDailyBriefing } = await import('./cron/dailyBriefing.js');
+        const { handleProactiveScheduling } = await import('./cron/proactiveScheduler.js');
+
+        // Parallel execution
+        ctx.waitUntil(Promise.all([
+            handleDailyBriefing(env),
+            handleProactiveScheduling(env)
+        ]));
     }
 };

@@ -59,7 +59,7 @@ export async function handleClientFlow(from, text, textLower, session, userInDb,
 
         const aiData = await runAgentChat(env, {
             prompt: text,
-            email: userInDb?.email || 'guest',
+            userEmail: userInDb?.email || session?.user_email || 'guest',
             isAdmin: false,
             barberContext: barberContext
         });

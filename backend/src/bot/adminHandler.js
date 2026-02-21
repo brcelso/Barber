@@ -3,7 +3,6 @@ import { ADMIN_PROMPTS } from './prompts.js';
 import { runAgentChat } from './agent.js';
 
 export async function handleAdminFlow(from, text, textLower, adminInfo, botBarberEmail, env) {
-    const isNumericChoice = /^\d+$/.test(text) && text.length <= 2;
     const isMenuCommand = ['menu', 'oi', 'ola', 'opa', 'ok', 'voltar', 'ajuda'].includes(textLower);
 
     // 1. Gerenciamento de Sessão
@@ -45,8 +44,6 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
         console.error('[Agentic Admin Flow Error]', e);
         return await handleIntentsFallback(from, text, adminInfo, botBarberEmail, env);
     }
-
-    return json({ success: true });
 }
 
 async function showAgenda(from, adminInfo, botBarberEmail, env, page = 1) {
@@ -90,19 +87,6 @@ async function showAgenda(from, adminInfo, botBarberEmail, env, page = 1) {
     return json({ success: true });
 }
 
-async function showRevenue(from, adminInfo, botBarberEmail, env) {
-    const today = new Date().toLocaleDateString("en-CA");
-    const result = await env.DB.prepare(`
-        SELECT COUNT(id) as total_count, SUM(price) as total_revenue
-        FROM appointments a
-        JOIN services s ON a.service_id = s.id
-        WHERE a.barber_email = ? AND a.appointment_date = ? AND a.payment_status = 'paid'
-    `).bind(adminInfo.email, today).first();
-
-    const revenue = result?.total_revenue || 0;
-    const msg = `💰 *RELATÓRIO DE HOJE*\n\n✅ Atendimentos: ${result?.total_count || 0}\n💵 Total: R$ ${revenue.toFixed(2)}`;
-    await sendMessage(env, from, msg, botBarberEmail);
-}
 
 async function handleIntentsFallback(from, text, adminInfo, botBarberEmail, env) {
     await sendMessage(env, from, "⚠️ Tive um problema ao acessar a inteligência agora. Por favor, tente usar os números do menu ou tente novamente em instantes.", botBarberEmail);
