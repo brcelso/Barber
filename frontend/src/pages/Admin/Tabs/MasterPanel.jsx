@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Users, Shield, Power, CreditCard, RefreshCw, Trash2, Calendar } from 'lucide-react';
+import { Activity, Users, Shield, Power, CreditCard, RefreshCw, Trash2, Calendar, User, Play } from 'lucide-react';
 
 export const MasterPanelTab = ({
     masterStats,
@@ -24,7 +24,7 @@ export const MasterPanelTab = ({
     return (
         <div className="fade-in">
             {/* Estatísticas Globais */}
-            <div className="barber-grid" style={{ marginBottom: '2.5rem', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1.2rem', marginBottom: '2.5rem' }}>
                 <div className="glass-card" style={{ textAlign: 'center' }}>
                     <Users size={20} className="text-primary" style={{ marginBottom: '10px' }} />
                     <h3 style={{ fontSize: '1.5rem', margin: 0 }}>{masterStats.totalUsers?.count}</h3>
