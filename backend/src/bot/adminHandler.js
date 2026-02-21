@@ -15,6 +15,8 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
         return json({ success: true });
     }
 
+    const metadata = JSON.parse(session.metadata || '{}');
+
     // 2.1 PAGINAÇÃO DA AGENDA
     if (session.state === 'admin_viewing_agenda' && text === '8') {
         const lastPage = metadata.last_agenda_page || 1;
