@@ -1,4 +1,4 @@
-import { json, getMasterEmail } from '../utils.js';
+import { json, getMasterEmail } from '../utils/index.js';
 
 export async function handleMasterRoutes(url, request, env) {
     const { DB } = env;

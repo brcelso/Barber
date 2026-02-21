@@ -1,4 +1,4 @@
-import { json } from '../utils.js';
+import { json } from '../utils/index.js';
 import { handleAdminFlow } from './adminHandler.js';
 import { handleClientFlow } from './clientHandler.js';
 

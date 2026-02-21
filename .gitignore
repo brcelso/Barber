@@ -24,8 +24,8 @@ dist-ssr
 *.sw?
 
 # Cloudflare
-server/.wrangler
-server/node_modules
+backend/.wrangler
+backend/node_modules
 
 # Environment
 .env
@@ -34,9 +34,9 @@ server/node_modules
 
 
 # WhatsApp Bridge
-wa-bridge/auth_info_baileys/
-wa-bridge/auth_sessions/
-wa-bridge/node_modules/
-wa-bridge/ngrok_log.txt
+bridge/auth_info_baileys/
+bridge/auth_sessions/
+bridge/node_modules/
+bridge/ngrok_log.txt
 .stop-flag
-wa-bridge/.stop-flag
+bridge/.stop-flag

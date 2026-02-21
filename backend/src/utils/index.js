@@ -42,24 +42,29 @@ export const sendMessage = async (env, phone, message, barberEmail) => {
     }
 };
 
-export const notifyWhatsApp = async (env, DB, appointmentId, status) => {
+export const notifyWhatsApp = async (env, DB, appointmentId, status, options = {}) => {
     const BRIDGE_URL = env.WA_BRIDGE_URL;
     const BRIDGE_KEY = env.WA_BRIDGE_KEY;
 
     try {
-        const appt = await DB.prepare(`
-            SELECT a.*, s.name as service_name, u.phone, u.name as user_name, b.name as barber_name, 
-                   b.welcome_message, b.business_type, b.bot_name
-            FROM appointments a
-            JOIN services s ON a.service_id = s.id
-            JOIN users u ON a.user_email = u.email
-            LEFT JOIN users b ON a.barber_email = b.email
-            WHERE a.id = ?
-        `).bind(appointmentId).first();
+        let appt = null;
+        if (appointmentId) {
+            appt = await DB.prepare(`
+                SELECT a.*, s.name as service_name, u.phone, u.name as user_name, b.name as barber_name, 
+                       b.welcome_message, b.business_type, b.bot_name
+                FROM appointments a
+                JOIN services s ON a.service_id = s.id
+                JOIN users u ON a.user_email = u.email
+                LEFT JOIN users b ON a.barber_email = b.email
+                WHERE a.id = ?
+            `).bind(appointmentId).first();
+        } else if (options.to) {
+            appt = { phone: options.to, barber_email: options.barberEmail };
+        }
 
         if (!appt || !appt.phone) return;
 
-        const barberEmail = appt.barber_email || getMasterEmail(env);
+        const barberEmail = appt.barber_email || options.barberEmail || getMasterEmail(env);
         const barberUser = await DB.prepare('SELECT subscription_expires, owner_id FROM users WHERE email = ?').bind(barberEmail).first();
 
         let expiresStr = barberUser?.subscription_expires;
@@ -84,8 +89,11 @@ export const notifyWhatsApp = async (env, DB, appointmentId, status) => {
         }
 
         let message = "";
-        const dateParts = appt.appointment_date.split('-');
-        const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+        let formattedDate = "";
+        if (appt.appointment_date) {
+            const dateParts = appt.appointment_date.split('-');
+            formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+        }
 
         if (status === 'confirmed') {
             const template = appt.welcome_message || `✅ *Agendamento Confirmado!* \n\nOlá {{user_name}}, seu horário para *{{service_name}}* com {{barber_name}} no dia *{{date}}* às *{{time}}* foi confirmado. \n\nTe esperamos lá! ✂️`;
@@ -99,6 +107,8 @@ export const notifyWhatsApp = async (env, DB, appointmentId, status) => {
             message = `❌ *Agendamento Cancelado* \n\nOlá ${appt.user_name}, informamos que o agendamento para *${appt.service_name}* com *${appt.barber_name || 'Profissional'}* no dia *${formattedDate}* às *${appt.appointment_time}* foi cancelado.`;
         } else if (status === 'pending') {
             message = `⏳ *Agendamento Recebido* \n\nOlá ${appt.user_name}, seu agendamento para *${appt.service_name}* com *${appt.barber_name || 'Profissional'}* no dia *${formattedDate}* às *${appt.appointment_time}* foi recebido e está sendo processado.`;
+        } else if (status === 'custom') {
+            message = options.message;
         }
 
         if (message) {

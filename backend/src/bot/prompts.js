@@ -6,8 +6,6 @@ export const ADMIN_PROMPTS = {
     main_menu: (name) => {
         let msg = `👨‍💼 *Painel do Chefe* 💈\n\nOlá, ${name}! O que deseja fazer?\n\n`;
         msg += "1️⃣ - Ver Agenda (Próximos Clientes)\n";
-        msg += "2️⃣ - Cancelar Agendamento\n";
-        msg += "3️⃣ - Confirmar ou Marcar como Pago\n";
         msg += "4️⃣ - Bloquear Horário/Dia\n";
         msg += "5️⃣ - Assistente de Gestão (Dúvidas/Relatórios)\n";
         msg += "\nVocê também pode digitar seu comando livremente!";
@@ -26,15 +24,16 @@ Ajudar o barbeiro a gerir sua agenda e clientes.
 
 IMPORTANTE:
 Ao final de cada resposta, lembre o chefe que ele pode usar o menu:
-1️⃣ Agenda | 2️⃣ Cancelar | 3️⃣ Confirmar | 4️⃣ Bloquear
+1️⃣ Agenda | 4️⃣ Bloquear | 5️⃣ Gestão (Opções de Cancelar/Confirmar aparecem ao ver a Agenda)
 
 DIRETRIZES:
 1. Responda dúvidas sobre como usar o sistema.
 2. Seja proativo em sugerir ações se o chefe parecer confuso.
 3. Não invente dados de clientes ou horários.`,
 
-    system_instruction: (text) => `Você é o assistente de gestão do barbeiro.
+    system_instruction: (text, context = '') => `Você é o assistente de gestão do barbeiro.
 O dono do salão mandou: "${text}"
+${context}
 
 Analise a intenção e responda APENAS com JSON válido:
 - Se quiser cancelar: {"intent": "cancel_next", "count": numero, "reason": "motivo"}

@@ -1,4 +1,4 @@
-import { json, notifyWhatsApp, getMasterEmail } from '../utils.js';
+import { json, notifyWhatsApp, getMasterEmail } from '../utils/index.js';
 
 export async function handleAdminRoutes(url, request, env) {
     const { DB } = env;
@@ -142,6 +142,51 @@ export async function handleAdminRoutes(url, request, env) {
         const user = await DB.prepare('SELECT bot_name, business_type, bot_tone, welcome_message, msg_welcome, msg_choose_barber, msg_choose_service, msg_confirm_booking FROM users WHERE email = ?').bind(email).first();
         if (!user) return json({ error: 'User not found' }, 404);
         return json(user);
+    }
+
+    // Admin: Update Appointment Payment Status
+    if (url.pathname === '/api/admin/appointments/update-payment' && request.method === 'POST') {
+        const { appointmentId, adminEmail, status, paymentId } = await request.json();
+        const admin = await DB.prepare('SELECT is_admin FROM users WHERE email = ?').bind(adminEmail).first();
+        if (!admin || admin.is_admin !== 1) return json({ error: 'Forbidden' }, 403);
+
+        await DB.prepare(`
+            UPDATE appointments 
+            SET status = ?, payment_status = 'paid', payment_id = ? 
+            WHERE id = ?
+        `).bind(status || 'confirmed', paymentId || 'Manual', appointmentId).run();
+
+        // Optional: Notify via WhatsApp if status changed to confirmed
+        if (status === 'confirmed') {
+            await notifyWhatsApp(env, DB, appointmentId, 'confirmed');
+        }
+
+        return json({ success: true });
+    }
+
+    // Admin: Individual Toggle Block Slot
+    if (url.pathname === '/api/admin/toggle-block' && request.method === 'POST') {
+        const { date, time, adminEmail, scope } = await request.json();
+        const admin = await DB.prepare('SELECT is_admin, is_barber FROM users WHERE email = ?').bind(adminEmail).first();
+        if (!admin || (admin.is_admin !== 1 && admin.is_barber !== 1)) return json({ error: 'Forbidden' }, 403);
+
+        const existing = await DB.prepare('SELECT id, status FROM appointments WHERE appointment_date = ? AND appointment_time = ? AND barber_email = ?').bind(date, time, adminEmail).first();
+
+        if (existing) {
+            if (existing.status === 'blocked') {
+                await DB.prepare('DELETE FROM appointments WHERE id = ?').bind(existing.id).run();
+                return json({ status: 'unblocked' });
+            } else {
+                return json({ error: 'Existem agendamentos neste horário' }, 409);
+            }
+        } else {
+            const id = `block-${crypto.randomUUID()}`;
+            await DB.prepare(`
+                INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status)
+                VALUES (?, 'system', ?, 'block', ?, ?, 'blocked')
+            `).bind(id, adminEmail, date, time).run();
+            return json({ status: 'blocked' });
+        }
     }
 
     return null; // Not handled

@@ -4,13 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:server": "cd server && npx wrangler dev --local",
-    "dev:full": "npm run dev & npm run dev:server",
-    "db:init": "cd server && npx wrangler d1 execute barber-db --local --file=schema.sql",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "dev:frontend": "cd frontend && npx vite",
+    "dev:backend": "cd backend && npx wrangler dev --local",
+    "dev:full": "npm run dev:frontend & npm run dev:backend",
+    "db:init": "cd backend && npx wrangler d1 execute barber-db --local --file=schema.sql",
+    "build:frontend": "cd frontend && npx vite build",
+    "lint": "eslint frontend/src backend/src",
+    "preview:frontend": "cd frontend && npx vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.95.3",

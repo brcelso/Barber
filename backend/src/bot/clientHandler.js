@@ -1,4 +1,4 @@
-import { json, sendMessage } from '../utils.js';
+import { json, sendMessage } from '../utils/index.js';
 import { askAI } from './ai.js';
 import { CLIENT_PROMPTS } from './prompts.js';
 

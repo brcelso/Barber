@@ -3,11 +3,13 @@
  * Modularized version
  */
 
-import { corsHeaders, json, getMasterEmail, notifyWhatsApp } from './utils.js';
-import { handleWhatsAppWebhook } from './whatsapp.js';
-import { handleAdminRoutes } from './routes/admin.js';
-import { handleMasterRoutes } from './routes/master.js';
-import { handleAppointmentRoutes } from './routes/appointments.js';
+import { corsHeaders, json, getMasterEmail, notifyWhatsApp } from './utils/index.js';
+import { handleWhatsAppWebhook } from './bot/index.js';
+import { handleAdminRoutes } from './api/admin.js';
+import { handleMasterRoutes } from './api/master.js';
+import { handleAppointmentRoutes } from './api/appointments.js';
+import { handleUserRoutes } from './api/user.js';
+import { handlePaymentRoutes } from './api/payments.js';
 
 export default {
     async fetch(request, env) {
@@ -61,6 +63,14 @@ export default {
             // 4. Appointment Routes
             const apptRes = await handleAppointmentRoutes(url, request, env);
             if (apptRes) return apptRes;
+
+            // 5. User Routes
+            const userRes = await handleUserRoutes(url, request, env);
+            if (userRes) return userRes;
+
+            // 6. Payment Routes
+            const payRes = await handlePaymentRoutes(url, request, env);
+            if (payRes) return payRes;
 
             // --- Remaining Routes (Gradually move these to files too) ---
 
@@ -222,5 +232,10 @@ export default {
             console.error('[Global Error]', e);
             return json({ error: 'Internal Server Error', message: e.message }, 500);
         }
+    },
+
+    async scheduled(event, env, ctx) {
+        const { handleDailyBriefing } = await import('./cron/dailyBriefing.js');
+        ctx.waitUntil(handleDailyBriefing(env, event));
     }
 };
