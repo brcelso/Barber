@@ -85,67 +85,59 @@ export async function handleAdminRoutes(url, request, env) {
         return json(allAppointments.results);
     }
 
-    // No arquivo api/admin.js
-if (url.pathname === '/api/admin/bulk-toggle-block' && request.method === 'POST') {
-    const body = await request.json().catch(() => ({}));
-    
-    // Prioriza o email do Header, se não tiver, usa o do Body
-    const adminEmail = request.headers.get('X-User-Email') || body.adminEmail;
-    const { date, action, times, scope } = body;
+    // Admin: Bulk Toggle Block Day
+    if (url.pathname === '/api/admin/bulk-toggle-block' && request.method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const adminEmail = request.headers.get('X-User-Email') || body.adminEmail;
+        const { date, action, times, scope } = body;
 
-    if (!adminEmail) return json({ error: 'Email não fornecido' }, 400);
+        if (!adminEmail) return json({ error: 'Email não fornecido' }, 400);
 
-    const admin = await DB.prepare('SELECT is_admin, owner_id FROM users WHERE email = ?').bind(adminEmail).first();
-    
-    if (!admin || admin.is_admin !== 1) {
-        return json({ error: 'Acesso negado' }, 403);
-    }
+        const admin = await DB.prepare('SELECT is_admin, owner_id FROM users WHERE email = ?').bind(adminEmail).first();
+        if (!admin || admin.is_admin !== 1) return json({ error: 'Forbidden' }, 403);
 
-    if (action === 'block') {
-        const isOwner = !admin.owner_id;
-        
-        // Define quem será bloqueado (a loja toda ou só o admin logado)
-        const targetBarbers = (isOwner && scope === 'shop')
-            ? (await DB.prepare('SELECT email FROM users WHERE owner_id = ? OR email = ?').bind(adminEmail, adminEmail).all()).results.map(r => r.email)
-            : [adminEmail];
+        if (action === 'block') {
+            const isOwner = !admin.owner_id;
+            const targetBarbers = (isOwner && scope === 'shop')
+                ? (await DB.prepare('SELECT email FROM users WHERE owner_id = ? OR email = ?').bind(adminEmail, adminEmail).all()).results.map(r => r.email)
+                : [adminEmail];
 
-        const statements = [];
-        
-        for (const bEmail of targetBarbers) {
-            // Evita erro de duplicidade: busca o que JÁ está bloqueado ou agendado
-            const existing = await DB.prepare('SELECT appointment_time FROM appointments WHERE appointment_date = ? AND barber_email = ? AND status != "cancelled"').bind(date, bEmail).all();
-            const busySet = new Set(existing.results.map(r => r.appointment_time));
+            const statements = [];
+            for (const bEmail of targetBarbers) {
+                // Busca o que já está ocupado para evitar conflitos desnecessários
+                const existing = await DB.prepare('SELECT appointment_time FROM appointments WHERE appointment_date = ? AND barber_email = ? AND status != "cancelled"').bind(date, bEmail).all();
+                const busySet = new Set(existing.results.map(r => r.appointment_time));
 
-            for (const time of times) {
-                if (!busySet.has(time)) {
-                    // Importante: ID único para cada slot do dia
-                    const id = `block-${bEmail}-${date}-${time.replace(':', '')}`; 
-                    statements.push(DB.prepare(`
-                        INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status)
-                        VALUES (?, 'system', ?, 'block', ?, ?, 'blocked')
-                        ON CONFLICT(id) DO NOTHING
-                    `).bind(id, bEmail, date, time));
+                for (const time of times) {
+                    if (!busySet.has(time)) {
+                        // ID determinístico para evitar duplicatas: block-email-data-hora
+                        const id = `block-${bEmail}-${date}-${time.replace(':', '')}`; 
+                        statements.push(DB.prepare(`
+                            INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status)
+                            VALUES (?, 'system', ?, 'block', ?, ?, 'blocked')
+                            ON CONFLICT(id) DO UPDATE SET status = 'blocked'
+                        `).bind(id, bEmail, date, time));
+                    }
                 }
             }
-        }
 
-        if (statements.length > 0) {
-            await DB.batch(statements); // O segredo da performance no D1
-        }
-        return json({ status: 'blocked', count: statements.length });
-    } else {
-        // Lógica de Unblock (Liberação)
-        if (!admin.owner_id && scope === 'shop') {
-            const team = await DB.prepare('SELECT email FROM users WHERE owner_id = ? OR email = ?').bind(adminEmail, adminEmail).all();
-            const teamEmails = team.results.map(r => r.email);
-            const placeholders = teamEmails.map(() => '?').join(',');
-            await DB.prepare(`DELETE FROM appointments WHERE appointment_date = ? AND status = "blocked" AND barber_email IN (${placeholders})`).bind(date, ...teamEmails).run();
+            if (statements.length > 0) {
+                await DB.batch(statements);
+            }
+            return json({ status: 'blocked', count: statements.length });
         } else {
-            await DB.prepare('DELETE FROM appointments WHERE appointment_date = ? AND barber_email = ? AND status = "blocked"').bind(date, adminEmail).run();
+            // Lógica de Unblock
+            if (!admin.owner_id && scope === 'shop') {
+                const team = await DB.prepare('SELECT email FROM users WHERE owner_id = ? OR email = ?').bind(adminEmail, adminEmail).all();
+                const teamEmails = team.results.map(r => r.email);
+                const placeholders = teamEmails.map(() => '?').join(',');
+                await DB.prepare(`DELETE FROM appointments WHERE appointment_date = ? AND status = "blocked" AND barber_email IN (${placeholders})`).bind(date, ...teamEmails).run();
+            } else {
+                await DB.prepare('DELETE FROM appointments WHERE appointment_date = ? AND barber_email = ? AND status = "blocked"').bind(date, adminEmail).run();
+            }
+            return json({ status: 'unblocked' });
         }
-        return json({ status: 'unblocked' });
     }
-}
 
     // Admin: Get Bot Settings
     if (url.pathname === '/api/admin/bot/settings' && request.method === 'GET') {
@@ -236,7 +228,6 @@ if (url.pathname === '/api/admin/bulk-toggle-block' && request.method === 'POST'
             WHERE id = ?
         `).bind(status || 'confirmed', paymentId || 'Manual', appointmentId).run();
 
-        // Optional: Notify via WhatsApp if status changed to confirmed
         if (status === 'confirmed') {
             await notifyWhatsApp(env, DB, appointmentId, 'confirmed');
         }
@@ -246,10 +237,10 @@ if (url.pathname === '/api/admin/bulk-toggle-block' && request.method === 'POST'
 
     // Admin: Individual Toggle Block Slot
     if (url.pathname === '/api/admin/toggle-block' && request.method === 'POST') {
-        const { date, time, adminEmail } = await request.json().catch((error) => {
-            console.error('[JSON Parse Error]', error.message);
-            return {};
-        });
+        const body = await request.json().catch(() => ({}));
+        const adminEmail = request.headers.get('X-User-Email') || body.adminEmail;
+        const { date, time } = body;
+
         const admin = await DB.prepare('SELECT is_admin, is_barber FROM users WHERE email = ?').bind(adminEmail).first();
         if (!admin || (admin.is_admin !== 1 && admin.is_barber !== 1)) return json({ error: 'Forbidden' }, 403);
 
@@ -263,10 +254,11 @@ if (url.pathname === '/api/admin/bulk-toggle-block' && request.method === 'POST'
                 return json({ error: 'Existem agendamentos neste horário' }, 409);
             }
         } else {
-            const id = `block-${crypto.randomUUID()}`;
+            const id = `block-${adminEmail}-${date}-${time.replace(':', '')}`;
             await DB.prepare(`
                 INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status)
                 VALUES (?, 'system', ?, 'block', ?, ?, 'blocked')
+                ON CONFLICT(id) DO UPDATE SET status = 'blocked'
             `).bind(id, adminEmail, date, time).run();
             return json({ status: 'blocked' });
         }
