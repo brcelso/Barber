@@ -184,7 +184,7 @@ function App() {
         fetchBusySlots(selectedDate, selectedBarber || user, ts)
       ]);
       // CORREÇÃO LINT: Alterado catch para não usar a variável 'e' se não for necessário
-    } catch (_e) { console.error("Refresh error"); }
+    } catch { console.error("Refresh error"); }
     finally { setLoading(false); }
   };
 
@@ -244,7 +244,7 @@ function App() {
       alert('Agendado!');
       fetchAppointments();
       setView('history');
-    } catch (_e) { alert('Erro ao agendar'); }
+    } catch { alert('Erro ao agendar'); }
     finally { setLoading(false); }
   };
 
