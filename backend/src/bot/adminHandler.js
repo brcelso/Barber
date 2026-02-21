@@ -10,52 +10,8 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
     let session = await env.DB.prepare('SELECT * FROM whatsapp_sessions WHERE phone = ?').bind(from).first();
 
     if (!session || isMenuCommand) {
-        await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email, selected_barber_email, metadata) VALUES (?, "main_menu", ?, ?, "{}")').bind(from, adminInfo.email, adminInfo.email).run();
-        await sendMessage(env, from, ADMIN_PROMPTS.main_menu(adminInfo.name), botBarberEmail);
-        return json({ success: true });
-    }
-
-    const metadata = JSON.parse(session.metadata || '{}');
-
-    // 2. Lógica de Menu Numérico
-    const isGlobalMenuChoice = isNumericChoice && parseInt(text) >= 1 && parseInt(text) <= 7;
-    if ((session.state === 'main_menu' || isGlobalMenuChoice) && isNumericChoice) {
-        switch (text) {
-            case '1': // Ver Agenda
-                await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_viewing_agenda" WHERE phone = ?').bind(from).run();
-                return await showAgenda(from, adminInfo, botBarberEmail, env, 1);
-
-            case '2': // Confirmar
-                await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_ai_chat" WHERE phone = ?').bind(from).run();
-                await sendMessage(env, from, "✅ *Confirmar Agendamento*\n\nMe diga o nome do cliente ou horário para eu confirmar agora.", botBarberEmail);
-                break;
-
-            case '3': // Pagar
-                await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_ai_chat" WHERE phone = ?').bind(from).run();
-                await sendMessage(env, from, "💰 *Marcar como Pago*\n\nQuem pagou? Pode mandar o nome ou horário.", botBarberEmail);
-                break;
-
-            case '4': // Cancelar
-                await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_ai_chat" WHERE phone = ?').bind(from).run();
-                await sendMessage(env, from, "❌ *Cancelar Agendamento*\n\nQual horário deseja cancelar?", botBarberEmail);
-                break;
-
-            case '5': // Bloquear
-                await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_ai_chat" WHERE phone = ?').bind(from).run();
-                await sendMessage(env, from, "🛑 *Bloqueio*\n\nQual data ou hora deseja bloquear/desbloquear?", botBarberEmail);
-                break;
-
-            case '6': // Financeiro
-                await showRevenue(from, adminInfo, botBarberEmail, env);
-                await env.DB.prepare('UPDATE whatsapp_sessions SET state = "main_menu" WHERE phone = ?').bind(from).run();
-                await sendMessage(env, from, ADMIN_PROMPTS.main_menu(adminInfo.name), botBarberEmail);
-                break;
-
-            case '7': // Chat IA
-                await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_ai_chat" WHERE phone = ?').bind(from).run();
-                await sendMessage(env, from, ADMIN_PROMPTS.ai_welcome, botBarberEmail);
-                break;
-        }
+        await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email, selected_barber_email, metadata) VALUES (?, "admin_ai_chat", ?, ?, "{}")').bind(from, adminInfo.email, adminInfo.email).run();
+        await sendMessage(env, from, ADMIN_PROMPTS.ai_welcome(adminInfo.name), botBarberEmail);
         return json({ success: true });
     }
 
@@ -66,36 +22,26 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
     }
 
     // 3. FLUXO AGÊNTICO
-    if (session.state === 'admin_ai_chat' || !isNumericChoice) {
-        try {
-            const barberContext = {
-                establishmentName: adminInfo.shop_name || adminInfo.name || 'Barbearia',
-                bName: adminInfo.bot_name || 'Leo',
-                bTone: adminInfo.bot_tone || 'profissional'
-            };
+    try {
+        const barberContext = {
+            establishmentName: adminInfo.shop_name || adminInfo.name || 'Barbearia',
+            bName: adminInfo.bot_name || 'Leo',
+            bTone: adminInfo.bot_tone || 'profissional'
+        };
 
-            const aiData = await runAgentChat(env, {
-                prompt: text,
-                isAdmin: true,
-                barberContext: barberContext
-            });
+        const aiData = await runAgentChat(env, {
+            prompt: text,
+            isAdmin: true,
+            barberContext: barberContext
+        });
 
-            const aiMsg = aiData.text || "Chefe, não consegui processar isso agora. Pode usar o menu?";
+        const aiMsg = aiData.text || "Chefe, não consegui processar isso agora. Pode me mandar a dúvida de novo?";
+        await sendMessage(env, from, aiMsg, botBarberEmail);
+        return json({ success: true });
 
-            await sendMessage(env, from, aiMsg, botBarberEmail);
-
-            // Só volta para o menu se NÃO estiver no estado de chat fixo da IA
-            if (session.state !== 'admin_ai_chat') {
-                await env.DB.prepare('UPDATE whatsapp_sessions SET state = "main_menu" WHERE phone = ?').bind(from).run();
-                await sendMessage(env, from, ADMIN_PROMPTS.main_menu(adminInfo.name), botBarberEmail);
-            }
-
-            return json({ success: true });
-
-        } catch (e) {
-            console.error('[Agentic Admin Flow Error]', e);
-            return await handleIntentsFallback(from, text, adminInfo, botBarberEmail, env);
-        }
+    } catch (e) {
+        console.error('[Agentic Admin Flow Error]', e);
+        return await handleIntentsFallback(from, text, adminInfo, botBarberEmail, env);
     }
 
     return json({ success: true });
