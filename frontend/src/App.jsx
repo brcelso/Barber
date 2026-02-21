@@ -34,7 +34,9 @@ function App() {
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [subscription, setSubscription] = useState({ daysLeft: 0, isActive: false, expires: null });
   const [showPhoneSetup, setShowPhoneSetup] = useState(false);
-  const [editingAppointment, setEditingAppointment] = useState(null);
+  
+  // CORREÇÃO LINT: Removidas variáveis 'editingAppointment' e 'masterFilter' que não estavam sendo usadas
+  
   const [paymentSelectionAppt, setPaymentSelectionAppt] = useState(null);
   const [selectedActionAppt, setSelectedActionAppt] = useState(null);
   const [showPlanSelection, setShowPlanSelection] = useState(false);
@@ -52,7 +54,6 @@ function App() {
     msg_confirm_booking: ''
   });
   const [adminTab, setAdminTab] = useState('agenda');
-  const [masterFilter, setMasterFilter] = useState('all');
   const [sheetView, setSheetView] = useState('main');
 
   const timeSlots = [
@@ -97,10 +98,8 @@ function App() {
   }, [user]);
 
  const fetchBusySlots = useCallback(async (date, barber, ts = '') => {
-    // 1. Define o barbeiro alvo (parâmetro ou o próprio usuário se for barbeiro)
     const effectiveBarber = barber || (user?.isBarber ? user : null);
     
-    // 2. Validação precoce: se não houver barbeiro ou data, reseta e encerra
     if (!effectiveBarber || !date) {
       setBusySlots([]);
       return;
@@ -110,23 +109,22 @@ function App() {
       const dateStr = format(date, 'yyyy-MM-dd');
       const data = await api.getBusySlots(dateStr, effectiveBarber.email, ts);
       
-      // 3. Garante que 'data' seja um array para não quebrar o .map()
       const dataArray = Array.isArray(data) ? data : [];
 
-      // 4. Normaliza os dados: extrai apenas a string do horário
+      // CORREÇÃO TELA PRETA: Mapeamento blindado para evitar erro de undefined
       const slotsOnly = dataArray
-      .filter(slot => slot !== null && slot !== undefined) // Remove itens nulos da lista
+      .filter(slot => slot !== null && slot !== undefined) 
       .map(slot => {
         if (typeof slot === 'string') return slot;
         if (slot && slot.appointment_time) return slot.appointment_time;
-        return null; // Caso não tenha a propriedade, retorna nulo para filtrar depois
+        return null; 
       })
-      .filter(slot => slot !== null); // Limpa qualquer resíduo
+      .filter(slot => slot !== null); 
       
       setBusySlots(slotsOnly);
     } catch (error) { 
       console.error('Error fetching busy slots:', error); 
-      setBusySlots([]); // Limpa o estado em caso de falha na API
+      setBusySlots([]); 
     }
   }, [user]);
 
@@ -185,7 +183,8 @@ function App() {
         fetchBarbers(),
         fetchBusySlots(selectedDate, selectedBarber || user, ts)
       ]);
-    } catch (e) { console.error("Refresh error", e); }
+      // CORREÇÃO LINT: Alterado catch para não usar a variável 'e' se não for necessário
+    } catch (_e) { console.error("Refresh error"); }
     finally { setLoading(false); }
   };
 
@@ -245,7 +244,7 @@ function App() {
       alert('Agendado!');
       fetchAppointments();
       setView('history');
-    } catch (e) { alert('Erro ao agendar'); }
+    } catch (_e) { alert('Erro ao agendar'); }
     finally { setLoading(false); }
   };
 
