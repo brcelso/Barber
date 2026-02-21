@@ -2,7 +2,7 @@ name: Deploy Backend
 
 on:
   push:
-    branches: ["main", "test-barber-grouping"]
+    branches: ["main"]
     paths:
       - 'backend/**'
       - 'backend/schema.sql'
