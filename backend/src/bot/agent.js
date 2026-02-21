@@ -38,10 +38,12 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext }) {
     const { DB, AI } = env;
 
     // 1. O Modelo decide se precisa de ferramenta
+    const systemPrompt = isAdmin ? ADMIN_PROMPTS.system_admin(barberContext) : CLIENT_PROMPTS.system_ai(barberContext);
+
     const aiResponse = await AI.run('@cf/meta/llama-3.1-8b-instruct', {
         messages: [
-            { role: 'system', content: isAdmin ? ADMIN_PROMPTS.system_admin(barberContext) : CLIENT_PROMPTS.system_ai(barberContext) },
-            { role: 'user', content: prompt }
+            { role: 'system', content: String(systemPrompt) },
+            { role: 'user', content: String(prompt) }
         ],
         tools: BARBER_TOOLS
     });
@@ -68,10 +70,10 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext }) {
         // 3. Resposta Final baseada nos dados reais
         const final = await AI.run('@cf/meta/llama-3.1-8b-instruct', {
             messages: [
-                { role: 'system', content: isAdmin ? ADMIN_PROMPTS.system_admin(barberContext) : CLIENT_PROMPTS.system_ai(barberContext) },
-                { role: 'user', content: prompt },
-                { role: 'assistant', tool_calls: [call] },
-                { role: 'tool', name: call.name, content: toolData }
+                { role: 'system', content: String(systemPrompt) },
+                { role: 'user', content: String(prompt) },
+                { role: 'assistant', content: '', tool_calls: [call] },
+                { role: 'tool', name: call.name, tool_call_id: call.id, content: String(toolData) }
             ]
         });
         return { text: final.response };
