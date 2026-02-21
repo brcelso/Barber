@@ -18,8 +18,9 @@ import { HistoryPage } from './pages/History';
 import { AdminPanel } from './pages/Admin/AdminPanel';
 
 function App() {
+  // --- ESTADOS ---
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('barber_user') || 'null'));
-  const [view, setView] = useState('book'); // book, history, admin
+  const [view, setView] = useState('book'); 
   const [services, setServices] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
   const [selectedDate, setSelectedDate] = useState(startOfToday());
@@ -50,7 +51,7 @@ function App() {
     msg_choose_service: '',
     msg_confirm_booking: ''
   });
-  const [adminTab, setAdminTab] = useState('agenda'); // agenda, team, bot, master
+  const [adminTab, setAdminTab] = useState('agenda');
   const [masterFilter, setMasterFilter] = useState('all');
   const [sheetView, setSheetView] = useState('main');
 
@@ -60,7 +61,8 @@ function App() {
     "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00"
   ];
 
-  // API Handlers
+  // --- BUSCA DE DADOS (API) ---
+
   const fetchBarbers = useCallback(async () => {
     try {
       const data = await api.getBarbers();
@@ -75,11 +77,6 @@ function App() {
       setServices(data || []);
     } catch {
       console.error('Error fetching services');
-      setServices([
-        { id: 'corte-simples', name: 'Corte de Cabelo', price: 40, duration_minutes: 30 },
-        { id: 'barba', name: 'Barba Completa', price: 30, duration_minutes: 20 },
-        { id: 'combo', name: 'Cabelo e Barba', price: 60, duration_minutes: 50 }
-      ]);
     }
   }, [selectedBarber?.email]);
 
@@ -100,14 +97,33 @@ function App() {
   }, [user]);
 
   const fetchBusySlots = useCallback(async (date, barber, ts = '') => {
-    const effectiveBarber = barber || (user?.isBarber ? user : null);
-    if (!effectiveBarber) return;
-    try {
-      const dateStr = format(date, 'yyyy-MM-dd');
-      const data = await api.getBusySlots(dateStr, effectiveBarber.email, ts);
-      setBusySlots(data || []);
-    } catch { console.error('Error busy slots'); }
-  }, [user]);
+  // 1. Define quem é o barbeiro de forma segura
+  const effectiveBarber = barber || (user?.isBarber ? user : null);
+  
+  // 2. Se não tiver barbeiro ou a data for inválida, limpa os slots e sai
+  if (!effectiveBarber || !date) {
+    setBusySlots([]);
+    return;
+  }
+
+  try {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const data = await api.getBusySlots(dateStr, effectiveBarber.email, ts);
+    
+    // 3. Garante que data seja um array antes de mapear
+    const safeData = Array.isArray(data) ? data : [];
+
+    // 4. Transforma em lista de strings (horários)
+    const slotsOnly = safeData.map(slot => 
+      typeof slot === 'string' ? slot : slot.appointment_time
+    );
+    
+    setBusySlots(slotsOnly);
+  } catch (err) { 
+    console.error('Error busy slots:', err); 
+    setBusySlots([]); 
+  }
+}, [user]);
 
   const fetchSubscription = useCallback(async (ts = '') => {
     if (!user?.isAdmin && !user?.isBarber) return;
@@ -115,7 +131,7 @@ function App() {
       const data = await api.getSubscription(user.email, ts);
       setSubscription(data);
       if ((data.isMaster && !user.isMaster) || (data.isBarber && !user.isBarber)) {
-        const updatedUser = { ...user, isMaster: data.isMaster || user.isMaster, isBarber: data.isBarber || user.isBarber };
+        const updatedUser = { ...user, isMaster: data.isMaster, isBarber: data.isBarber };
         setUser(updatedUser);
         localStorage.setItem('barber_user', JSON.stringify(updatedUser));
       }
@@ -123,119 +139,92 @@ function App() {
   }, [user]);
 
   const fetchWaStatus = useCallback(async () => {
+    if (!user?.email) return;
     try {
-      if (!user?.email) return;
       const data = await api.getWaStatus(user.email);
       setWaStatus(data);
     } catch { console.error('WA status error'); }
   }, [user]);
 
   const fetchBotSettings = useCallback(async () => {
+    if (!user?.email) return;
     try {
-      if (!user?.email) return;
       const data = await api.getBotSettings(user.email);
-      if (data) {
-        setBotSettings({
-          ...data,
-          welcome_message: data.welcome_message || `✅ *Agendamento Confirmado!* \n\nOlá {{user_name}}, seu horário para *{{service_name}}* com {{barber_name}} no dia *{{date}}* às *{{time}}* foi confirmado. \n\nTe esperamos lá! ✂️`,
-          msg_welcome: data.msg_welcome || `✨ *Bem-vindo(a)!* \n\nVocê está sendo atendido(a) por *{{establishment_name}}*. 📍\n\nO que deseja fazer?\n\n`,
-          msg_choose_barber: data.msg_choose_barber || `✨ *Bem-vindo(a) à {{establishment_name}}!* \n\nPara começar, selecione o *Profissional* desejado:\n\n`,
-          msg_choose_service: data.msg_choose_service || `📅 *Escolha o serviço:* \n`,
-          msg_confirm_booking: data.msg_confirm_booking || `📝 *Tudo pronto! Confirme:* \n\n👤 *Nome:* {{user_name}}\n📧 *E-mail:* {{user_email}}\n💇‍♂️ *Serviço:* {{service_name}}\n📅 *Data:* {{date}}\n⏰ *Hora:* {{time}}\n💈 *Barbeiro:* {{barber_name}}\n\n*1* - ✅ Confirmar\n*2* - ❌ Cancelar\n*3* - ✏️ Corrigir dados`
-        });
-      }
+      if (data) setBotSettings(prev => ({ ...prev, ...data }));
     } catch { console.error('Bot settings error'); }
   }, [user]);
 
   const fetchMasterData = useCallback(async () => {
     if (!user?.isMaster) return;
     try {
-      const stats = await api.getMasterStats(user.email);
-      const users = await api.getMasterUsers(user.email);
+      const [stats, users] = await Promise.all([
+        api.getMasterStats(user.email),
+        api.getMasterUsers(user.email)
+      ]);
       setMasterStats(stats);
       setMasterUsers(users || []);
     } catch { console.error('Master data error'); }
   }, [user]);
 
-  // Initialize data
-  useEffect(() => {
-    fetchBarbers();
-  }, [fetchBarbers]);
+  // --- HANDLERS DE UI ---
 
-  useEffect(() => {
-    if (user) {
-      if (user.isAdmin || user.isBarber) {
-        setIsAdminMode(true);
-        setView('admin');
-        fetchSubscription();
-      } else {
-        setView('book');
+  const handleRefresh = async () => {
+    setLoading(true);
+    const ts = Date.now();
+    try {
+      await Promise.all([
+        fetchSubscription(ts),
+        fetchAppointments(ts),
+        fetchAdminAppointments(ts),
+        fetchWaStatus(),
+        fetchBarbers(),
+        fetchBusySlots(selectedDate, selectedBarber || user, ts)
+      ]);
+    } catch (e) { console.error("Refresh error", e); }
+    finally { setLoading(false); }
+  };
+
+  const handleToggleFullDay = async () => {
+    const isBlocking = busySlots.length < timeSlots.length;
+    const action = isBlocking ? 'block' : 'unblock';
+    setLoading(true);
+    try {
+      const res = await api.bulkToggleBlock(user.email, {
+        date: format(selectedDate, 'yyyy-MM-dd'),
+        action,
+        times: timeSlots,
+        scope: user.ownerId ? 'individual' : 'shop'
+      });
+      if (res.status) {
+        await handleRefresh();
+        alert(isBlocking ? 'Dia bloqueado!' : 'Dia liberado!');
       }
-      fetchAppointments();
-      if (user.isAdmin || user.isBarber) fetchAdminAppointments();
-    }
-  }, [user, fetchAdminAppointments, fetchAppointments, fetchSubscription]);
+    } catch { alert('Erro ao alterar dia'); }
+    finally { setLoading(false); }
+  };
 
-  useEffect(() => {
-    if (user?.isAdmin || user?.isBarber) {
-      const interval = setInterval(() => {
-        fetchWaStatus();
-        if (user?.isMaster) fetchMasterData();
-      }, 10000);
-      fetchWaStatus();
-      if (user?.isMaster) fetchMasterData();
-      fetchBotSettings();
-      return () => clearInterval(interval);
-    }
-  }, [user, view, fetchBotSettings, fetchMasterData, fetchWaStatus]);
+  const handleToggleBlock = async (time) => {
+    setLoading(true);
+    try {
+      await api.toggleBlock(user.email, { date: format(selectedDate, 'yyyy-MM-dd'), time });
+      await fetchBusySlots(selectedDate, selectedBarber || user);
+      fetchAdminAppointments();
+    } catch { alert('Erro ao bloquear'); }
+    finally { setLoading(false); }
+  };
 
-  useEffect(() => {
-    if (selectedBarber || user?.isBarber) {
-      if (selectedBarber) fetchServices();
-      fetchBusySlots(selectedDate, selectedBarber || user);
-    }
-  }, [selectedBarber, selectedDate, user, fetchBusySlots, fetchServices]);
-
-  // UI Handlers
   const handleLogin = useCallback(async (data) => {
     setLoading(true);
     try {
       const res = await api.login(data);
       if (res.user) {
-        const finalUser = {
-          name: res.user.name,
-          email: res.user.email,
-          picture: res.user.picture,
-          isAdmin: res.user.isAdmin,
-          isMaster: res.user.isMaster,
-          isBarber: res.user.isBarber,
-          phone: res.user.phone
-        };
-        setUser(finalUser);
-        localStorage.setItem('barber_user', JSON.stringify(finalUser));
+        setUser(res.user);
+        localStorage.setItem('barber_user', JSON.stringify(res.user));
         if (!res.user.phone) setShowPhoneSetup(true);
       }
-    } catch { alert('Erro ao fazer login'); }
+    } catch { alert('Erro no login'); }
     finally { setLoading(false); }
   }, []);
-
-  const handleLogout = () => {
-    setUser(null);
-    localStorage.removeItem('barber_user');
-  };
-
-  const handleRefresh = async () => {
-    setLoading(true);
-    const ts = Date.now();
-    await Promise.all([
-      fetchSubscription(ts),
-      fetchAppointments(ts),
-      fetchAdminAppointments(ts),
-      fetchWaStatus(),
-      fetchBarbers()
-    ]);
-    setLoading(false);
-  };
 
   const handleBooking = async () => {
     if (!selectedService || !selectedTime || !user) return;
@@ -245,262 +234,93 @@ function App() {
         barberEmail: selectedBarber.email,
         serviceId: selectedService.id,
         date: format(selectedDate, 'yyyy-MM-dd'),
-        time: selectedTime,
-        skipPayment: true
+        time: selectedTime
       };
-      const res = editingAppointment
-        ? await api.updateAppointment(user.email, { ...bookingData, appointmentId: editingAppointment.id })
-        : await api.book(user.email, bookingData);
-
-      if (res.error) throw new Error(res.error);
-
-      alert(editingAppointment ? 'Agendamento atualizado!' : 'Agendamento realizado!');
-      setEditingAppointment(null);
+      await api.book(user.email, bookingData);
+      alert('Agendado!');
       fetchAppointments();
       setView('history');
-    } catch (e) { alert('Erro: ' + e.message); }
+    } catch (e) { alert('Erro ao agendar'); }
     finally { setLoading(false); }
   };
 
-  const handleCancel = async (id) => {
-    if (!confirm('Deseja cancelar?')) return;
-    setLoading(true);
-    try {
-      await api.cancelAppointment(user.email, id);
-      handleRefresh();
-    } catch { alert('Erro ao cancelar'); }
-    finally { setLoading(false); }
-  };
+  // --- EFFECTS ---
+  useEffect(() => { fetchBarbers(); }, [fetchBarbers]);
 
-  const handleDelete = async (id) => {
-    if (!confirm('Deseja excluir?')) return;
-    setLoading(true);
-    try {
-      await api.deleteAppointment(user.email, id);
-      handleRefresh();
-    } catch { alert('Erro ao excluir'); }
-    finally { setLoading(false); }
-  };
-
-  const handleProcessPayment = async (type) => {
-    setLoading(true);
-    try {
-      let res;
-      if (type === 'real') {
-        res = await api.createPayment(user.email, paymentSelectionAppt.id);
-        if (res.paymentUrl) window.location.href = res.paymentUrl;
+  useEffect(() => {
+    if (user) {
+      if (user.isAdmin || user.isBarber) {
+        setIsAdminMode(true);
+        setView('admin');
+        fetchSubscription();
+        fetchAdminAppointments();
       } else {
-        res = await api.mockPayment(user.email, paymentSelectionAppt.id, type === 'local' ? 'Local' : 'Simulado');
-        if (res.success) {
-          alert('Pagamento confirmado!');
-          handleRefresh();
-        }
+        setView('book');
       }
-    } catch { alert('Erro no pagamento'); }
-    finally {
-      setLoading(false);
-      setPaymentSelectionAppt(null);
+      fetchAppointments();
     }
-  };
+  }, [user, fetchAdminAppointments, fetchAppointments, fetchSubscription]);
 
-  const handleUpdateStatus = async (status) => {
-    setLoading(true);
-    try {
-      await api.updateStatus(user.email, selectedActionAppt.id, status);
-      handleRefresh();
-      setSelectedActionAppt(null);
-    } catch { alert('Erro ao atualizar status'); }
-    finally { setLoading(false); }
-  };
-
-  const handleUpdateBotSettings = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await api.updateBotSettings(user.email, botSettings);
-      alert('Configurações salvas!');
-    } catch { alert('Erro ao salvar'); }
-    finally { setLoading(false); }
-  };
-
-  const handleAddTeamMember = async (e) => {
-    e.preventDefault();
-    const data = { name: e.target.memberName.value, email: e.target.memberEmail.value };
-    setLoading(true);
-    try {
-      await api.addTeamMember(user.email, data);
-      alert('Membro adicionado!');
-      e.target.reset();
-      fetchBarbers();
-    } catch { alert('Erro ao adicionar'); }
-    finally { setLoading(false); }
-  };
-
-  const handleToggleBlock = async (time) => {
-    setLoading(true);
-    try {
-      await api.toggleBlock(user.email, { date: format(selectedDate, 'yyyy-MM-dd'), time });
-      fetchBusySlots(selectedDate, user?.isBarber ? user : null);
-      fetchAdminAppointments();
-    } catch { alert('Erro ao bloquear'); }
-    finally { setLoading(false); }
-  };
-
-  const handleToggleFullDay = async () => {
-    const isBlocking = busySlots.length < timeSlots.length;
-    const action = isBlocking ? 'block' : 'unblock';
-
-    // LOG DE DEBUG
-    console.log('Enviando para API:', {
-      date: format(selectedDate, 'yyyy-MM-dd'),
-      action,
-      totalTimes: timeSlots.length,
-      scope: user.ownerId ? 'individual' : 'shop'
-    });
-
-    setLoading(true);
-    try {
-      await api.bulkToggleBlock(user.email, {
-        date: format(selectedDate, 'yyyy-MM-dd'),
-        action,
-        times: timeSlots,
-        scope: user.ownerId ? 'individual' : 'shop'
-      });
-
-      // Use await aqui para garantir que a tela só desbloqueie 
-      // após os dados novos chegarem
-      await handleRefresh();
-
-      alert(isBlocking ? 'Dia bloqueado!' : 'Dia liberado!');
-    } catch (error) {
-      console.error('Erro na API:', error);
-      alert('Erro ao alterar dia');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (user?.isAdmin || user?.isBarber) {
+      fetchWaStatus();
+      fetchBotSettings();
+      if (user.isMaster) fetchMasterData();
     }
-  };
+  }, [user, fetchBotSettings, fetchMasterData, fetchWaStatus]);
 
-  const handleWhatsAppNotify = (appt) => {
-    const cleaned = appt.user_phone?.replace(/\D/g, "") || "";
-    const phone = cleaned.length <= 11 ? `55${cleaned}` : cleaned;
-    const text = `Olá ${appt.user_name}! Confirmamos seu agendamento para ${appt.appointment_time}.`;
-    window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`, '_blank');
-  };
+  useEffect(() => {
+    const barber = selectedBarber || (user?.isBarber ? user : null);
+    if (barber) {
+      fetchServices();
+      fetchBusySlots(selectedDate, barber);
+    }
+  }, [selectedBarber, selectedDate, user, fetchBusySlots, fetchServices]);
 
-  const handlePromoteToBarber = async () => {
-    if (!confirm('Deseja se tornar um Barbeiro parceiro?')) return;
-    setLoading(true);
-    try {
-      const res = await api.promoteToBarber(user.email);
-      if (res.success) {
-        setUser({ ...user, isAdmin: true, isBarber: true });
-        localStorage.setItem('barber_user', JSON.stringify({ ...user, isAdmin: true, isBarber: true }));
-        window.location.reload();
-      }
-    } catch { alert('Erro ao promover'); }
-    finally { setLoading(false); }
-  };
-
-  if (!user) {
-    return <LoginScreen onManualLogin={handleLogin} loading={loading} VITE_GOOGLE_CLIENT_ID={import.meta.env.VITE_GOOGLE_CLIENT_ID} />;
-  }
+  if (!user) return <LoginScreen onManualLogin={handleLogin} loading={loading} VITE_GOOGLE_CLIENT_ID={import.meta.env.VITE_GOOGLE_CLIENT_ID} />;
 
   return (
     <div className="container">
-      <Header
-        user={user}
-        view={view}
-        setView={setView}
-        loading={loading}
-        handleRefresh={handleRefresh}
-        handleLogout={handleLogout}
-        subscription={subscription}
-        setShowPlanSelection={setShowPlanSelection}
-        handleMockPay={async () => {
-          const res = await api.mockPayment(user.email, null, 'Test3d');
-          if (res.success) { alert('Teste ativado!'); fetchSubscription(); }
-        }}
-        handleUpdateProfile={(phone) => api.updateProfile(user.email, phone).then(() => { setUser({ ...user, phone }); localStorage.setItem('barber_user', JSON.stringify({ ...user, phone })); })}
-        handlePromoteToBarber={handlePromoteToBarber}
-        isAdminMode={isAdminMode}
+      <Header 
+        user={user} view={view} setView={setView} loading={loading} 
+        handleRefresh={handleRefresh} handleLogout={() => { setUser(null); localStorage.removeItem('barber_user'); }}
+        subscription={subscription} setShowPlanSelection={setShowPlanSelection} isAdminMode={isAdminMode}
       />
 
       {view === 'book' && (
-        <BookingPage
+        <BookingPage 
           user={user} barbers={barbers} selectedBarber={selectedBarber} setSelectedBarber={setSelectedBarber}
           services={services} selectedService={selectedService} setSelectedService={setSelectedService}
           selectedDate={selectedDate} setSelectedDate={setSelectedDate} timeSlots={timeSlots}
           selectedTime={selectedTime} setSelectedTime={setSelectedTime} busySlots={busySlots}
-          handleBooking={handleBooking} loading={loading} editingAppointment={editingAppointment}
-          setEditingAppointment={setEditingAppointment}
+          handleBooking={handleBooking} loading={loading}
         />
       )}
 
-      {view === 'history' && (
-        <HistoryPage
-          appointments={appointments} handleCancel={handleCancel} handleDelete={handleDelete}
-          handlePayment={(a) => setPaymentSelectionAppt(a)} handleEditStart={(a) => { setEditingAppointment(a); setView('book'); }}
-          loading={loading}
-        />
-      )}
+      {view === 'history' && <HistoryPage appointments={appointments} loading={loading} handleCancel={(id) => api.cancelAppointment(user.email, id).then(handleRefresh)} />}
 
       {view === 'admin' && (user.isAdmin || user.isBarber) && (
-        <AdminPanel
+        <AdminPanel 
+          key={`admin-${busySlots.length}-${selectedDate.getTime()}`}
           user={user} adminTab={adminTab} setAdminTab={setAdminTab}
-          selectedDate={selectedDate} setSelectedDate={setSelectedDate} timeSlots={timeSlots}
-          busySlots={busySlots} adminAppointments={adminAppointments}
+          selectedDate={selectedDate} setSelectedDate={setSelectedDate}
+          timeSlots={timeSlots} busySlots={busySlots} adminAppointments={adminAppointments}
           handleToggleBlock={handleToggleBlock} handleToggleFullDay={handleToggleFullDay}
           setSelectedActionAppt={setSelectedActionAppt} handleRefresh={handleRefresh}
-          barbers={barbers} handleAddTeamMember={handleAddTeamMember}
-          handleRecruitBarber={async () => {
-            const email = document.getElementById('recruitSelect').value;
-            if (!email) return;
-            await api.recruitBarber(user.email, email);
-            fetchBarbers();
-          }}
-          handleRemoveTeamMember={async (email) => {
-            if (confirm('Remover membro?')) {
-              await api.removeTeamMember(user.email, email);
-              fetchBarbers();
-            }
-          }}
-          botSettings={botSettings} setBotSettings={setBotSettings} handleUpdateBotSettings={handleUpdateBotSettings}
-          waStatus={waStatus} masterStats={masterStats} masterUsers={masterUsers}
-          handleMasterUpdate={(t, u) => api.masterUpdateUser(user.email, t, u).then(() => fetchMasterData())}
-          handleMasterDelete={(t) => confirm('Deletar?') && api.masterDeleteUser(user.email, t).then(() => fetchMasterData())}
-          handleMasterRestartBot={(t) => api.startBot(user.email, t)}
-          handleMasterStopBot={(t) => api.stopBot(user.email, t)}
-          masterFilter={masterFilter} setMasterFilter={setMasterFilter} loading={loading}
+          barbers={barbers} loading={loading} waStatus={waStatus} botSettings={botSettings}
+          setBotSettings={setBotSettings} masterStats={masterStats} masterUsers={masterUsers}
         />
       )}
 
-      <ActionSheet
+      {/* MODAIS */}
+      <PaymentModal appointment={paymentSelectionAppt} onClose={() => setPaymentSelectionAppt(null)} onProcess={() => {}} loading={loading} />
+      <PlanSelectionModal show={showPlanSelection} onClose={() => setShowPlanSelection(false)} onSelect={(p) => api.subscriptionPayment(user.email, p)} loading={loading} />
+      <PhoneSetupModal show={showPhoneSetup} loading={loading} onSave={(p) => api.updateProfile(user.email, p).then(() => setShowPhoneSetup(false))} />
+      
+      <ActionSheet 
         selectedActionAppt={selectedActionAppt} setSelectedActionAppt={setSelectedActionAppt}
         sheetView={sheetView} setSheetView={setSheetView} user={user}
-        handleEditStart={(a) => { setEditingAppointment(a); setView('book'); }}
-        handleWhatsAppNotify={handleWhatsAppNotify}
-        updateStatus={handleUpdateStatus}
-        updatePayment={async (status) => {
-          await api.updatePaymentStatus(user.email, selectedActionAppt.id, { status: status === 'paid' ? 'confirmed' : 'pending' });
-          handleRefresh();
-          setSelectedActionAppt(null);
-        }}
-      />
-
-      <PaymentModal
-        appointment={paymentSelectionAppt} onClose={() => setPaymentSelectionAppt(null)}
-        onProcess={handleProcessPayment} loading={loading}
-      />
-
-      <PlanSelectionModal
-        show={showPlanSelection} onClose={() => setShowPlanSelection(false)}
-        onSelect={(p) => api.subscriptionPayment(user.email, p).then(r => r.paymentUrl && (window.location.href = r.paymentUrl))}
-        loading={loading}
-      />
-
-      <PhoneSetupModal
-        show={showPhoneSetup} loading={loading}
-        onSave={(phone) => api.updateProfile(user.email, phone).then(() => { setUser({ ...user, phone }); localStorage.setItem('barber_user', JSON.stringify({ ...user, phone })); setShowPhoneSetup(false); })}
+        updateStatus={(s) => api.updateStatus(user.email, selectedActionAppt.id, s).then(handleRefresh)}
       />
     </div>
   );
