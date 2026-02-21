@@ -99,24 +99,14 @@ function App() {
     } catch { console.error('Error fetching admin appts'); }
   }, [user]);
 
- const fetchBusySlots = useCallback(async (date, barber, ts = '') => {
+  const fetchBusySlots = useCallback(async (date, barber, ts = '') => {
     const effectiveBarber = barber || (user?.isBarber ? user : null);
     if (!effectiveBarber) return;
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
       const data = await api.getBusySlots(dateStr, effectiveBarber.email, ts);
-      
-      // O AJUSTE ESTÁ AQUI:
-      // Transformamos a lista de objetos em uma lista simples de horários (strings)
-      const slotsOnly = (data || []).map(slot => 
-        typeof slot === 'string' ? slot : slot.appointment_time
-      );
-      
-      setBusySlots(slotsOnly);
-    } catch { 
-      console.error('Error busy slots'); 
-      setBusySlots([]); // Garante que limpe em caso de erro
-    }
+      setBusySlots(data || []);
+    } catch { console.error('Error busy slots'); }
   }, [user]);
 
   const fetchSubscription = useCallback(async (ts = '') => {
