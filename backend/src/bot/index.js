@@ -27,6 +27,7 @@ export async function handleWhatsAppWebhook(request, env) {
     // 2. Privilege Check (Admin/Barber)
     let isOwner = false;
     let adminInfo = null;
+    const isSelfChat = body.is_self_chat === true;
 
     const cleanFrom = from.replace(/\D/g, "");
 
@@ -36,17 +37,12 @@ export async function handleWhatsAppWebhook(request, env) {
         const s1 = p1.replace(/\D/g, "");
         const s2 = p2.replace(/\D/g, "");
         if (s1 === s2) return true;
-        // Compare last 10 or 11 digits to ensure DDD + Number match
-        const len = Math.min(s1.length, s2.length);
-        if (len >= 10) {
-            const tail = Math.min(len, 11);
-            return s1.slice(-tail) === s2.slice(-tail);
+        // Compare last 10 digits (DDD + 8 digits) or 11 (DDD + 9 digits)
+        if (s1.length >= 10 && s2.length >= 10) {
+            return s1.slice(-10) === s2.slice(-10);
         }
         return false;
     };
-
-    // Constant for Master Email
-    const MASTER_EMAIL = 'celsosilvajunior90@gmail.com';
 
     if (botBarberEmail) {
         const barberRow = await env.DB.prepare(
@@ -54,11 +50,12 @@ export async function handleWhatsAppWebhook(request, env) {
         ).bind(botBarberEmail).first();
 
         // Check if the sender is the barber/owner of this bot
-        if (barberRow && (barberRow.is_barber === 1 || barberRow.is_admin === 1) && isSamePhone(barberRow.phone, cleanFrom)) {
+        const isActuallyTheOwner = barberRow && (barberRow.is_barber === 1 || barberRow.is_admin === 1) && isSamePhone(barberRow.phone, cleanFrom);
+
+        if (isActuallyTheOwner || isSelfChat) {
             isOwner = true;
             adminInfo = barberRow;
         }
-
     }
 
     // 3. Routing

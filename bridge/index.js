@@ -75,26 +75,21 @@ async function connectToWhatsApp(email) {
         const rawMyId = sock.user?.id || '';
         const myNumber = rawMyId.split(':')[0].split('@')[0];
 
-        // Strict self-chat check
         const isSelfChat = myNumber && remoteJid.startsWith(myNumber);
 
-        // Se a mensagem foi enviada pelo bot/celular (fromMe):
-        // Só processamos se for um comando enviado via LID ou conversando consigo mesmo.
-        // Se o bot mandou mensagem para outra pessoa, ignoramos aqui para evitar LOOP.
-        if (msg.key.fromMe && !isLid && !isSelfChat) return;
-
-        const isSelfAdminCmd = msg.key.fromMe || isLid;
+        if (msg.key.fromMe && !isSelfChat) return;
 
         const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
 
         if (text) {
-            const sender = (isLid || isSelfChat) ? `${myNumber}@s.whatsapp.net` : remoteJid;
-            const tag = isSelfAdminCmd ? '[ADMIN CMD]' : '[Recebido]';
+            const sender = isSelfChat ? `${myNumber}@s.whatsapp.net` : remoteJid;
+            const tag = isSelfChat ? '[ADMIN CMD]' : '[Recebido]';
             console.log(`${tag} (${email}) De: ${sender} - Msg: ${text}`);
             axios.post(WORKER_URL, {
                 phone: sender,
                 message: text,
-                barber_email: email
+                barber_email: email,
+                is_self_chat: isSelfChat
             }).catch(e => console.error('❌ ERRO NO WORKER:', e.message));
         }
     });
