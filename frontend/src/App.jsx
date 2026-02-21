@@ -114,9 +114,14 @@ function App() {
       const dataArray = Array.isArray(data) ? data : [];
 
       // 4. Normaliza os dados: extrai apenas a string do horário
-      const slotsOnly = dataArray.map(slot => 
-        typeof slot === 'string' ? slot : slot.appointment_time
-      );
+      const slotsOnly = dataArray
+      .filter(slot => slot !== null && slot !== undefined) // Remove itens nulos da lista
+      .map(slot => {
+        if (typeof slot === 'string') return slot;
+        if (slot && slot.appointment_time) return slot.appointment_time;
+        return null; // Caso não tenha a propriedade, retorna nulo para filtrar depois
+      })
+      .filter(slot => slot !== null); // Limpa qualquer resíduo
       
       setBusySlots(slotsOnly);
     } catch (error) { 
