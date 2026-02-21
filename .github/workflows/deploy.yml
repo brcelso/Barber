@@ -45,7 +45,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           # Upload build output
-          path: './dist'
+          path: './frontend/dist'
 
   # Deployment job
   deploy:
