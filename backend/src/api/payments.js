@@ -41,14 +41,15 @@ export async function handlePaymentRoutes(url, request, env) {
 
             const mpD = await mpRes.json();
             return json({ paymentUrl: mpD.init_point });
-        } catch (e) {
+        } catch (error) {
+            console.error('[MP Preference Error]', error.message);
             return json({ error: 'Failed to create payment' }, 500);
         }
     }
 
     // Create Mercado Pago Preference for Appointment
     if (url.pathname === '/api/payments/create' && request.method === 'POST') {
-        const { appointmentId, email } = await request.json();
+        const { appointmentId } = await request.json();
 
         const appt = await DB.prepare(`
             SELECT a.*, s.name as service_name, s.price 
@@ -87,7 +88,8 @@ export async function handlePaymentRoutes(url, request, env) {
 
             const mpD = await mpRes.json();
             return json({ paymentUrl: mpD.init_point });
-        } catch (e) {
+        } catch (error) {
+            console.error('[MP Preference Error]', error.message);
             return json({ error: 'Failed' }, 500);
         }
     }

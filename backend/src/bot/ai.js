@@ -43,7 +43,8 @@ export const askAI = async (env, DB, userMessage, barberEmail, isAdmin = false) 
             return response.response || `Olá, Chefe! Como posso ajudar na gestão hoje?`;
         }
         return response.response || `Estou aqui para ajudar! Digite '1' para agendar, '2' para ver seus horários ou '3' para falar comigo.`;
-    } catch (_e) {
+    } catch (error) {
+        console.error('[AI Error]', error.message);
         return isAdmin ? "Olá, Chefe! O que deseja fazer?" : "Olá! Como posso te ajudar? Digite '1' para agendar ou 'Menu' para o início.";
     }
 };

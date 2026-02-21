@@ -87,13 +87,15 @@ export async function handleAdminRoutes(url, request, env) {
 
     // Admin: Bulk Toggle Block Day
     if (url.pathname === '/api/admin/bulk-toggle-block' && request.method === 'POST') {
-        const { date, action, adminEmail, times } = await request.json();
+        const { date, action, adminEmail, times, scope } = await request.json().catch((error) => {
+            console.error('[JSON Parse Error]', error.message);
+            return {};
+        });
+
         const admin = await DB.prepare('SELECT is_admin FROM users WHERE email = ?').bind(adminEmail).first();
         if (!admin || admin.is_admin !== 1) return json({ error: 'Forbidden' }, 403);
 
         if (action === 'block') {
-            const body = await request.json().catch(() => ({}));
-            const scope = body.scope;
             const me = await DB.prepare('SELECT owner_id FROM users WHERE email = ?').bind(adminEmail).first();
             const isOwner = me && !me.owner_id;
 
@@ -119,8 +121,6 @@ export async function handleAdminRoutes(url, request, env) {
             if (statements.length > 0) await DB.batch(statements);
             return json({ status: 'blocked' });
         } else {
-            const body = await request.json().catch(() => ({}));
-            const scope = body.scope;
             const me = await DB.prepare('SELECT owner_id FROM users WHERE email = ?').bind(adminEmail).first();
             const isOwner = me && !me.owner_id;
 
@@ -142,6 +142,75 @@ export async function handleAdminRoutes(url, request, env) {
         const user = await DB.prepare('SELECT bot_name, business_type, bot_tone, welcome_message, msg_welcome, msg_choose_barber, msg_choose_service, msg_confirm_booking FROM users WHERE email = ?').bind(email).first();
         if (!user) return json({ error: 'User not found' }, 404);
         return json(user);
+    }
+
+    // Admin: Update Bot Settings
+    if (url.pathname === '/api/admin/bot/settings' && request.method === 'POST') {
+        const email = request.headers.get('X-User-Email');
+        const { bot_name, business_type, bot_tone, welcome_message, msg_welcome, msg_choose_barber, msg_choose_service, msg_confirm_booking } = await request.json().catch((error) => {
+            console.error('[JSON Parse Error]', error.message);
+            return {};
+        });
+
+        await DB.prepare(`
+            UPDATE users 
+            SET bot_name = ?, business_type = ?, bot_tone = ?, welcome_message = ?, 
+                msg_welcome = ?, msg_choose_barber = ?, msg_choose_service = ?, msg_confirm_booking = ?
+            WHERE email = ?
+        `).bind(
+            bot_name || 'Leo',
+            business_type || 'barbearia',
+            bot_tone || 'prestativo e amigável',
+            welcome_message || 'Olá {{user_name}}, seu horário para *{{service_name}}* foi confirmado!',
+            msg_welcome || null,
+            msg_choose_barber || null,
+            msg_choose_service || null,
+            msg_confirm_booking || null,
+            email
+        ).run();
+
+        return json({ success: true });
+    }
+
+    // Admin: Update Bridge URL
+    if (url.pathname === '/api/admin/bridge/update' && request.method === 'POST') {
+        const { key, url: bridgeUrl, email } = await request.json();
+        if (key !== env.WA_BRIDGE_KEY) return json({ error: 'Invalid Key' }, 401);
+
+        try {
+            await DB.prepare('ALTER TABLE users ADD COLUMN wa_bridge_url TEXT').run();
+        } catch (e) {
+            console.error('[Column Add Error]', e.message);
+        }
+
+        await DB.prepare('UPDATE users SET wa_bridge_url = ? WHERE email = ?').bind(bridgeUrl, email).run();
+        return json({ success: true });
+    }
+
+    // Admin: Remote Start/Stop Bot
+    if ((url.pathname === '/api/admin/bot/start' || url.pathname === '/api/admin/bot/stop') && request.method === 'POST') {
+        const email = request.headers.get('X-User-Email');
+        const user = await DB.prepare('SELECT is_admin, is_barber, wa_bridge_url FROM users WHERE email = ?').bind(email).first();
+        if (!user || (user.is_admin !== 1 && user.is_barber !== 1)) return json({ error: 'Permission Denied' }, 403);
+
+        const { targetEmail } = await request.json();
+        const BRIDGE_URL = user.wa_bridge_url || env.WA_BRIDGE_URL;
+        const BRIDGE_KEY = env.WA_BRIDGE_KEY;
+        const endpoint = url.pathname.includes('stop') ? '/api/stop' : '/api/start';
+
+        if (!BRIDGE_URL || !BRIDGE_KEY) return json({ error: 'Bridge not configured' }, 503);
+
+        try {
+            const bridgeRes = await fetch(`${BRIDGE_URL}${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: BRIDGE_KEY, email: targetEmail || email })
+            });
+            const data = await bridgeRes.json();
+            return json(data, bridgeRes.status);
+        } catch (e) {
+            return json({ error: 'Failed to contact bridge', details: e.message, triedUrl: BRIDGE_URL }, 502);
+        }
     }
 
     // Admin: Update Appointment Payment Status
@@ -166,7 +235,10 @@ export async function handleAdminRoutes(url, request, env) {
 
     // Admin: Individual Toggle Block Slot
     if (url.pathname === '/api/admin/toggle-block' && request.method === 'POST') {
-        const { date, time, adminEmail, scope } = await request.json();
+        const { date, time, adminEmail } = await request.json().catch((error) => {
+            console.error('[JSON Parse Error]', error.message);
+            return {};
+        });
         const admin = await DB.prepare('SELECT is_admin, is_barber FROM users WHERE email = ?').bind(adminEmail).first();
         if (!admin || (admin.is_admin !== 1 && admin.is_barber !== 1)) return json({ error: 'Forbidden' }, 403);
 

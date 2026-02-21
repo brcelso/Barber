@@ -30,7 +30,7 @@ export async function handleAppointmentRoutes(url, request, env) {
 
     // Book an Appointment
     if (url.pathname === '/api/appointments/book' && request.method === 'POST') {
-        const { email, barberEmail, serviceId, date, time, skipPayment } = await request.json();
+        const { email, barberEmail, serviceId, date, time } = await request.json();
         if (!email || !barberEmail || !serviceId || !date || !time) {
             return json({ error: 'Missing fields' }, 400);
         }

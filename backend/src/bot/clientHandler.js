@@ -23,7 +23,7 @@ export async function handleClientFlow(from, text, textLower, session, userInDb,
 
                         let msg = b.msg_choose_barber || CLIENT_PROMPTS.choose_barber(establishmentName);
                         msg = msg.replace(/{{establishment_name}}/g, establishmentName);
-                        const sortedTeam = team.results.sort((x, y) => x.email === botBarberEmail ? -1 : 1);
+                        const sortedTeam = team.results.sort((x) => x.email === botBarberEmail ? -1 : 1);
                         sortedTeam.forEach((member, i) => { msg += `*${i + 1}* - ${member.name}\n`; });
                         msg += "\nDigite o número correspondente!";
                         await sendMessage(env, from, msg, botBarberEmail);
@@ -80,7 +80,7 @@ export async function handleClientFlow(from, text, textLower, session, userInDb,
         let team;
         if (botBarberEmail) {
             const res = await env.DB.prepare('SELECT email, name FROM users WHERE is_barber = 1 AND (owner_id = ? OR email = ?)').bind(botBarberEmail, botBarberEmail).all();
-            team = res.results.sort((x, y) => x.email === botBarberEmail ? -1 : 1);
+            team = res.results.sort((x) => x.email === botBarberEmail ? -1 : 1);
         } else {
             const res = await env.DB.prepare('SELECT email, name FROM users WHERE is_barber = 1').all();
             team = res.results;
@@ -316,13 +316,18 @@ export async function handleClientFlow(from, text, textLower, session, userInDb,
                     const mpRes = await fetch('https://api.mercadopago.com/checkout/preferences', { method: 'POST', headers: { 'Authorization': `Bearer ${env.MP_ACCESS_TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify(mpPref) });
                     const mpD = await mpRes.json();
                     if (mpD.init_point) payMsg = `\n\n💳 *Pagamento (PIX/Cartão):*\n${mpD.init_point}`;
-                } catch (e) { }
+                } catch (error) {
+                    console.error('[MP Error]', error.message);
+                }
                 await env.DB.prepare('DELETE FROM whatsapp_sessions WHERE phone = ?').bind(from).run();
                 const dP = appDate.split('-');
                 const b = await env.DB.prepare('SELECT name FROM users WHERE email = ?').bind(barberEmail).first();
                 let finMsg = `✅ *Agendamento Realizado!* \n\n✂️ *Serviço:* ${s.name}\n📅 *Data:* ${dP[2]}/${dP[1]}\n⏰ *Horário:* ${appTime}\n💈 *Barbeiro:* ${b?.name || 'Barbearia'}${payMsg}\n\nO status é *Pendente*.`;
                 await sendMessage(env, from, finMsg, botBarberEmail);
-            } catch (e) { await sendMessage(env, from, "❌ Falha ao salvar.", botBarberEmail); }
+            } catch (error) {
+                console.error('[Save Error]', error.message);
+                await sendMessage(env, from, "❌ Falha ao salvar.", botBarberEmail);
+            }
         } else if (text === '2' || textLower === 'nao') {
             await env.DB.prepare('UPDATE whatsapp_sessions SET state = "main_menu" WHERE phone = ?').bind(from).run();
             await sendMessage(env, from, "🔄 Cancelado. Menu Principal.", botBarberEmail);

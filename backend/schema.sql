@@ -17,6 +17,11 @@ CREATE TABLE IF NOT EXISTS users (
   business_type TEXT DEFAULT 'barbearia',
   bot_tone TEXT DEFAULT 'prestativo e amigável',
   welcome_message TEXT DEFAULT 'Olá {{user_name}}, seu horário para *{{service_name}}* foi confirmado!',
+  msg_welcome TEXT,
+  msg_choose_barber TEXT,
+  msg_choose_service TEXT,
+  msg_confirm_booking TEXT,
+  wa_bridge_url TEXT,
   last_login TEXT DEFAULT CURRENT_TIMESTAMP,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );

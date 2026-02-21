@@ -8,6 +8,8 @@
     "dev:backend": "cd backend && npx wrangler dev --local",
     "dev:full": "npm run dev:frontend & npm run dev:backend",
     "db:init": "cd backend && npx wrangler d1 execute barber-db --local --file=schema.sql",
+    "db:deploy": "cd backend && npx wrangler d1 execute barber-db --remote --file=schema.sql",
+    "deploy:backend": "cd backend && npx wrangler deploy",
     "build:frontend": "cd frontend && npx vite build",
     "lint": "eslint frontend/src backend/src",
     "preview:frontend": "cd frontend && npx vite preview"

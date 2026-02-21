@@ -22,7 +22,7 @@ export async function handleMasterRoutes(url, request, env) {
 
     // MASTER: List All Barbers/Admins
     if (url.pathname === '/api/master/users' && request.method === 'GET') {
-        const usersListing = await DB.prepare("SELECT email, name, phone, is_admin, is_barber, wa_status, wa_last_seen, subscription_expires, trial_used, plan, business_type, owner_id, shop_name FROM users WHERE email != 'sistema@leoai.br' ORDER BY created_at DESC").all();
+        const usersListing = await DB.prepare("SELECT email, name, phone, is_admin, is_barber, wa_status, wa_last_seen, subscription_expires, trial_used, plan, business_type, owner_id, shop_name FROM users WHERE email != 'system' ORDER BY created_at DESC").all();
 
         const now = new Date();
         const results = usersListing.results.map(u => {

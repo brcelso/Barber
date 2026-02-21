@@ -10,6 +10,7 @@ import { handleMasterRoutes } from './api/master.js';
 import { handleAppointmentRoutes } from './api/appointments.js';
 import { handleUserRoutes } from './api/user.js';
 import { handlePaymentRoutes } from './api/payments.js';
+import { handleTeamRoutes } from './api/team.js';
 
 export default {
     async fetch(request, env) {
@@ -71,6 +72,10 @@ export default {
             // 6. Payment Routes
             const payRes = await handlePaymentRoutes(url, request, env);
             if (payRes) return payRes;
+
+            // 7. Team Routes
+            const teamRes = await handleTeamRoutes(request, env, url);
+            if (teamRes) return teamRes;
 
             // --- Remaining Routes (Gradually move these to files too) ---
 
@@ -140,11 +145,11 @@ export default {
             if (url.pathname === '/api/services' && request.method === 'GET') {
                 const barberEmail = url.searchParams.get('barber_email');
                 if (barberEmail) {
-                    let services = await DB.prepare('SELECT * FROM services WHERE id != ? AND barber_email = ?').bind('block', barberEmail).all();
+                    let services = await DB.prepare('SELECT * FROM services WHERE id != ? AND (barber_email = ? OR barber_email IS NULL)').bind('block', barberEmail).all();
                     if (services.results.length === 0) {
                         const barber = await DB.prepare('SELECT owner_id FROM users WHERE email = ?').bind(barberEmail).first();
                         if (barber && barber.owner_id) {
-                            services = await DB.prepare('SELECT * FROM services WHERE id != ? AND barber_email = ?').bind('block', barber.owner_id).all();
+                            services = await DB.prepare('SELECT * FROM services WHERE id != ? AND (barber_email = ? OR barber_email IS NULL)').bind('block', barber.owner_id).all();
                         }
                     }
                     return json(services.results);
@@ -187,6 +192,17 @@ export default {
 
             if (url.pathname === '/api/whatsapp/status' && request.method === 'GET') {
                 const email = request.headers.get('X-User-Email');
+
+                // Automated Cleanup: delete appointments older than 60 days
+                try {
+                    const sixtyDaysAgo = new Date();
+                    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+                    const dateStr = sixtyDaysAgo.toISOString().split('T')[0];
+                    await DB.prepare('DELETE FROM appointments WHERE appointment_date < ?').bind(dateStr).run();
+                } catch (e) {
+                    console.error('[Cleanup Error]', e.message);
+                }
+
                 const user = await DB.prepare('SELECT wa_status, wa_qr, wa_last_seen FROM users WHERE email = ?').bind(email).first();
                 if (!user) return json({ error: 'User not found' }, 404);
                 let status = user.wa_status || 'disconnected';
@@ -194,7 +210,9 @@ export default {
                     const lastSeen = new Date(user.wa_last_seen);
                     if ((new Date() - lastSeen) > 45000) {
                         status = 'disconnected';
-                        try { await DB.prepare('UPDATE users SET wa_status = "disconnected" WHERE email = ?').bind(email).run(); } catch (e) { }
+                        try { await DB.prepare('UPDATE users SET wa_status = "disconnected" WHERE email = ?').bind(email).run(); } catch (error) {
+                            console.error('[Status Update Error]', error.message);
+                        }
                     }
                 }
                 return json({ status, qr: user.wa_qr });
