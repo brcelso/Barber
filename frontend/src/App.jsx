@@ -233,14 +233,36 @@ const handleToggleFullDay = async () => {
     }
   };
 
-  const handleToggleBlock = async (time) => {
+const handleToggleBlock = async (time) => {
+    // 1. Define quem é o profissional alvo com segurança
+    const effectiveBarber = selectedBarber || (user?.isBarber ? user : null);
+    
+    if (!effectiveBarber) {
+      alert("Selecione um barbeiro primeiro.");
+      return;
+    }
+
     setLoading(true);
     try {
-      await api.toggleBlock(user.email, { date: format(selectedDate, 'yyyy-MM-dd'), time });
-      await fetchBusySlots(selectedDate, selectedBarber || user);
+      // 2. Executa o bloqueio no banco
+      await api.toggleBlock(user.email, { 
+        date: format(selectedDate, 'yyyy-MM-dd'), 
+        time 
+      });
+      
+      // 3. Aguarda a atualização dos slots para garantir que a cor mude
+      // Passamos o effectiveBarber explicitamente
+      await fetchBusySlots(selectedDate, effectiveBarber);
+      
+      // 4. Atualiza a lista de agendamentos em segundo plano
       fetchAdminAppointments();
-    } catch { alert('Erro ao bloquear'); }
-    finally { setLoading(false); }
+      
+    } catch {
+      // Catch limpo sem (e) para passar no seu Lint
+      alert('Erro ao processar o bloqueio/liberação do horário.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogin = useCallback(async (data) => {
