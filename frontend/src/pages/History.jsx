@@ -57,7 +57,7 @@ export const HistoryPage = ({
                                                 <button className="btn-primary" style={{ padding: '5px 10px', fontSize: '0.7rem' }} onClick={() => handlePayment(appt)}>Pagar Agora</button>
                                             )}
                                             {(appt.status === 'cancelled' || isPast) && (
-                                                <button className="btn-icon" style={{ opacity: 0.4 }} onClick={() => handleDelete(appt.id)} title="Excluir do Histórico"><Trash2 size={18} /></button>
+                                                <button className="btn-icon" style={{ color: '#ff4d4d', opacity: 1 }} onClick={() => handleDelete(appt.id)} title="Excluir do Histórico"><Trash2 size={18} /></button>
                                             )}
                                         </div>
                                     </div>
