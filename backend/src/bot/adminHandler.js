@@ -22,7 +22,7 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
             case '1': // Agenda
                 await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_viewing_agenda" WHERE phone = ?').bind(from).run();
                 return await showAgenda(from, adminInfo, botBarberEmail, env);
-            
+
             case '2': // Confirmar (Update)
                 await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_awaiting_confirm" WHERE phone = ?').bind(from).run();
                 await sendMessage(env, from, "✅ *Confirmar Agendamento*\n\nDigite o nome ou horário do cliente para confirmar.\n\nOu digite 'Voltar'.", botBarberEmail);
@@ -237,8 +237,7 @@ async function showRevenue(from, adminInfo, botBarberEmail, env) {
 
     const revenue = result?.total_revenue || 0;
     const msg = `💰 *RELATÓRIO DE HOJE*\n\n✅ Atendimentos: ${result?.total_count || 0}\n💵 Total: R$ ${revenue.toFixed(2)}`;
-    
-    const { sendMessage } = await import('../utils/index.js');
+
     await sendMessage(env, from, msg, botBarberEmail);
     return { success: true };
 }

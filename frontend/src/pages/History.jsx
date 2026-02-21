@@ -1,7 +1,7 @@
 import React from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Clock, CheckCircle, X, CreditCard, Trash2, Calendar } from 'lucide-react';
+import { X, Trash2, Calendar } from 'lucide-react';
 
 export const HistoryPage = ({
     appointments,
