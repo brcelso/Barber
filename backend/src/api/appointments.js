@@ -1,13 +1,16 @@
 import { json } from '../utils/index.js';
 
+import { json } from '../utils/index.js';
+
 export async function handleAppointmentRoutes(url, request, env) {
     const { DB } = env;
 
-    // Get Appointments for a user (unified history: personal + professional)
+    // 1. LISTAR AGENDAMENTOS (Histórico e Painel Admin)
     if (url.pathname === '/api/appointments' && request.method === 'GET') {
         const email = request.headers.get('X-User-Email');
         if (!email) return json({ error: 'Unauthorized' }, 401);
 
+        // CRUD: READ - Removido o filtro de 'blocked' para que apareçam no App
         const appointments = await DB.prepare(`
             SELECT 
                 a.*, 
@@ -21,14 +24,14 @@ export async function handleAppointmentRoutes(url, request, env) {
             LEFT JOIN services s ON a.service_id = s.id
             LEFT JOIN users u ON a.user_email = u.email
             LEFT JOIN users b ON a.barber_email = b.email
-            WHERE (a.user_email = ? OR a.barber_email = ?) AND a.status != 'blocked'
+            WHERE (a.user_email = ? OR a.barber_email = ?)
             ORDER BY a.appointment_date DESC, a.appointment_time DESC
         `).bind(email, email).all();
 
         return json(appointments.results);
     }
 
-    // Book an Appointment
+    // 2. CRIAR AGENDAMENTO (Reserva via App/Site)
     if (url.pathname === '/api/appointments/book' && request.method === 'POST') {
         const { email, barberEmail, serviceId, date, time } = await request.json();
         if (!email || !barberEmail || !serviceId || !date || !time) {
@@ -40,9 +43,15 @@ export async function handleAppointmentRoutes(url, request, env) {
 
         if (!service) return json({ error: 'Service not found' }, 404);
 
-        const conflict = await DB.prepare('SELECT id FROM appointments WHERE barber_email = ? AND appointment_date = ? AND appointment_time = ? AND status != "cancelled"').bind(barberEmail, date, time).first();
+        // CRUD: CREATE/VALIDATE - Verifica se está ocupado por cliente OU bloqueado pelo WhatsApp
+        const conflict = await DB.prepare(`
+            SELECT id FROM appointments 
+            WHERE barber_email = ? AND appointment_date = ? AND appointment_time = ? 
+            AND status IN ('pending', 'confirmed', 'blocked')
+        `).bind(barberEmail, date, time).first();
+
         if (conflict) {
-            return json({ error: 'Horário já ocupado com este barbeiro' }, 409);
+            return json({ error: 'Horário já ocupado ou bloqueado' }, 409);
         }
 
         await DB.prepare(`
@@ -53,12 +62,13 @@ export async function handleAppointmentRoutes(url, request, env) {
         return json({ appointmentId: id, status: 'pending' });
     }
 
-    // Public: Get Busy Slots for a Date
+    // 3. HORÁRIOS OCUPADOS (O que o Calendário do App usa para ficar "Vermelho")
     if (url.pathname === '/api/appointments/busy-slots' && request.method === 'GET') {
         const date = url.searchParams.get('date');
         const barberEmail = url.searchParams.get('barber_email');
         if (!date) return json({ error: 'Missing date' }, 400);
 
+        // CRUD: READ - Pega tudo que não foi cancelado (inclui 'blocked')
         let query = 'SELECT appointment_time as time, status FROM appointments WHERE appointment_date = ? AND status != "cancelled"';
         let params = [date];
 
@@ -71,13 +81,12 @@ export async function handleAppointmentRoutes(url, request, env) {
         return json(busy.results);
     }
 
-    // Cancel Appointment
+    // 4. CANCELAR AGENDAMENTO
     if (url.pathname === '/api/appointments/cancel' && request.method === 'POST') {
         const { appointmentId, userEmail } = await request.json();
         const appt = await DB.prepare('SELECT * FROM appointments WHERE id = ?').bind(appointmentId).first();
         if (!appt) return json({ error: 'Appointment not found' }, 404);
 
-        // Security check: Only client or assigned barber can cancel
         if (appt.user_email !== userEmail && appt.barber_email !== userEmail) {
             return json({ error: 'Unauthorized' }, 403);
         }
@@ -86,13 +95,12 @@ export async function handleAppointmentRoutes(url, request, env) {
         return json({ success: true });
     }
 
-    // Delete Appointment (Historical Record)
+    // 5. DELETAR REGISTRO (Limpeza de Histórico)
     if (url.pathname === '/api/appointments/delete' && request.method === 'POST') {
         const { appointmentId, userEmail } = await request.json();
         const appt = await DB.prepare('SELECT * FROM appointments WHERE id = ?').bind(appointmentId).first();
         if (!appt) return json({ error: 'Appointment not found' }, 404);
 
-        // Security check: Only client or assigned barber can delete
         if (appt.user_email !== userEmail && appt.barber_email !== userEmail) {
             return json({ error: 'Unauthorized' }, 403);
         }
@@ -101,13 +109,12 @@ export async function handleAppointmentRoutes(url, request, env) {
         return json({ success: true });
     }
 
-    // Update Appointment Status
+    // 6. ATUALIZAR STATUS (Ação do Barbeiro via App ou Webhook MP)
     if (url.pathname === '/api/appointments/update-status' && request.method === 'POST') {
         const { appointmentId, status, userEmail } = await request.json();
         const appt = await DB.prepare('SELECT * FROM appointments WHERE id = ?').bind(appointmentId).first();
         if (!appt) return json({ error: 'Appointment not found' }, 404);
 
-        // Security check: Only admin or assigned barber can change status
         const user = await DB.prepare('SELECT is_admin, is_barber FROM users WHERE email = ?').bind(userEmail).first();
         if (!user || (user.is_admin !== 1 && appt.barber_email !== userEmail)) {
             return json({ error: 'Unauthorized' }, 403);
@@ -115,7 +122,7 @@ export async function handleAppointmentRoutes(url, request, env) {
 
         await DB.prepare('UPDATE appointments SET status = ? WHERE id = ?').bind(status, appointmentId).run();
 
-        // Notify via WhatsApp if confirmed
+        // Notificação Automática via WhatsApp Bridge
         if (status === 'confirmed' || status === 'cancelled') {
             const { notifyWhatsApp } = await import('../utils/index.js');
             await notifyWhatsApp(env, DB, appointmentId, status);
@@ -124,21 +131,24 @@ export async function handleAppointmentRoutes(url, request, env) {
         return json({ success: true });
     }
 
-    // Update Appointment (Reschedule)
+    // 7. REAGENDAR (Update de Horário/Data)
     if (url.pathname === '/api/appointments/update' && request.method === 'POST') {
         const { appointmentId, userEmail, barberEmail, serviceId, date, time } = await request.json();
         const appt = await DB.prepare('SELECT * FROM appointments WHERE id = ?').bind(appointmentId).first();
         if (!appt) return json({ error: 'Appointment not found' }, 404);
 
-        // Security check
         if (appt.user_email !== userEmail && appt.barber_email !== userEmail) {
             return json({ error: 'Unauthorized' }, 403);
         }
 
-        // Conflict check (exclude current appointment)
-        const conflict = await DB.prepare('SELECT id FROM appointments WHERE barber_email = ? AND appointment_date = ? AND appointment_time = ? AND id != ? AND status != "cancelled"').bind(barberEmail, date, time, appointmentId).first();
+        const conflict = await DB.prepare(`
+            SELECT id FROM appointments 
+            WHERE barber_email = ? AND appointment_date = ? AND appointment_time = ? 
+            AND id != ? AND status IN ('pending', 'confirmed', 'blocked')
+        `).bind(barberEmail, date, time, appointmentId).first();
+        
         if (conflict) {
-            return json({ error: 'Horário já ocupado com este barbeiro' }, 409);
+            return json({ error: 'Horário já ocupado ou bloqueado' }, 409);
         }
 
         await DB.prepare(`
