@@ -13,8 +13,16 @@ export const AgendaTab = ({
     handleToggleFullDay,
     setSelectedActionAppt
 }) => {
-    const handleNextDay = () => setSelectedDate(prev => new Date(prev.setDate(prev.getDate() + 1)));
-    const handlePrevDay = () => setSelectedDate(prev => new Date(prev.setDate(prev.getDate() - 1)));
+    const handleNextDay = () => setSelectedDate(prev => {
+        const next = new Date(prev);
+        next.setDate(next.getDate() + 1);
+        return next;
+    });
+    const handlePrevDay = () => setSelectedDate(prev => {
+        const next = new Date(prev);
+        next.setDate(next.getDate() - 1);
+        return next;
+    });
 
     // Verifica se o dia está totalmente bloqueado para mudar o texto do botão principal
     const isFullDayBlocked = busySlots.length >= timeSlots.length;
@@ -28,7 +36,7 @@ export const AgendaTab = ({
                         <button className="btn-icon" onClick={handlePrevDay}><ChevronLeft size={20} /></button>
                         <div style={{ textAlign: 'center' }}>
                             <h3 style={{ margin: 0, textTransform: 'capitalize' }}>
-                                {format(selectedDate, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                                {selectedDate instanceof Date && !isNaN(selectedDate.getTime()) ? format(selectedDate, "EEEE, dd 'de' MMMM", { locale: ptBR }) : 'Data selecionada'}
                             </h3>
                             <button
                                 onClick={() => setSelectedDate(new Date())}
@@ -42,8 +50,8 @@ export const AgendaTab = ({
 
                     <button
                         className={`btn-primary ${isFullDayBlocked ? 'danger' : ''}`}
-                        style={{ 
-                            fontSize: '0.8rem', 
+                        style={{
+                            fontSize: '0.8rem',
                             padding: '8px 15px',
                             background: isFullDayBlocked ? '#e74c3c' : 'var(--primary)',
                             color: isFullDayBlocked ? 'white' : 'black'
@@ -55,10 +63,10 @@ export const AgendaTab = ({
                 </div>
 
                 {/* Grid de Horários - ATUALIZADO PARA SINCRONIA COM WHATSAPP/D1 */}
-                <div className="service-grid" style={{ 
+                <div className="service-grid" style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', 
-                    gap: '8px' 
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
+                    gap: '8px'
                 }}>
                     {timeSlots.map(time => {
                         // Busca o dado de ocupação (suporta string ou objeto vindo do D1)
@@ -111,7 +119,7 @@ export const AgendaTab = ({
                             onClick={() => setSelectedActionAppt(appt)}
                             style={{ cursor: 'pointer', padding: '1rem' }}
                         >
-                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                     <div style={{
                                         width: '50px',
@@ -135,7 +143,7 @@ export const AgendaTab = ({
                             </div>
                         </div>
                     ))}
-                
+
                 {adminAppointments.filter(a => a.appointment_date === format(selectedDate, 'yyyy-MM-dd') && a.status !== 'blocked').length === 0 && (
                     <div className="glass-card" style={{ textAlign: 'center', padding: '3rem', opacity: 0.5 }}>
                         <Clock size={40} style={{ marginBottom: '1rem' }} />

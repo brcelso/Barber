@@ -56,17 +56,24 @@ export const BookingPage = ({
             <section style={{ marginBottom: '3rem' }}>
                 <h2 className="section-title"><User size={20} /> Escolha o Profissional</h2>
                 <div className="barber-grid">
-                    {barbers.map(barber => (
-                        <div
-                            key={barber.email}
-                            className={`barber-card ${selectedBarber?.email === barber.email ? 'active' : ''}`}
-                            onClick={() => setSelectedBarber(barber)}
-                        >
-                            <img src={barber.picture} alt={barber.name} />
-                            <p>{barber.name}</p>
-                            {barber.shop_name && <p style={{ fontSize: '0.6rem', opacity: 0.6 }}>{barber.shop_name}</p>}
+                    {barbers.length === 0 ? (
+                        <div className="glass-card" style={{ width: '100%', textAlign: 'center', padding: '2rem', opacity: 0.6 }}>
+                            <User size={32} style={{ marginBottom: '1rem' }} />
+                            <p>Nenhum profissional disponível no momento.</p>
                         </div>
-                    ))}
+                    ) : (
+                        barbers.map(barber => (
+                            <div
+                                key={barber.email}
+                                className={`barber-card ${selectedBarber?.email === barber.email ? 'active' : ''}`}
+                                onClick={() => setSelectedBarber(barber)}
+                            >
+                                <img src={barber.picture} alt={barber.name} />
+                                <p>{barber.name}</p>
+                                {barber.shop_name && <p style={{ fontSize: '0.6rem', opacity: 0.6 }}>{barber.shop_name}</p>}
+                            </div>
+                        ))
+                    )}
                 </div>
             </section>
 
@@ -101,7 +108,7 @@ export const BookingPage = ({
                             <button className="btn-icon" onClick={handlePrevDay}><ChevronLeft size={20} /></button>
                             <div style={{ textAlign: 'center' }}>
                                 <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'capitalize' }}>
-                                    {format(selectedDate, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                                    {selectedDate instanceof Date && !isNaN(selectedDate) ? format(selectedDate, "EEEE, dd 'de' MMMM", { locale: ptBR }) : 'Data selecionada'}
                                 </div>
                                 <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>
                                     {isSameDay(selectedDate, new Date()) ? 'Hoje' : 'Selecionado'}

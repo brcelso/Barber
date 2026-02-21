@@ -154,5 +154,26 @@ export async function handleAppointmentRoutes(url, request, env) {
         return json({ success: true });
     }
 
+    // 8. LISTAR BARBEIROS (Público)
+    if (url.pathname === '/api/barbers' && request.method === 'GET') {
+        const barbers = await DB.prepare('SELECT email, name, picture, shop_name FROM users WHERE is_barber = 1').all();
+        return json(barbers.results);
+    }
+
+    // 9. LISTAR SERVIÇOS (Público)
+    if (url.pathname === '/api/services' && request.method === 'GET') {
+        const barberEmail = url.searchParams.get('barber_email');
+        let query = 'SELECT * FROM services WHERE id != "block"';
+        let params = [];
+
+        if (barberEmail) {
+            query += ' AND barber_email = ?';
+            params.push(barberEmail);
+        }
+
+        const services = await DB.prepare(query).bind(...params).all();
+        return json(services.results);
+    }
+
     return null;
 }

@@ -370,6 +370,7 @@ function App() {
 
       {view === 'book' && (
         <BookingPage
+          key={`book-${selectedBarber?.email || 'none'}-${selectedDate.getTime()}`}
           user={user} barbers={barbers} selectedBarber={selectedBarber} setSelectedBarber={setSelectedBarber}
           services={services} selectedService={selectedService} setSelectedService={setSelectedService}
           selectedDate={selectedDate} setSelectedDate={setSelectedDate} timeSlots={timeSlots}

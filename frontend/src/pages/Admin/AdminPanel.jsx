@@ -142,21 +142,21 @@ export const AdminPanel = ({
 
             {/* Tab Content */}
             {adminTab === 'agenda' && (
-            <AgendaTab
-                // A KEY ABAIXO É O SEGREDO: 
-                // Ela força o componente a atualizar o texto do botão e as cores
-                key={`agenda-${selectedDate.toISOString()}-${busySlots.length}`} 
-                selectedDate={selectedDate}
-                setSelectedDate={setSelectedDate}
-                timeSlots={timeSlots}
-                busySlots={busySlots}
-                adminAppointments={adminAppointments}
-                handleToggleBlock={handleToggleBlock}
-                handleToggleFullDay={handleToggleFullDay}
-                setSelectedActionAppt={setSelectedActionAppt}
-                handleRefresh={handleRefresh}
-            />
-        )}
+                <AgendaTab
+                    // A KEY ABAIXO É O SEGREDO: 
+                    // Ela força o componente a atualizar o texto do botão e as cores
+                    key={`agenda-${selectedDate.getTime()}-${busySlots.length}`}
+                    selectedDate={selectedDate}
+                    setSelectedDate={setSelectedDate}
+                    timeSlots={timeSlots}
+                    busySlots={busySlots}
+                    adminAppointments={adminAppointments}
+                    handleToggleBlock={handleToggleBlock}
+                    handleToggleFullDay={handleToggleFullDay}
+                    setSelectedActionAppt={setSelectedActionAppt}
+                    handleRefresh={handleRefresh}
+                />
+            )}
 
             {adminTab === 'team' && (
                 <TeamTab
