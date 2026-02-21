@@ -1,0 +1,239 @@
+================================================================================
+  CICLO 1.0 — ROADMAP HAWKINS: DO NÍVEL 360 AO 700+
+  Gerado em: 2026-02-20
+================================================================================
+
+--------------------------------------------------------------------------------
+  O EXERCÍCIO FUNDAMENTAL (FAÇA ISSO ANTES DE QUALQUER CÓDIGO)
+--------------------------------------------------------------------------------
+
+Responda por escrito, em uma frase:
+
+  "Este sistema existe para ___________.
+   Ele falhou completamente se ___________."
+
+Sugestão baseada no código atual:
+
+  "Este sistema existe para que um gestor de TI saiba, em segundos, o estado
+   real do parque de máquinas. Ele falhou completamente se uma máquina crítica
+   passou despercebida."
+
+Se a sua frase for diferente — a sua está certa.
+Escreva ela no topo do README.md e nunca deixe o código contradizê-la.
+
+--------------------------------------------------------------------------------
+  SALTO 1: 360 → 400 (Reason)
+  TEMA: Eliminar contradições internas
+--------------------------------------------------------------------------------
+
+O código cresceu sem um centro. Cada inconsistência que você elimina
+é um ponto ganho. Não adicione nada — só remova contradições.
+
+AÇÕES CONCRETAS:
+  [1] ChatInterface.jsx linha 22 — hardcode de "http://127.0.0.1:8001"
+      → Substituir por API_BASE_URL do config.js
+      → O sistema não pode não confiar em si mesmo
+
+  [2] api.py com 2058 linhas — o sistema não sabe onde começa e onde termina
+      → Separar em 4 routers:
+          routers/hardware.py   (~500 linhas)
+          routers/software.py   (~600 linhas)
+          routers/zendesk.py    (~150 linhas)
+          routers/scripts.py    (~400 linhas)
+
+  [3] DELETE /api/local/software-clear-db está aberto sem autenticação
+      → Adicionar token bearer em todos os endpoints de escrita (POST/DELETE)
+      → Token simples no config.json — não precisa de OAuth
+
+  [4] SoftwareIA.py tem menus interativos CLI dentro de um módulo de negócio
+      → Separar: lógica de negócio em uma classe, CLI em um __main__.py
+
+SINAL DE QUE CHEGOU: Você olha para o código e não encontra nada que
+contradiga a frase-princípio.
+
+--------------------------------------------------------------------------------
+  SALTO 2: 400 → 500 (Love)
+  TEMA: O sistema passa a SERVIR, não só FUNCIONAR
+--------------------------------------------------------------------------------
+
+Neste nível, o sistema antecipa o usuário em vez de apenas responder.
+
+  NÍVEL 400 (funciona)          →    NÍVEL 500 (serve)
+  ─────────────────────────────────────────────────────
+  Mostra máquinas offline            Avisa proativamente quando fica offline
+  Exporta CSV quando pedido          Envia relatório toda segunda-feira
+  Responde perguntas da IA           A IA identifica padrões sem ser perguntada
+  Sync manual de software            Sync agendado com diff de mudanças
+
+O Ciclo 1.0 já tem a infraestrutura:
+  - Gemini está integrado
+  - SQLite com histórico está lá
+  - Dados de postura já são calculados
+
+O que falta: o sistema AGIR, não só REAGIR.
+
+AÇÕES CONCRETAS:
+  [1] Scheduler de background (APScheduler ou asyncio.create_task):
+      → Sync automático de X máquinas por hora
+      → Detecção de mudança de postura (máquina perdeu agente de segurança)
+
+  [2] Endpoint /api/alertas com prioridade:
+      → CRÍTICO: máquina sem Trend/Netskope descoberta hoje
+      → ATENÇÃO: máquina offline há mais de 30 dias
+      → INFO: software proibido detectado
+
+  [3] IA proativa:
+      → Na inicialização, rodar análise silenciosa e guardar no banco
+      → Dashboard mostra "X anomalias detectadas desde ontem" sem o usuário perguntar
+
+--------------------------------------------------------------------------------
+  SALTO 3: 500 → 600 (Peace)
+  TEMA: Complexidade zero para o usuário
+--------------------------------------------------------------------------------
+
+CRITÉRIO: Uma pessoa que nunca viu o sistema entende o que fazer em 30 segundos.
+
+O Dashboard atual tem 6 domínios na mesma tela:
+  Hardware | Software | Postura | Tickets | Scripts | Chat
+
+Um sistema nível 600 mostraria UMA coisa só na tela inicial:
+
+  ┌─────────────────────────────────────────┐
+  │  3 itens precisam de atenção agora      │
+  │  ──────────────────────────────────     │
+  │  • 2 máquinas perderam Netskope hoje    │
+  │  • PCXYZ123 offline há 45 dias          │
+  │  • 1 software proibido detectado        │
+  └─────────────────────────────────────────┘
+
+Tudo mais existe, mas está um clique abaixo — não na face.
+
+AÇÕES CONCRETAS:
+  [1] Criar tela "Home" real com apenas o estado crítico do parque
+  [2] Transformar Hardware/Software/Scripts em abas, não em cards simultâneos
+  [3] Remover qualquer dado que o usuário nunca clicou (instrumentar com logs)
+
+--------------------------------------------------------------------------------
+  SALTO 4: 600 → 700+ (Enlightenment tier)
+  TEMA: O sistema é mais simples que o problema
+--------------------------------------------------------------------------------
+
+Este nível não se planeja — acontece quando você deletou tudo que
+não deveria existir.
+
+SINAL DE QUE CHEGOU:
+  Você olha para o código e pensa: "não tem como tirar mais nada
+  sem quebrar o propósito."
+
+Referências históricas de sistemas que chegaram neste nível:
+  - Kernel Unix original (Thompson/Ritchie, 1969)
+  - TeX (Knuth, 1978)
+  - SQLite (Hipp, 2000) ← o Ciclo 1.0 já usa; aprenda com a filosofia dele
+  - Git (Torvalds, 2005)
+
+O que eles têm em comum: o código-fonte É a especificação completa.
+Não existe documento separado explicando o que fazem — eles se explicam.
+
+--------------------------------------------------------------------------------
+  RESUMO: O PRÓXIMO COMMIT DE MAIOR IMPACTO
+--------------------------------------------------------------------------------
+
+NÃO adiciona nada. Ele faz:
+
+  1. Escreve a frase-princípio no README.md
+  2. Corrige o hardcode do ChatInterface.jsx
+  3. Separa api.py em 4 routers (hardware / software / zendesk / scripts)
+  4. Adiciona token bearer nos endpoints de escrita
+
+Esses 4 movimentos valem mais do que 10 features novas.
+
+--------------------------------------------------------------------------------
+  O QUE É DESCARTÁVEL E O QUE SOBREVIVE NO CICLO 2.0
+--------------------------------------------------------------------------------
+
+NÃO É DESCARTÁVEL — vai para a próxima versão intacto:
+
+  SQLite com tabelas materializadas
+    A decisão de pré-calcular machine_posture_flags em vez de escanear
+    a cada request é pensamento de nível 700: simples, rápido, correto.
+
+  Integração com Automatos
+    Conhecimento do domínio: você sabe o que a API retorna, onde mente,
+    onde tem lixo. Isso não se reescreve — se carrega.
+
+  Lógica de postura de segurança (os 5 agentes)
+    Isso é o propósito destilado. Qualquer versão futura parte daqui.
+
+  Cache multi-camada
+    A decisão de separar "dado quente" de "dado frio" é arquitetura correta
+    independente do nível do sistema.
+
+  Scripts de sync e validação
+    São o conhecimento operacional — a inteligência sobre como o parque
+    se comporta. Vale mais do que qualquer linha de frontend.
+
+DESCARTÁVEL — muda de forma, não de conteúdo:
+
+  O frontend como existe hoje
+    Um sistema nível 700 não tem dashboard que você abre.
+    Ele te encontra. O React, os 6 painéis, as tabelas com paginação —
+    tudo isso some ou vira tela de consulta secundária que quase ninguém usa.
+
+  O monólito do api.py (2058 linhas)
+    Não porque está errado — porque é a forma física da falta de clareza
+    sobre o que o sistema é. Em nível 700 isso se dissolve naturalmente
+    em partes menores com responsabilidades óbvias.
+
+CONCLUSÃO:
+  O Ciclo 1.0 fez o trabalho mais difícil: descobrir o problema real.
+  Você aprendeu que máquinas sem agente é o risco central, que sync de
+  23 mil máquinas não pode ser síncrono, que o Automatos precisa de cache.
+
+  No nível 700, você não reescreve o que sabe.
+  Você reescreve a FORMA com que o sistema expressa o que sabe.
+  O conteúdo permanece. A estrutura muda.
+
+--------------------------------------------------------------------------------
+  ANALOGIA PRÁTICA: O PADRÃO "GOOGLE CHAT"
+--------------------------------------------------------------------------------
+
+O padrão de mostrar só conversas não lidas e esconder as lidas é um
+bom exemplo para entender os níveis na prática.
+
+  NÍVEL 400  Lista todas as conversas, você filtra manualmente
+  NÍVEL 500  Mostra só as não lidas, oculta as lidas              ← Google Chat
+  NÍVEL 600  Não tem lista — abre direto na conversa que precisa de você
+  NÍVEL 700+ A conversa te encontra, não você a ela               ← WhatsApp (lock screen)
+
+O Google Chat é ~500-550: o sistema tomou uma decisão por você ("isso não
+precisa de atenção agora, não vou mostrar"), mas ainda depende de você abrir.
+A iniciativa ainda é sua.
+
+O Gmail chegou mais perto do 600 com o Priority Inbox: não só ocultou —
+ordenou por relevância sem você pedir.
+
+O WhatsApp chegou perto do 700 com notificações na tela de lock:
+a conversa literalmente te encontra.
+
+APLICADO AO CICLO 1.0:
+
+  HOJE (360)      Dashboard com 6 painéis simultâneos
+  NÍVEL 500       Só mostra seções com alertas ativos
+  NÍVEL 600       Abre direto no único alerta crítico do dia
+  NÍVEL 700       O sistema manda mensagem no Teams/Slack sem você abrir nada
+
+O Ciclo 1.0 já tem Gemini e dados de postura.
+A distância técnica para o nível 700 é pequena: um webhook de saída.
+A distância de INTENÇÃO é maior: exige confiar que o sistema sabe
+o que é urgente sem você confirmar.
+
+Esse é o salto real.
+
+--------------------------------------------------------------------------------
+  LEMBRETE FINAL
+--------------------------------------------------------------------------------
+
+O maior inimigo de subir de nível não é falta de código.
+É acumulação de código que ninguém tem coragem de deletar.
+
+================================================================================

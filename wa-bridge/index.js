@@ -67,19 +67,36 @@ async function connectToWhatsApp(email) {
     sessions.set(email, sock);
 
     sock.ev.on('messages.upsert', async m => {
-        if (m.type !== 'notify') return;
         const msg = m.messages[0];
-        if (msg.key.fromMe) return;
+        const remoteJid = msg.key.remoteJid || '';
 
-        const sender = msg.key.remoteJid;
+        // 🔑 CHAVE ANTI-LOOP:
+        // Mensagem digitada pelo barbeiro para si mesmo → remoteJid termina em @lid (Saved Messages)
+        // Mensagem enviada pelo BOT de volta ao barbeiro → remoteJid termina em @s.whatsapp.net
+        // Portanto: SÓ considerar "admin cmd" se remoteJid for @lid
+        const isSelfAdminCmd = msg.key.fromMe && remoteJid.endsWith('@lid');
+
+        // Mensagens normais de clientes: não são fromMe e precisam ser type='notify'
+        if (!isSelfAdminCmd) {
+            if (msg.key.fromMe) return; // bot response — ignora para não entrar em loop
+            if (m.type !== 'notify') return; // sincronização de histórico — ignora
+        }
+
+        const rawMyId = sock.user?.id || '';
+        const myNumber = rawMyId.split(':')[0].split('@')[0]; // ex: "5511972509876"
+
+        // Para comandos admin, o sender que o Worker usa para identificar o barbeiro
+        // deve ser o número real no formato padrão
+        const sender = isSelfAdminCmd ? `${myNumber}@s.whatsapp.net` : remoteJid;
         const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
 
         if (text) {
-            console.log(`[Recebido] (${email}) De: ${sender} - Msg: ${text}`);
+            const tag = isSelfAdminCmd ? '[ADMIN CMD]' : '[Recebido]';
+            console.log(`${tag} (${email}) De: ${sender} - Msg: ${text}`);
             axios.post(WORKER_URL, {
                 phone: sender,
                 message: text,
-                barber_email: email // Crucial para o Worker saber qual bot respondeu
+                barber_email: email
             }).catch(e => console.error('❌ ERRO NO WORKER:', e.message));
         }
     });
