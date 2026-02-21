@@ -68,7 +68,8 @@ export const api = {
         const res = await fetch(`${API_URL}/appointments/book`, {
             method: 'POST',
             headers: headers(email),
-            body: JSON.stringify({ ...data, userEmail: email })
+            // Mudamos userEmail para email para bater com o que o Worker espera
+            body: JSON.stringify({ ...data, email: email }) 
         });
         return res.json();
     },
