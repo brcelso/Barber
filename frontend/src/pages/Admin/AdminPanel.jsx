@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Users, MessageSquare, Activity } from 'lucide-react';
+import { Calendar, Users, MessageSquare, Activity, Shield } from 'lucide-react';
 import { AgendaTab } from './Tabs/Agenda';
 import { TeamTab } from './Tabs/Team';
 import { BotSettingsTab } from './Tabs/BotSettings';
