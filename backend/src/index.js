@@ -73,7 +73,7 @@ export default {
                 // Usamos um .catch() interno para que, se der erro em uma coluna, as outras continuem
                 await DB.prepare(`ALTER TABLE users ADD COLUMN ${col} TEXT`)
                     .run()
-                    .catch(() => console.log(`Aviso: Coluna ${col} já existe ou não pôde ser criada.`));
+                    .catch(_ => console.log(`Aviso: Coluna ${col} já existe ou não pôde ser criada.`));
                 }
             }
             } catch (e) {
