@@ -237,21 +237,14 @@ function App() {
   const handleRefresh = async () => {
     setLoading(true);
     const ts = Date.now();
-    try {
-      await Promise.all([
-        fetchSubscription(ts),
-        fetchAppointments(ts),
-        fetchAdminAppointments(ts),
-        fetchWaStatus(),
-        fetchBarbers(),
-        // ESSA É A LINHA QUE FALTAVA:
-        fetchBusySlots(selectedDate, selectedBarber || (user?.isBarber ? user : null), ts)
-      ]);
-    } catch (e) {
-      console.error("Erro ao atualizar dados:", e);
-    } finally {
-      setLoading(false);
-    }
+    await Promise.all([
+      fetchSubscription(ts),
+      fetchAppointments(ts),
+      fetchAdminAppointments(ts),
+      fetchWaStatus(),
+      fetchBarbers()
+    ]);
+    setLoading(false);
   };
 
   const handleBooking = async () => {
