@@ -3,7 +3,7 @@
  * Agentic AI Version
  */
 
-import { corsHeaders, json, getMasterEmail, notifyWhatsApp } from './utils/index.js';
+import { corsHeaders, json, getMasterEmail } from './utils/index.js';
 import { handleWhatsAppWebhook } from './bot/index.js';
 import { handleAdminRoutes } from './api/admin.js';
 import { handleMasterRoutes } from './api/master.js';
@@ -67,7 +67,7 @@ export default {
 
             // --- ROTA DE INTELIGÊNCIA CENTRAL (AGENTE) ---
             if (url.pathname === '/api/agent/chat' && request.method === 'POST') {
-                const { prompt, email, isAdmin, barberContext } = await request.json();
+                const { prompt, isAdmin, barberContext } = await request.json();
 
                 // 1. O Modelo decide se precisa de ferramenta
                 const aiResponse = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {

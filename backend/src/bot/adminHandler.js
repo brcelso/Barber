@@ -1,17 +1,6 @@
 import { json, sendMessage } from '../utils/index.js';
 import { ADMIN_PROMPTS } from './prompts.js';
 
-// Helper para extrair JSON da resposta da IA (caso necessário no fallback)
-function safeParseJSON(str) {
-    try {
-        const match = str.match(/\{[\s\S]*?\}/);
-        if (match) return JSON.parse(match[0]);
-    } catch (e) {
-        console.error('[JSON Parse Error]', e, str);
-    }
-    return null;
-}
-
 export async function handleAdminFlow(from, text, textLower, adminInfo, botBarberEmail, env) {
     const isNumericChoice = /^\d+$/.test(text) && text.length <= 2;
     const isMenuCommand = ['menu', 'oi', 'ola', 'opa', 'ok', 'voltar', 'ajuda'].includes(textLower);
@@ -180,7 +169,6 @@ async function showRevenue(from, adminInfo, botBarberEmail, env) {
 // Fallback de segurança para manter o CRUD funcionando se a IA central falhar
 async function handleIntentsFallback(from, text, adminInfo, botBarberEmail, env) {
     const brazilTime = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-    const todayStr = brazilTime.toLocaleDateString("en-CA");
     
     // Aqui você pode manter sua lógica original de env.AI.run com ADMIN_PROMPTS.system_instruction 
     // ou apenas enviar uma mensagem de erro pedindo para usar o menu.
