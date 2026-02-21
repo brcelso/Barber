@@ -40,3 +40,6 @@ bridge/node_modules/
 bridge/ngrok_log.txt
 .stop-flag
 bridge/.stop-flag
+lint-results.json
+lint-results-v2.json
+backend/user_info.txt
