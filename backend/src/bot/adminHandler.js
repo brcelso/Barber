@@ -16,7 +16,7 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
 
     const metadata = JSON.parse(session.metadata || '{}');
 
-    // 2. Lógica de Menu Numérico (CRUD e Ações Diretas)
+    // 2. Lógica de Menu Numérico
     const isGlobalMenuChoice = isNumericChoice && parseInt(text) >= 1 && parseInt(text) <= 7;
     if ((session.state === 'main_menu' || isGlobalMenuChoice) && isNumericChoice) {
         switch (text) {
@@ -44,13 +44,13 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
                 await sendMessage(env, from, "🛑 *Bloqueio*\n\nQual data ou hora deseja bloquear/desbloquear?", botBarberEmail);
                 break;
 
-            case '6': // Financeiro Direto
+            case '6': // Financeiro
                 await showRevenue(from, adminInfo, botBarberEmail, env);
                 await env.DB.prepare('UPDATE whatsapp_sessions SET state = "main_menu" WHERE phone = ?').bind(from).run();
                 await sendMessage(env, from, ADMIN_PROMPTS.main_menu(adminInfo.name), botBarberEmail);
                 break;
 
-            case '7': // Chat IA Livre
+            case '7': // Chat IA
                 await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_ai_chat" WHERE phone = ?').bind(from).run();
                 await sendMessage(env, from, ADMIN_PROMPTS.ai_welcome, botBarberEmail);
                 break;
@@ -64,8 +64,7 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
         return await showAgenda(from, adminInfo, botBarberEmail, env, lastPage + 1);
     }
 
-    // 3. FLUXO AGÊNTICO (Onde a IA decide e executa)
-    // Se estiver em estado de chat OU se mandar um texto livre (Linguagem Natural)
+    // 3. FLUXO AGÊNTICO
     if (session.state === 'admin_ai_chat' || !isNumericChoice) {
         try {
             const barberContext = {
@@ -74,41 +73,41 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
                 bTone: adminInfo.bot_tone || 'profissional'
             };
 
-            // Chamada para a Rota Agêntica Central no index.js
             const workerUrl = env.SERVICE_URL || 'https://barber-server.celsosilvajunior90.workers.dev';
+            
             const aiRequest = await fetch(`${workerUrl}/api/agent/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     prompt: text,
-                    email: adminInfo.email,
                     isAdmin: true,
                     barberContext: barberContext
                 })
             });
+
+            if (!aiRequest.ok) throw new Error(`HTTP Error: ${aiRequest.status}`);
 
             const aiData = await aiRequest.json();
             const aiMsg = aiData.text || "Chefe, não consegui processar isso agora. Pode usar o menu?";
 
             await sendMessage(env, from, aiMsg, botBarberEmail);
 
-            // Mantemos o fluxo limpo voltando ao menu
-            await env.DB.prepare('UPDATE whatsapp_sessions SET state = "main_menu" WHERE phone = ?').bind(from).run();
-            await sendMessage(env, from, ADMIN_PROMPTS.main_menu(adminInfo.name), botBarberEmail);
+            // Só volta para o menu se NÃO estiver no estado de chat fixo da IA
+            if (session.state !== 'admin_ai_chat') {
+                await env.DB.prepare('UPDATE whatsapp_sessions SET state = "main_menu" WHERE phone = ?').bind(from).run();
+                await sendMessage(env, from, ADMIN_PROMPTS.main_menu(adminInfo.name), botBarberEmail);
+            }
             
             return json({ success: true });
 
         } catch (e) {
             console.error('[Agentic Admin Flow Error]', e);
-            // Fallback para intenções fixas caso a IA central falhe
             return await handleIntentsFallback(from, text, adminInfo, botBarberEmail, env);
         }
     }
 
     return json({ success: true });
 }
-
-// --- FUNÇÕES DE APOIO (CÓDIGO ORIGINAL MANTIDO) ---
 
 async function showAgenda(from, adminInfo, botBarberEmail, env, page = 1) {
     const limit = 8;
@@ -136,8 +135,7 @@ async function showAgenda(from, adminInfo, botBarberEmail, env, page = 1) {
         return json({ success: true });
     }
 
-    const hasMore = appts.results.length > limit;
-    const resultsToShow = hasMore ? appts.results.slice(0, limit) : appts.results;
+    const resultsToShow = appts.results.length > limit ? appts.results.slice(0, limit) : appts.results;
 
     let msg = `📅 *Sua Agenda (Pág ${page})*:\n\n`;
     resultsToShow.forEach(a => {
@@ -145,7 +143,7 @@ async function showAgenda(from, adminInfo, botBarberEmail, env, page = 1) {
         msg += `• *${dp[2]}/${dp[1]}* às *${a.appointment_time}*\n  ${a.client_name} - ${a.service_name}\n\n`;
     });
 
-    if (hasMore) msg += "8️⃣ - ➕ Ver mais clientes\n";
+    if (appts.results.length > limit) msg += "8️⃣ - ➕ Ver mais clientes\n";
     msg += "\n*Comandos Rápidos:* Digite 'Cancele o das 14h' ou 'Confirme João'.";
 
     await sendMessage(env, from, msg, botBarberEmail);
@@ -166,12 +164,8 @@ async function showRevenue(from, adminInfo, botBarberEmail, env) {
     await sendMessage(env, from, msg, botBarberEmail);
 }
 
-// Fallback de segurança para manter o CRUD funcionando se a IA central falhar
 async function handleIntentsFallback(from, text, adminInfo, botBarberEmail, env) {
-
-    // Aqui você pode manter sua lógica original de env.AI.run com ADMIN_PROMPTS.system_instruction 
-    // ou apenas enviar uma mensagem de erro pedindo para usar o menu.
-    await sendMessage(env, from, "⚠️ Tive um problema ao entender sua frase. Por favor, tente usar os números do menu ou seja mais específico.", botBarberEmail);
+    await sendMessage(env, from, "⚠️ Tive um problema ao acessar a inteligência agora. Por favor, tente usar os números do menu ou tente novamente em instantes.", botBarberEmail);
     await sendMessage(env, from, ADMIN_PROMPTS.main_menu(adminInfo.name), botBarberEmail);
     return json({ success: true });
 }
