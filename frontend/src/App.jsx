@@ -20,7 +20,7 @@ import { AdminPanel } from './pages/Admin/AdminPanel';
 function App() {
   // --- ESTADOS ---
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('barber_user') || 'null'));
-  const [view, setView] = useState('book'); 
+  const [view, setView] = useState('book');
   const [services, setServices] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
   const [selectedDate, setSelectedDate] = useState(startOfToday());
@@ -34,9 +34,9 @@ function App() {
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [subscription, setSubscription] = useState({ daysLeft: 0, isActive: false, expires: null });
   const [showPhoneSetup, setShowPhoneSetup] = useState(false);
-  
+
   // CORREÇÃO LINT: Removidas variáveis 'editingAppointment' e 'masterFilter' que não estavam sendo usadas
-  
+
   const [paymentSelectionAppt, setPaymentSelectionAppt] = useState(null);
   const [selectedActionAppt, setSelectedActionAppt] = useState(null);
   const [showPlanSelection, setShowPlanSelection] = useState(false);
@@ -97,9 +97,9 @@ function App() {
     } catch { console.error('Error fetching admin appts'); }
   }, [user]);
 
- const fetchBusySlots = useCallback(async (date, barber, ts = '') => {
+  const fetchBusySlots = useCallback(async (date, barber, ts = '') => {
     const effectiveBarber = barber || (user?.isBarber ? user : null);
-    
+
     if (!effectiveBarber || !date) {
       setBusySlots([]);
       return;
@@ -108,23 +108,25 @@ function App() {
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
       const data = await api.getBusySlots(dateStr, effectiveBarber.email, ts);
-      
+
       const dataArray = Array.isArray(data) ? data : [];
 
       // CORREÇÃO TELA PRETA: Mapeamento blindado para evitar erro de undefined
-      const slotsOnly = dataArray
-      .filter(slot => slot !== null && slot !== undefined) 
-      .map(slot => {
-        if (typeof slot === 'string') return slot;
-        if (slot && slot.appointment_time) return slot.appointment_time;
-        return null; 
-      })
-      .filter(slot => slot !== null); 
-      
-      setBusySlots(slotsOnly);
-    } catch (error) { 
-      console.error('Error fetching busy slots:', error); 
-      setBusySlots([]); 
+      const slots = dataArray
+        .filter(slot => slot !== null && slot !== undefined)
+        .map(slot => {
+          if (typeof slot === 'string') return slot;
+          return {
+            time: slot.time || slot.appointment_time,
+            status: slot.status
+          };
+        })
+        .filter(slot => (typeof slot === 'string' ? slot : slot.time));
+
+      setBusySlots(slots);
+    } catch (error) {
+      console.error('Error fetching busy slots:', error);
+      setBusySlots([]);
     }
   }, [user]);
 
@@ -188,10 +190,10 @@ function App() {
     finally { setLoading(false); }
   };
 
-const handleToggleFullDay = async () => {
+  const handleToggleFullDay = async () => {
     const isBlocking = busySlots.length < timeSlots.length;
     const action = isBlocking ? 'block' : 'unblock';
-    
+
     setLoading(true);
     try {
       const res = await api.bulkToggleBlock(user.email, {
@@ -203,26 +205,27 @@ const handleToggleFullDay = async () => {
 
       if (res.status) {
         // 1. Limpa o estado local para garantir que a interface reaja
-        setBusySlots([]); 
-        
+        setBusySlots([]);
+
         // 2. Busca os dados atualizados do servidor
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         const newData = await api.getBusySlots(dateStr, user.email);
-        
+
         // 3. Normalização Inteligente: mapeia 'time' ou 'appointment_time'
         const dataArray = Array.isArray(newData) ? newData : [];
-        const slotsOnly = dataArray
+        const slots = dataArray
           .filter(slot => slot !== null && slot !== undefined)
           .map(slot => {
             if (typeof slot === 'string') return slot.trim();
-            // Tenta pegar a chave 'time' que o seu backend está enviando agora
-            const value = slot.time || slot.appointment_time;
-            return value ? value.trim() : null;
+            return {
+              time: (slot.time || slot.appointment_time)?.trim(),
+              status: slot.status
+            };
           })
-          .filter(Boolean); // Remove nulos e garante array limpo
+          .filter(s => (typeof s === 'string' ? s : s.time));
 
-        setBusySlots(slotsOnly);
-        
+        setBusySlots(slots);
+
         alert(isBlocking ? 'Dia bloqueado com sucesso!' : 'Dia liberado!');
       }
     } catch {
@@ -233,10 +236,10 @@ const handleToggleFullDay = async () => {
     }
   };
 
-const handleToggleBlock = async (time) => {
+  const handleToggleBlock = async (time) => {
     // 1. Define o profissional alvo (quem será bloqueado)
     const effectiveBarber = selectedBarber || (user?.isBarber ? user : null);
-    
+
     if (!effectiveBarber) {
       alert("Selecione um barbeiro primeiro.");
       return;
@@ -246,19 +249,19 @@ const handleToggleBlock = async (time) => {
     try {
       // 2. Executa o bloqueio/liberação enviando o e-mail do barbeiro alvo
       // O Worker modularizado costuma exigir o barberEmail no corpo do POST
-      await api.toggleBlock(user.email, { 
-        date: format(selectedDate, 'yyyy-MM-dd'), 
+      await api.toggleBlock(user.email, {
+        date: format(selectedDate, 'yyyy-MM-dd'),
         time: time,
-        barberEmail: effectiveBarber.email 
+        barberEmail: effectiveBarber.email
       });
-      
+
       // 3. Aguarda a atualização dos slots para garantir que a cor mude na interface
       // Importante: Passamos o effectiveBarber para buscar os slots dele
       await fetchBusySlots(selectedDate, effectiveBarber);
-      
+
       // 4. Atualiza a lista de agendamentos (admin) em segundo plano
       fetchAdminAppointments();
-      
+
     } catch {
       // Catch limpo para evitar erros de Lint (variável não usada)
       alert('Erro ao processar o bloqueio ou liberação do horário.');
@@ -280,46 +283,46 @@ const handleToggleBlock = async (time) => {
     finally { setLoading(false); }
   }, []);
 
-const handleBooking = async () => {
-  // 1. Validação básica
-  if (!selectedService || !selectedTime || !user || !selectedBarber) {
-    alert('Por favor, selecione o barbeiro, o serviço e o horário.');
-    return;
-  }
-
-  setLoading(true);
-  try {
-    // 2. O objeto DEVE ter exatamente estes nomes de chaves:
-    const bookingData = {
-      email: user.email,          // O Worker espera 'email' para o cliente
-      barberEmail: selectedBarber.email, 
-      serviceId: selectedService.id,
-      date: format(selectedDate, 'yyyy-MM-dd'),
-      time: selectedTime
-    };
-
-    // 3. Chamada da API
-    const res = await api.book(user.email, bookingData);
-
-    // Verificação de erro (O Worker retorna {error: '...'})
-    if (res.error) {
-      alert(`Erro: ${res.error}`);
+  const handleBooking = async () => {
+    // 1. Validação básica
+    if (!selectedService || !selectedTime || !user || !selectedBarber) {
+      alert('Por favor, selecione o barbeiro, o serviço e o horário.');
       return;
     }
 
-    alert('Agendado com sucesso! ✂️');
-    
-    // Atualiza a lista e vai para o histórico
-    await fetchAppointments();
-    setView('history');
-    
-  } catch {
-    // Catch limpo para o seu Lint
-    alert('Erro de conexão ao tentar agendar.');
-  } finally {
-    setLoading(false);
-  }
-};
+    setLoading(true);
+    try {
+      // 2. O objeto DEVE ter exatamente estes nomes de chaves:
+      const bookingData = {
+        email: user.email,          // O Worker espera 'email' para o cliente
+        barberEmail: selectedBarber.email,
+        serviceId: selectedService.id,
+        date: format(selectedDate, 'yyyy-MM-dd'),
+        time: selectedTime
+      };
+
+      // 3. Chamada da API
+      const res = await api.book(user.email, bookingData);
+
+      // Verificação de erro (O Worker retorna {error: '...'})
+      if (res.error) {
+        alert(`Erro: ${res.error}`);
+        return;
+      }
+
+      alert('Agendado com sucesso! ✂️');
+
+      // Atualiza a lista e vai para o histórico
+      await fetchAppointments();
+      setView('history');
+
+    } catch {
+      // Catch limpo para o seu Lint
+      alert('Erro de conexão ao tentar agendar.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // --- EFFECTS ---
   useEffect(() => { fetchBarbers(); }, [fetchBarbers]);
@@ -358,14 +361,14 @@ const handleBooking = async () => {
 
   return (
     <div className="container">
-      <Header 
-        user={user} view={view} setView={setView} loading={loading} 
+      <Header
+        user={user} view={view} setView={setView} loading={loading}
         handleRefresh={handleRefresh} handleLogout={() => { setUser(null); localStorage.removeItem('barber_user'); }}
         subscription={subscription} setShowPlanSelection={setShowPlanSelection} isAdminMode={isAdminMode}
       />
 
       {view === 'book' && (
-        <BookingPage 
+        <BookingPage
           user={user} barbers={barbers} selectedBarber={selectedBarber} setSelectedBarber={setSelectedBarber}
           services={services} selectedService={selectedService} setSelectedService={setSelectedService}
           selectedDate={selectedDate} setSelectedDate={setSelectedDate} timeSlots={timeSlots}
@@ -375,9 +378,9 @@ const handleBooking = async () => {
       )}
 
       {view === 'history' && (
-        <HistoryPage 
-          appointments={appointments} 
-          loading={loading} 
+        <HistoryPage
+          appointments={appointments}
+          loading={loading}
           handleCancel={(id) => api.cancelAppointment(user.email, id).then(handleRefresh)}
           handleDelete={(id) => api.deleteAppointment(user.email, id).then(handleRefresh)}
           handlePayment={(appt) => setPaymentSelectionAppt(appt)}
@@ -390,7 +393,7 @@ const handleBooking = async () => {
         />
       )}
       {view === 'admin' && (user.isAdmin || user.isBarber) && (
-        <AdminPanel 
+        <AdminPanel
           key={`admin-${busySlots.length}-${selectedDate.getTime()}`}
           user={user} adminTab={adminTab} setAdminTab={setAdminTab}
           selectedDate={selectedDate} setSelectedDate={setSelectedDate}
@@ -403,11 +406,11 @@ const handleBooking = async () => {
       )}
 
       {/* MODAIS */}
-      <PaymentModal appointment={paymentSelectionAppt} onClose={() => setPaymentSelectionAppt(null)} onProcess={() => {}} loading={loading} />
+      <PaymentModal appointment={paymentSelectionAppt} onClose={() => setPaymentSelectionAppt(null)} onProcess={() => { }} loading={loading} />
       <PlanSelectionModal show={showPlanSelection} onClose={() => setShowPlanSelection(false)} onSelect={(p) => api.subscriptionPayment(user.email, p)} loading={loading} />
       <PhoneSetupModal show={showPhoneSetup} loading={loading} onSave={(p) => api.updateProfile(user.email, p).then(() => setShowPhoneSetup(false))} />
-      
-      <ActionSheet 
+
+      <ActionSheet
         selectedActionAppt={selectedActionAppt} setSelectedActionAppt={setSelectedActionAppt}
         sheetView={sheetView} setSheetView={setSheetView} user={user}
         updateStatus={(s) => api.updateStatus(user.email, selectedActionAppt.id, s).then(handleRefresh)}

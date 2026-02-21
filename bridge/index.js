@@ -64,23 +64,29 @@ async function connectToWhatsApp(email) {
 
     // Eventos de Mensagem
     sock.ev.on('messages.upsert', async m => {
+        if (m.type !== 'notify') return;
+
         const msg = m.messages[0];
+        if (!msg.message) return;
+
         const remoteJid = msg.key.remoteJid || '';
         const isLid = remoteJid.endsWith('@lid');
-        const isSelfAdminCmd = msg.key.fromMe || isLid;
-
-        if (!isSelfAdminCmd) {
-            if (msg.key.fromMe) return;
-            if (m.type !== 'notify') return;
-        }
 
         const rawMyId = sock.user?.id || '';
         const myNumber = rawMyId.split(':')[0].split('@')[0];
+        const isSelfChat = remoteJid.startsWith(myNumber);
+
+        // Se a mensagem foi enviada pelo bot/celular (fromMe):
+        // Só processamos se for um comando enviado via LID ou conversando consigo mesmo.
+        // Se o bot mandou mensagem para outra pessoa, ignoramos aqui para evitar LOOP.
+        if (msg.key.fromMe && !isLid && !isSelfChat) return;
+
+        const isSelfAdminCmd = msg.key.fromMe || isLid;
 
         const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
 
         if (text) {
-            const sender = isLid ? `${myNumber}@s.whatsapp.net` : remoteJid;
+            const sender = (isLid || isSelfChat) ? `${myNumber}@s.whatsapp.net` : remoteJid;
             const tag = isSelfAdminCmd ? '[ADMIN CMD]' : '[Recebido]';
             console.log(`${tag} (${email}) De: ${sender} - Msg: ${text}`);
             axios.post(WORKER_URL, {

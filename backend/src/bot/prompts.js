@@ -31,7 +31,8 @@ IMPORTANTE:
 Ao final de cada resposta, use o menu simplificado:
 1️⃣ Agenda | 2️⃣ Confirmar | 3️⃣ Pago | 4️⃣ Cancelar | 5️⃣ Bloquear | 6️⃣ Finanças`,
 
-    system_instruction: (text, context = '') => `Você é o assistente de gestão do barbeiro.
+    system_instruction: (text, context = '', today = '') => `Você é o assistente de gestão do barbeiro.
+Hoje é ${today}.
 O dono do salão mandou: "${text}"
 ${context}
 

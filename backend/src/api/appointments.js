@@ -21,7 +21,7 @@ export async function handleAppointmentRoutes(url, request, env) {
             LEFT JOIN services s ON a.service_id = s.id
             LEFT JOIN users u ON a.user_email = u.email
             LEFT JOIN users b ON a.barber_email = b.email
-            WHERE (a.user_email = ? OR a.barber_email = ?) AND a.status != 'blocked'
+            WHERE (a.user_email = ? OR a.barber_email = ?)
             ORDER BY a.appointment_date DESC, a.appointment_time DESC
         `).bind(email, email).all();
 

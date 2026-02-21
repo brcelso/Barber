@@ -88,9 +88,12 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
         if (session.state === 'admin_awaiting_paid') aiContext = "O usuário quer marcar um agendamento como pago.";
         if (session.state === 'admin_awaiting_block') aiContext = "O usuário quer bloquear ou desbloquear horários.";
 
+        const brazilTime = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+        const todayStr = brazilTime.toLocaleDateString("en-CA"); // YYYY-MM-DD
+
         const aiRes = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
             messages: [
-                { role: 'system', content: ADMIN_PROMPTS.system_instruction(text, aiContext) },
+                { role: 'system', content: ADMIN_PROMPTS.system_instruction(text, aiContext, todayStr) },
                 { role: 'user', content: text }
             ]
         });
