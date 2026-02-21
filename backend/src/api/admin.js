@@ -67,7 +67,7 @@ export async function handleAdminRoutes(url, request, env) {
                 LEFT JOIN services s ON a.service_id = s.id
                 LEFT JOIN users u ON a.user_email = u.email
                 LEFT JOIN users b ON a.barber_email = b.email
-                WHERE a.barber_email IN (${placeholders})
+                WHERE a.barber_email IN (${placeholders}) AND a.status != 'blocked'
                 ORDER BY a.appointment_date DESC, a.appointment_time DESC
             `).bind(...emails).all();
         } else {
@@ -77,7 +77,7 @@ export async function handleAdminRoutes(url, request, env) {
                 LEFT JOIN services s ON a.service_id = s.id
                 LEFT JOIN users u ON a.user_email = u.email
                 LEFT JOIN users b ON a.barber_email = b.email
-                WHERE a.barber_email = ?
+                WHERE a.barber_email = ? AND a.status != 'blocked'
                 ORDER BY a.appointment_date DESC, a.appointment_time DESC
             `).bind(email).all();
         }
@@ -111,7 +111,7 @@ export async function handleAdminRoutes(url, request, env) {
                 for (const time of times) {
                     if (!busySet.has(time)) {
                         // ID determinístico para evitar duplicatas: block-email-data-hora
-                        const id = `block-${bEmail}-${date}-${time.replace(':', '')}`; 
+                        const id = `block-${bEmail}-${date}-${time.replace(':', '')}`;
                         statements.push(DB.prepare(`
                             INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status)
                             VALUES (?, 'system', ?, 'block', ?, ?, 'blocked')
