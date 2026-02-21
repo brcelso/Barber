@@ -1,0 +1,48 @@
+﻿
+ Ôøà´©Å wrangler 4.67.0
+ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+node.exe : [33mÔû▓ 
+[43;33m[[43;30mWARNING[43;33m][0m [1mThe local 
+configuration being used (generated from your local 
+configuration file) differs from the remote 
+configuration of your Worker set via the Cloudflare 
+Dashboard:[0m
+No linha:1 caractere:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([33mÔû 
+   ▓ [43;3... Dashboard:[0m:String) [], RemoteExc  
+  eption
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+   {
+     d1_databases: [
+       {
+  [32m+      database_name: "barber-db"[39m
+       }
+     ]
+   }
+  
+  
+  Deploying the Worker will override the remote 
+configuration with your local one.
+
+
+? Would you like to continue?
+­ƒñû Using fallback value in non-interactive context: yes
+Total Upload: 91.91 KiB / gzip: 18.38 KiB
+Your Worker has access to the following bindings:
+Binding                                   Resource                  
+env.DB (barber-db)                        D1 Database               
+env.AI                                    AI                        
+env.GLOBAL_APP_NAME ("Barber")            Environment Variable      
+env.GLOBAL_BRAND_COLOR ("#ff00d0ff")      Environment Variable      
+
+Uploaded barber-server (11.21 sec)
+Deployed barber-server triggers (6.51 sec)
+  https://barber-server.celsosilvajunior90.workers.dev
+  schedule: 30 10 * * *
+Current Version ID: a7b67f30-4fe5-4914-a91c-b64e5ac25814

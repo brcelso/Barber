@@ -17,11 +17,27 @@ export const MASTER_EMAIL = 'celsosilvajunior90@gmail.com';
 
 export const getMasterEmail = (env) => env.SUPER_ADMIN_EMAIL || MASTER_EMAIL;
 
-export const sendMessage = async (env, phone, message, barberEmail) => {
-    const BRIDGE_URL = env.WA_BRIDGE_URL;
+export const sendMessage = async (env, phone, message, barberEmail, bridgeUrlOverride = null) => {
+    let BRIDGE_URL = bridgeUrlOverride;
+
+    if (!BRIDGE_URL && barberEmail && env.DB) {
+        try {
+            const user = await env.DB.prepare('SELECT wa_bridge_url, owner_id FROM users WHERE email = ?').bind(barberEmail).first();
+            BRIDGE_URL = user?.wa_bridge_url;
+            if (!BRIDGE_URL && user?.owner_id) {
+                const owner = await env.DB.prepare('SELECT wa_bridge_url FROM users WHERE email = ?').bind(user.owner_id).first();
+                BRIDGE_URL = owner?.wa_bridge_url;
+            }
+        } catch (e) {
+            console.error('[Bridge Lookup Error]', e.message);
+        }
+    }
+
+    if (!BRIDGE_URL) BRIDGE_URL = env.WA_BRIDGE_URL;
     const BRIDGE_KEY = env.WA_BRIDGE_KEY;
+
     if (!BRIDGE_URL || !BRIDGE_KEY) {
-        console.log(`[WhatsApp Bot] Bridge not set. MSG: ${message}`);
+        console.log(`[WhatsApp Bot] Bridge not set. MSG: ${message} (Target: ${phone})`);
         return;
     }
     const cleanPhone = phone.replace(/\D/g, "");
@@ -38,12 +54,11 @@ export const sendMessage = async (env, phone, message, barberEmail) => {
             })
         });
     } catch (e) {
-        console.error('[Bot Send Error]', e.message);
+        console.error('[Bot Send Error]', e.message, 'URL:', BRIDGE_URL);
     }
 };
 
 export const notifyWhatsApp = async (env, DB, appointmentId, status, options = {}) => {
-    const BRIDGE_URL = env.WA_BRIDGE_URL;
     const BRIDGE_KEY = env.WA_BRIDGE_KEY;
 
     try {
@@ -65,14 +80,16 @@ export const notifyWhatsApp = async (env, DB, appointmentId, status, options = {
         if (!appt || !appt.phone) return;
 
         const barberEmail = appt.barber_email || options.barberEmail || getMasterEmail(env);
-        const barberUser = await DB.prepare('SELECT subscription_expires, owner_id FROM users WHERE email = ?').bind(barberEmail).first();
+        const barberUser = await DB.prepare('SELECT subscription_expires, owner_id, wa_bridge_url FROM users WHERE email = ?').bind(barberEmail).first();
 
         let expiresStr = barberUser?.subscription_expires;
+        let bridgeUrl = barberUser?.wa_bridge_url;
 
-        // INHERITANCE: If staff, use owner's subscription
+        // INHERITANCE: If staff, use owner's subscription and bridge
         if (barberUser?.owner_id) {
-            const owner = await DB.prepare('SELECT subscription_expires FROM users WHERE email = ?').bind(barberUser.owner_id).first();
+            const owner = await DB.prepare('SELECT subscription_expires, wa_bridge_url FROM users WHERE email = ?').bind(barberUser.owner_id).first();
             expiresStr = owner?.subscription_expires;
+            if (!bridgeUrl) bridgeUrl = owner?.wa_bridge_url;
         }
 
         const now = new Date();
@@ -112,7 +129,7 @@ export const notifyWhatsApp = async (env, DB, appointmentId, status, options = {
         }
 
         if (message) {
-            await sendMessage(env, appt.phone, message, barberEmail);
+            await sendMessage(env, appt.phone, message, barberEmail, bridgeUrl);
         }
     } catch (e) {
         console.error('[WhatsApp Notify Error]', e);

@@ -14,3 +14,6 @@ GLOBAL_BRAND_COLOR = "#ff00d0ff"
 
 [ai]
 binding = "AI"
+
+[triggers]
+crons = ["30 10 * * *"]
