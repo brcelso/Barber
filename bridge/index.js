@@ -195,6 +195,9 @@ app.post('/api/stop', async (req, res) => {
 
 app.post('/send-message', async (req, res) => {
     const { key, number, message, barber_email } = req.body;
+
+    console.log(`Tentando enviar via: ${barber_email}. Sessões ativas:`, Array.from(sessions.keys()));
+    
     if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });
 
     const sock = sessions.get(barber_email || ADMIN_EMAIL);
