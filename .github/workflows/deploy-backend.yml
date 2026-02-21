@@ -5,6 +5,7 @@ on:
     branches: ["main", "test-barber-grouping"]
     paths:
       - 'backend/**'
+      - 'backend/schema.sql'
   workflow_dispatch:
 
 jobs:
@@ -27,6 +28,14 @@ jobs:
 
       - name: Lint Backend
         run: npx eslint backend/src --config eslint.config.js
+
+      - name: Sync D1 Database Schema
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: 'backend'
+          command: d1 execute barber-db --remote --file=schema.sql
 
       # Wrangler Action v3 é a recomendada para 2026
       - name: Deploy Worker
