@@ -372,8 +372,21 @@ const handleBooking = async () => {
         />
       )}
 
-      {view === 'history' && <HistoryPage appointments={appointments} loading={loading} handleCancel={(id) => api.cancelAppointment(user.email, id).then(handleRefresh)} />}
-
+      {view === 'history' && (
+        <HistoryPage 
+          appointments={appointments} 
+          loading={loading} 
+          handleCancel={(id) => api.cancelAppointment(user.email, id).then(handleRefresh)}
+          handleDelete={(id) => api.deleteAppointment(user.email, id).then(handleRefresh)}
+          handlePayment={(appt) => setPaymentSelectionAppt(appt)}
+          handleEditStart={(appt) => {
+            const barber = barbers.find(b => b.email === appt.barber_email);
+            if (barber) setSelectedBarber(barber);
+            setSelectedService({ id: appt.service_id, name: appt.service_name, price: appt.price });
+            setView('book');
+          }}
+        />
+      )}
       {view === 'admin' && (user.isAdmin || user.isBarber) && (
         <AdminPanel 
           key={`admin-${busySlots.length}-${selectedDate.getTime()}`}
