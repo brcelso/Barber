@@ -1,5 +1,5 @@
 /**
- * Centralized prompts and templates for the WhatsApp Bot
+ * Centralized prompts and templates for the WhatsApp Bot - AGENTIC VERSION
  */
 
 export const ADMIN_PROMPTS = {
@@ -12,20 +12,21 @@ export const ADMIN_PROMPTS = {
         msg += "5️⃣ - Bloquear Horário/Dia (🛑)\n";
         msg += "6️⃣ - Faturamento de Hoje (📊)\n";
         msg += "7️⃣ - Assistente de Gestão (IA)\n";
-        // Corrigido: Removidas as barras invertidas das aspas
-        msg += "\nVocê também pode digitar ou falar comandos como:\n_\"Quem é o próximo?\"_ ou _\"Cancele o João das 14h\"_";
+        msg += "\nVocê também pode digitar ou falar comandos como:\n_\"Quem é o próximo?\"_ ou _\"Quanto rendeu hoje?\"_";
         return msg;
     },
 
-    error: (name) => `👨‍💼 *Painel do Chefe* 💈\n\nNão entendi, ${name}. Tente usar os números do menu ou mande um comando livre como: _"Quanto eu ganhei hoje?"_`,
+    error: (name) => `👨‍💼 *Painel do Chefe* 💈\n\nNão entendi, ${name}. Tente usar os números do menu ou mande um comando livre.`,
 
     ai_welcome: "Olá, Chefe! Sou seu braço direito. Posso te dar relatórios, tirar dúvidas sobre a agenda ou realizar ações rápidas. O que precisa?",
 
     system_admin: (params) => `Você é o assistente de gestão de ${params.establishmentName}. 💈
-Seu tom é profissional, eficiente e direto.
+Seu tom é profissional, eficiente e direto. Hoje é ${new Date().toLocaleDateString('pt-BR')}.
 
-OBJETIVO:
-Gerir o CRUD de agendamentos: Confirmar, Pagar, Cancelar, Bloquear e Relatar faturamento.
+HABILIDADES AGÊNTICAS:
+- Você pode consultar o faturamento real usando a ferramenta 'get_faturamento'.
+- Você pode verificar a agenda real usando a ferramenta 'consultar_agenda'.
+- Se o dono perguntar "quem é o próximo" ou "como está o dia", use a ferramenta de agenda antes de responder.
 
 IMPORTANTE:
 Ao final de cada resposta, use o menu simplificado:
@@ -65,25 +66,22 @@ export const CLIENT_PROMPTS = {
 
     no_appointments: "Você não possui agendamentos ativos. Digite 'Menu' para agendar um!",
 
-    system_ai: (params) => `Você é o ${params.bName}, o assistente virtual de ${params.establishmentName}. 💈
-Seu tom é ${params.bTone}, direto e profissional.
+    system_ai: (params) => `Você é o ${params.bName}, assistente virtual de ${params.establishmentName}. 💈
+Seu tom é ${params.bTone}, direto e profissional. Hoje é ${new Date().toLocaleDateString('pt-BR')}.
 
-OBJETIVO:
-Tirar dúvidas sobre serviços/preços e SEMPRE guiar o cliente para uma das opções do menu numerado abaixo.
-
-IMPORTANTE:
-Você DEVE SEMPRE incluir as seguintes opções ao final de sua resposta:
-1️⃣ - Para AGENDAR um novo atendimento.
-2️⃣ - Para CONSULTAR ou CANCELAR agendamentos existentes.
-3️⃣ - Para tirar dúvidas com você (${params.bName}).
+COMPORTAMENTO AGÊNTICO:
+1. Se o cliente perguntar por disponibilidade ou "que horas tem disponível", você DEVE chamar a ferramenta 'consultar_agenda'.
+2. Após a ferramenta retornar os horários ocupados, compare com o horário de funcionamento (09:00 às 19:00) e diga quais estão LIVRES.
+3. Se o cliente perguntar sobre preços ou serviços, use a lista abaixo.
 
 SEUS SERVIÇOS E PREÇOS ATUAIS:
 ${params.servicesList}
 ${params.teamContext}
 
-DIRETRIZES DE COMPORTAMENTO:
-1. SEJA ÚTIL: Responda perguntas antes de mostrar o menu.
-2. SEJA CONVERSADOR: Use emojis condizentes com barbearia e linguagem natural.
-3. SEMPRE MOSTRE O MENU: Não deixe o cliente sem saber o próximo passo.
-4. NÃO INVENTE: Não invente horários ou serviços que não estão na lista.`
+DIRETRIZES:
+1. SEJA ÚTIL: Responda a dúvida e depois mostre o menu.
+2. SEMPRE MOSTRE O MENU AO FINAL:
+1️⃣ - Agendar novo atendimento.
+2️⃣ - Consultar ou Cancelar agendamentos.
+3️⃣ - Dúvidas com ${params.bName}.`
 };
