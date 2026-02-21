@@ -44,7 +44,7 @@ export const BookingPage = ({
                 </div>
             )}
 
-            {/* Barber Selection */}
+            {/* Seleção de Barbeiro */}
             <section style={{ marginBottom: '3rem' }}>
                 <h2 className="section-title"><User size={20} /> Escolha o Profissional</h2>
                 <div className="barber-grid">
@@ -64,7 +64,7 @@ export const BookingPage = ({
 
             {selectedBarber && (
                 <>
-                    {/* Service Selection */}
+                    {/* Seleção de Serviço */}
                     <section style={{ marginBottom: '3rem' }}>
                         <h2 className="section-title"><Scissors size={20} /> O que vamos fazer hoje?</h2>
                         <div className="service-grid">
@@ -86,7 +86,7 @@ export const BookingPage = ({
                         </div>
                     </section>
 
-                    {/* Date Selection */}
+                    {/* Seleção de Data */}
                     <section style={{ marginBottom: '3rem' }}>
                         <h2 className="section-title"><Clock size={20} /> Quando?</h2>
                         <div className="date-nav glass-card">
@@ -102,25 +102,40 @@ export const BookingPage = ({
                             <button className="btn-icon" onClick={handleNextDay}><ChevronRight size={20} /></button>
                         </div>
 
-                        {/* Time Grid */}
+                        {/* Grid de Horários - LOGICA DE BLOQUEIO INTEGRADA */}
                         <div className="time-grid" style={{ marginTop: '2rem' }}>
                             {timeSlots.map(time => {
-                                const isBusy = busySlots.includes(time);
+                                // Busca o slot. Suporta string ou objeto {time, status}
+                                const slotData = busySlots && busySlots.find(s => {
+                                    const slotTime = typeof s === 'string' ? s : (s.time || s.appointment_time);
+                                    return slotTime?.trim() === time.trim();
+                                });
+
+                                const isBusy = !!slotData;
+                                const isBlocked = slotData?.status === 'blocked';
+
                                 return (
                                     <button
                                         key={time}
                                         disabled={isBusy}
                                         className={`time-slot ${selectedTime === time ? 'active' : ''}`}
+                                        style={isBlocked ? {
+                                            backgroundColor: '#dc2626', // Vermelho para bloqueio do WhatsApp
+                                            borderColor: '#991b1b',
+                                            color: 'white',
+                                            opacity: 0.9,
+                                            cursor: 'not-allowed'
+                                        } : {}}
                                         onClick={() => setSelectedTime(time)}
                                     >
-                                        {time}
+                                        {isBlocked ? '🚫' : time}
                                     </button>
                                 );
                             })}
                         </div>
                     </section>
 
-                    {/* Footer Booking Button */}
+                    {/* Rodapé com Botão de Finalizar */}
                     <div className="booking-footer fade-in">
                         <div className="glass-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.5rem 2rem' }}>
                             <div>

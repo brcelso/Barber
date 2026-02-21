@@ -54,18 +54,21 @@ export const AgendaTab = ({
                     </button>
                 </div>
 
-                {/* Grid de Horários para Bloqueio Rápido */}
+                {/* Grid de Horários - ATUALIZADO PARA SINCRONIA COM WHATSAPP/D1 */}
                 <div className="service-grid" style={{ 
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', 
                     gap: '8px' 
                 }}>
                     {timeSlots.map(time => {
-                        // Lógica de verificação robusta: aceita string ou objeto
-                        const isBlocked = busySlots && busySlots.some(s => {
-                            const slotTime = typeof s === 'string' ? s : s.appointment_time;
+                        // Busca o dado de ocupação (suporta string ou objeto vindo do D1)
+                        const slotData = busySlots && busySlots.find(s => {
+                            const slotTime = typeof s === 'string' ? s : (s.time || s.appointment_time);
                             return slotTime?.trim() === time.trim();
                         });
+
+                        const isBusy = !!slotData;
+                        const isBlockedBySystem = slotData?.status === 'blocked';
 
                         return (
                             <button
@@ -74,9 +77,9 @@ export const AgendaTab = ({
                                 style={{
                                     padding: '8px',
                                     borderRadius: '8px',
-                                    border: isBlocked ? '1px solid #e74c3c' : '1px solid var(--border)',
-                                    background: isBlocked ? 'rgba(231, 76, 60, 0.3)' : 'rgba(46, 204, 113, 0.05)',
-                                    color: isBlocked ? '#ff4d4d' : '#2ecc71',
+                                    border: isBlockedBySystem ? '2px solid #ff4d4d' : isBusy ? '1px solid #e74c3c' : '1px solid var(--border)',
+                                    background: isBlockedBySystem ? 'rgba(255, 77, 77, 0.2)' : isBusy ? 'rgba(231, 76, 60, 0.3)' : 'rgba(46, 204, 113, 0.05)',
+                                    color: isBlockedBySystem ? '#ff4d4d' : isBusy ? '#ff4d4d' : '#2ecc71',
                                     fontSize: '0.75rem',
                                     fontWeight: 700,
                                     cursor: 'pointer',
@@ -87,7 +90,7 @@ export const AgendaTab = ({
                                     gap: '4px'
                                 }}
                             >
-                                {isBlocked && <Lock size={10} />}
+                                {(isBlockedBySystem || isBusy) && <Lock size={10} />}
                                 {time}
                             </button>
                         );
@@ -124,7 +127,7 @@ export const AgendaTab = ({
                                         {appt.appointment_time}
                                     </div>
                                     <div>
-                                        <h4 style={{ margin: 0 }}>{appt.user_name}</h4>
+                                        <h4 style={{ margin: 0 }}>{appt.client_name || appt.user_name}</h4>
                                         <p style={{ margin: 0, fontSize: '0.8rem', opacity: 0.7 }}>{appt.service_name}</p>
                                     </div>
                                 </div>
