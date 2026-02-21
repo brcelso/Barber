@@ -96,14 +96,33 @@ function App() {
     } catch { console.error('Error fetching admin appts'); }
   }, [user]);
 
-   const fetchBusySlots = useCallback(async (date, barber, ts = '') => {
+ const fetchBusySlots = useCallback(async (date, barber, ts = '') => {
+    // 1. Define o barbeiro alvo (parâmetro ou o próprio usuário se for barbeiro)
     const effectiveBarber = barber || (user?.isBarber ? user : null);
-    if (!effectiveBarber) return;
+    
+    // 2. Validação precoce: se não houver barbeiro ou data, reseta e encerra
+    if (!effectiveBarber || !date) {
+      setBusySlots([]);
+      return;
+    }
+
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
       const data = await api.getBusySlots(dateStr, effectiveBarber.email, ts);
-      setBusySlots(data || []);
-    } catch { console.error('Error busy slots'); }
+      
+      // 3. Garante que 'data' seja um array para não quebrar o .map()
+      const dataArray = Array.isArray(data) ? data : [];
+
+      // 4. Normaliza os dados: extrai apenas a string do horário
+      const slotsOnly = dataArray.map(slot => 
+        typeof slot === 'string' ? slot : slot.appointment_time
+      );
+      
+      setBusySlots(slotsOnly);
+    } catch (error) { 
+      console.error('Error fetching busy slots:', error); 
+      setBusySlots([]); // Limpa o estado em caso de falha na API
+    }
   }, [user]);
 
   const fetchSubscription = useCallback(async (ts = '') => {
