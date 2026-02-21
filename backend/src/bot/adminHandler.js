@@ -16,37 +16,43 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
         return json({ success: true });
     }
 
-    // 2. NUMBERED MENU: If in main_menu and sent a number
+    // 2. MAIN MENU LOGIC (CRUD Centralizado)
     if (session.state === 'main_menu' && isNumericChoice) {
-        if (text === '1') {
-            await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_viewing_agenda" WHERE phone = ?').bind(from).run();
-            return await showAgenda(from, adminInfo, botBarberEmail, env);
-        } else if (text === '4') {
-            await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_awaiting_block" WHERE phone = ?').bind(from).run();
-            await sendMessage(env, from, "🛑 *Bloquear Horário*\n\nQual data deseja bloquear? (ex: 'hoje' ou '2024-12-25')\n\nOu digite 'Voltar' para o menu principal.", botBarberEmail);
-            return json({ success: true });
-        } else if (text === '5') {
-            await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_ai_chat" WHERE phone = ?').bind(from).run();
-            await sendMessage(env, from, ADMIN_PROMPTS.ai_welcome, botBarberEmail);
-            return json({ success: true });
-        }
-    }
+        switch (text) {
+            case '1': // Agenda
+                await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_viewing_agenda" WHERE phone = ?').bind(from).run();
+                return await showAgenda(from, adminInfo, botBarberEmail, env);
+            
+            case '2': // Confirmar (Update)
+                await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_awaiting_confirm" WHERE phone = ?').bind(from).run();
+                await sendMessage(env, from, "✅ *Confirmar Agendamento*\n\nDigite o nome ou horário do cliente para confirmar.\n\nOu digite 'Voltar'.", botBarberEmail);
+                break;
 
-    // 2.1 NUMBERED MENU (Agenda context): If viewing agenda and sent a number
-    if (session.state === 'admin_viewing_agenda' && isNumericChoice) {
-        if (text === '2') {
-            await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_awaiting_cancel" WHERE phone = ?').bind(from).run();
-            await sendMessage(env, from, "❌ *Cancelar Agendamento*\n\nDigite o nome do cliente ou o horário (ex: 'João' ou '14:00') que deseja cancelar.\n\nOu digite 'Voltar' para o menu principal.", botBarberEmail);
-            return json({ success: true });
-        } else if (text === '3') {
-            await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_awaiting_confirm" WHERE phone = ?').bind(from).run();
-            await sendMessage(env, from, "✅ *Confirmar Agendamento*\n\nDigite o nome ou horário do cliente para confirmar.\n\nOu digite 'Voltar' para o menu principal.", botBarberEmail);
-            return json({ success: true });
-        } else if (text === '4') {
-            await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_awaiting_paid" WHERE phone = ?').bind(from).run();
-            await sendMessage(env, from, "💰 *Marcar como Pago*\n\nDigite o nome ou horário do cliente para marcar como pago.\n\nOu digite 'Voltar' para o menu principal.", botBarberEmail);
-            return json({ success: true });
+            case '3': // Pagar (Update)
+                await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_awaiting_paid" WHERE phone = ?').bind(from).run();
+                await sendMessage(env, from, "💰 *Marcar como Pago*\n\nDigite o nome ou horário do cliente.\n\nOu digite 'Voltar'.", botBarberEmail);
+                break;
+
+            case '4': // Cancelar (Update)
+                await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_awaiting_cancel" WHERE phone = ?').bind(from).run();
+                await sendMessage(env, from, "❌ *Cancelar Agendamento*\n\nDigite o nome ou horário que deseja cancelar.\n\nOu digite 'Voltar'.", botBarberEmail);
+                break;
+
+            case '5': // Bloquear (Insert)
+                await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_awaiting_block" WHERE phone = ?').bind(from).run();
+                await sendMessage(env, from, "🛑 *Bloquear Horário*\n\nQual data deseja bloquear? (ex: 'hoje' ou '2026-05-10')\n\nOu digite 'Voltar'.", botBarberEmail);
+                break;
+
+            case '6': // Financeiro (Read/Aggregate)
+                // Chamamos a função de receita diretamente
+                return await showRevenue(from, adminInfo, botBarberEmail, env);
+
+            case '7': // IA Chat
+                await env.DB.prepare('UPDATE whatsapp_sessions SET state = "admin_ai_chat" WHERE phone = ?').bind(from).run();
+                await sendMessage(env, from, ADMIN_PROMPTS.ai_welcome, botBarberEmail);
+                break;
         }
+        return json({ success: true });
     }
 
     // 3. AI CHAT STATE
@@ -56,12 +62,13 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
         return json({ success: true });
     }
 
-    // 4. NATURAL LANGUAGE / INTENT DETECTION
+    // 4. NATURAL LANGUAGE / INTENT DETECTION (Onde a mágica do CRUD via IA acontece)
     try {
         let aiContext = "";
-        if (session.state === 'admin_awaiting_cancel') aiContext = "O usuário selecionou a opção de cancelar. Ele provavelmente vai informar o nome ou horário do agendamento que deseja cancelar agora.";
-        if (session.state === 'admin_awaiting_confirm') aiContext = "O usuário selecionou a opção de confirmar. Ele provavelmente vai informar o nome ou horário do agendamento que deseja confirmar agora.";
-        if (session.state === 'admin_awaiting_paid') aiContext = "O usuário selecionou a opção de marcar como pago. Ele provavelmente vai informar o nome ou horário do agendamento que deseja pagar agora.";
+        if (session.state === 'admin_awaiting_cancel') aiContext = "O usuário quer cancelar um agendamento.";
+        if (session.state === 'admin_awaiting_confirm') aiContext = "O usuário quer confirmar um agendamento.";
+        if (session.state === 'admin_awaiting_paid') aiContext = "O usuário quer marcar um agendamento como pago.";
+        if (session.state === 'admin_awaiting_block') aiContext = "O usuário quer bloquear horários.";
 
         const aiRes = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
             messages: [
@@ -76,20 +83,16 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
         if (match) {
             const parsed = JSON.parse(match[0]);
             if (parsed.intent !== 'none') {
+                // Executa a ação no D1 baseada na intenção detectada
                 return await executeAdminIntent(from, parsed, adminInfo, botBarberEmail, env);
             }
         }
 
-        // If no specifically recognized intent, but we are in main menu or viewing agenda, use AI chat
-        if (session.state === 'main_menu' || session.state === 'admin_viewing_agenda') {
-            const aiMsg = await askAI(env, env.DB, text, adminInfo.email, true);
-            await sendMessage(env, from, aiMsg, botBarberEmail);
-            return json({ success: true });
-        }
-
-        // Catch-all
-        await sendMessage(env, from, ADMIN_PROMPTS.error(adminInfo.name), botBarberEmail);
+        // Resposta padrão caso a IA não detecte intenção mas o chefe esteja conversando
+        const aiMsg = await askAI(env, env.DB, text, adminInfo.email, true);
+        await sendMessage(env, from, aiMsg, botBarberEmail);
         return json({ success: true });
+
     } catch (e) {
         console.error('[Admin Flow Error]', e);
         await sendMessage(env, from, "⚠️ Erro ao processar comando. Digite 'Menu'.", botBarberEmail);

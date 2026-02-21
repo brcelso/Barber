@@ -6,30 +6,29 @@ export const ADMIN_PROMPTS = {
     main_menu: (name) => {
         let msg = `👨‍💼 *Painel do Chefe* 💈\n\nOlá, ${name}! O que deseja fazer?\n\n`;
         msg += "1️⃣ - Ver Agenda (Próximos Clientes)\n";
-        msg += "4️⃣ - Bloquear Horário/Dia\n";
-        msg += "5️⃣ - Assistente de Gestão (Dúvidas/Relatórios)\n";
-        msg += "\nVocê também pode digitar seu comando livremente!";
+        msg += "2️⃣ - Confirmar Agendamento (Pendentes)\n";
+        msg += "3️⃣ - Marcar como Pago (💰)\n";
+        msg += "4️⃣ - Cancelar Horário (❌)\n";
+        msg += "5️⃣ - Bloquear Horário/Dia (🛑)\n";
+        msg += "6️⃣ - Faturamento de Hoje (📊)\n";
+        msg += "7️⃣ - Assistente de Gestão (IA)\n";
+        msg += "\nVocê também pode digitar ou falar comandos como:\n_\"Quem é o próximo?\"_ ou _\"Cancele o João das 14h\"_";
         return msg;
     },
 
-    error: (name) => `👨‍💼 *Painel do Chefe* 💈\n\nNão entendi, ${name}. Tente usar os números do menu ou mande um comando como: _"Quais os próximos agendamentos?"_`,
+    error: (name) => `👨‍💼 *Painel do Chefe* 💈\n\nNão entendi, ${name}. Tente usar os números do menu ou mande um comando livre como: _\"Quanto eu ganhei hoje?\"_`,
 
-    ai_welcome: "Olá, Chefe! Estou às ordens para ajudar na gestão. O que precisa saber sobre sua agenda ou clientes?",
+    ai_welcome: "Olá, Chefe! Sou seu braço direito. Posso te dar relatórios, tirar dúvidas sobre a agenda ou realizar ações rápidas. O que precisa?",
 
     system_admin: (params) => `Você é o assistente de gestão de ${params.establishmentName}. 💈
-Seu tom é profissional, eficiente e direto, como um braço direito do dono.
+Seu tom é profissional, eficiente e direto.
 
 OBJETIVO:
-Ajudar o barbeiro a gerir sua agenda e clientes.
+Gerir o CRUD de agendamentos: Confirmar, Pagar, Cancelar, Bloquear e Relatar faturamento.
 
 IMPORTANTE:
-Ao final de cada resposta, lembre o chefe que ele pode usar o menu:
-1️⃣ Agenda | 4️⃣ Bloquear | 5️⃣ Gestão (Opções de Cancelar/Confirmar aparecem ao ver a Agenda)
-
-DIRETRIZES:
-1. Responda dúvidas sobre como usar o sistema.
-2. Seja proativo em sugerir ações se o chefe parecer confuso.
-3. Não invente dados de clientes ou horários.`,
+Ao final de cada resposta, use o menu simplificado:
+1️⃣ Agenda | 2️⃣ Confirmar | 3️⃣ Pago | 4️⃣ Cancelar | 5️⃣ Bloquear | 6️⃣ Finanças`,
 
     system_instruction: (text, context = '') => `Você é o assistente de gestão do barbeiro.
 O dono do salão mandou: "${text}"
@@ -37,10 +36,11 @@ ${context}
 
 Analise a intenção e responda APENAS com JSON válido:
 - Se quiser cancelar: {"intent": "cancel_next", "count": numero, "reason": "motivo"}
-- Se quiser ver a agenda/próximos: {"intent": "show_agenda"}
-- Se quiser confirmar um agendamento: {"intent": "confirm_appointment", "time": "HH:MM", "client": "nome"}
+- Se quiser ver a agenda: {"intent": "show_agenda"}
+- Se quiser faturamento/ganhos: {"intent": "get_revenue"}
+- Se quiser confirmar: {"intent": "confirm_appointment", "time": "HH:MM", "client": "nome"}
 - Se quiser marcar como pago: {"intent": "mark_paid", "time": "HH:MM", "client": "nome"}
-- Se quiser bloquear um dia: {"intent": "block_day", "date": "YYYY-MM-DD" ou "today"}
+- Se quiser bloquear: {"intent": "block_day", "date": "YYYY-MM-DD" ou "today"}
 - Caso contrário: {"intent": "none"}`
 };
 
