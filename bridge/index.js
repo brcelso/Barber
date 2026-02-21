@@ -114,7 +114,19 @@ async function connectToWhatsApp(email) {
 
             if (reason === DisconnectReason.loggedOut || reason === DisconnectReason.connectionReplaced) {
                 sessions.delete(email);
-                console.log(`[Session] (${email}) Sessão encerrada permanentemente.`);
+                console.log(`[Session] (${email}) Sessão encerrada permanentemente. Limpando arquivos...`);
+
+                // Limpa a pasta de autenticação para permitir novo login
+                const safeId = Buffer.from(email).toString('hex');
+                const authFolder = path.join('auth_sessions', `session_${safeId}`);
+                if (fs.existsSync(authFolder)) {
+                    try {
+                        fs.rmSync(authFolder, { recursive: true, force: true });
+                        console.log(`[Session] 🗑️ Arquivos de sessão removidos: ${email}`);
+                    } catch (err) {
+                        console.error(`[Session] ❌ Erro ao remover arquivos de sessão:`, err.message);
+                    }
+                }
             } else {
                 if (sessions.has(email)) {
                     console.log(`[Session] (${email}) Tentando reconectar em 5s...`);
