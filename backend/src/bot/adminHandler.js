@@ -1,5 +1,6 @@
 import { json, sendMessage } from '../utils/index.js';
 import { ADMIN_PROMPTS } from './prompts.js';
+import { runAgentChat } from './agent.js';
 
 export async function handleAdminFlow(from, text, textLower, adminInfo, botBarberEmail, env) {
     const isNumericChoice = /^\d+$/.test(text) && text.length <= 2;
@@ -73,21 +74,12 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
                 bTone: adminInfo.bot_tone || 'profissional'
             };
 
-            const workerUrl = env.SERVICE_URL || 'https://barber-server.celsosilvajunior90.workers.dev';
-            
-            const aiRequest = await fetch(`${workerUrl}/api/agent/chat`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    prompt: text,
-                    isAdmin: true,
-                    barberContext: barberContext
-                })
+            const aiData = await runAgentChat(env, {
+                prompt: text,
+                isAdmin: true,
+                barberContext: barberContext
             });
 
-            if (!aiRequest.ok) throw new Error(`HTTP Error: ${aiRequest.status}`);
-
-            const aiData = await aiRequest.json();
             const aiMsg = aiData.text || "Chefe, não consegui processar isso agora. Pode usar o menu?";
 
             await sendMessage(env, from, aiMsg, botBarberEmail);
@@ -97,7 +89,7 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
                 await env.DB.prepare('UPDATE whatsapp_sessions SET state = "main_menu" WHERE phone = ?').bind(from).run();
                 await sendMessage(env, from, ADMIN_PROMPTS.main_menu(adminInfo.name), botBarberEmail);
             }
-            
+
             return json({ success: true });
 
         } catch (e) {
@@ -114,7 +106,7 @@ async function showAgenda(from, adminInfo, botBarberEmail, env, page = 1) {
     const offset = (page - 1) * limit;
     const brazilTime = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
     const todayStr = brazilTime.toLocaleDateString("en-CA");
-    const timeStr = brazilTime.toTimeString().slice(0,5);
+    const timeStr = brazilTime.toTimeString().slice(0, 5);
 
     const appts = await env.DB.prepare(`
         SELECT a.appointment_date, a.appointment_time, s.name as service_name, u.name as client_name

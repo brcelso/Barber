@@ -1,5 +1,6 @@
 import { json, sendMessage } from '../utils/index.js';
 import { CLIENT_PROMPTS } from './prompts.js';
+import { runAgentChat } from './agent.js';
 
 export async function handleClientFlow(from, text, textLower, session, userInDb, botBarberEmail, env) {
     const isNumericChoice = /^\d+$/.test(text) && text.length <= 2;
@@ -9,7 +10,7 @@ export async function handleClientFlow(from, text, textLower, session, userInDb,
     if (!session || isMenuCommand) {
         const userEmail = userInDb ? userInDb.email : (session ? session.user_email : null);
         const b = await env.DB.prepare('SELECT email, name, shop_name, business_type, msg_welcome, msg_choose_barber FROM users WHERE email = ?').bind(botBarberEmail).first();
-        
+
         if (!b) return json({ error: "Barbeiro não encontrado" }, 404);
         const establishmentName = b.shop_name || b.name;
 
@@ -41,7 +42,7 @@ export async function handleClientFlow(from, text, textLower, session, userInDb,
             const barberEmail = session.selected_barber_email || botBarberEmail;
             const barber = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(barberEmail).first();
             const services = await env.DB.prepare('SELECT name, price FROM services WHERE barber_email = ? AND id != "block"').bind(barberEmail).all();
-            
+
             const barberContext = {
                 establishmentName: barber?.shop_name || barber?.name || 'Barbearia',
                 bName: barber?.bot_name || 'Leo',
@@ -49,20 +50,13 @@ export async function handleClientFlow(from, text, textLower, session, userInDb,
                 servicesList: services.results.map(s => `✂️ ${s.name}: R$ ${s.price}`).join('\n')
             };
 
-            // Chamada para a sua Rota Central Agêntica no index.js
-            const workerUrl = env.SERVICE_URL || 'https://barber-server.celsosilvajunior90.workers.dev';
-            const aiRequest = await fetch(`${workerUrl}/api/agent/chat`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    prompt: text,
-                    email: userInDb?.email || 'guest',
-                    isAdmin: false,
-                    barberContext: barberContext
-                })
+            const aiData = await runAgentChat(env, {
+                prompt: text,
+                email: userInDb?.email || 'guest',
+                isAdmin: false,
+                barberContext: barberContext
             });
 
-            const aiData = await aiRequest.json();
             let aiMsg = aiData.text || "Estou aqui para tirar suas dúvidas!";
 
             // Garante que o menu sempre apareça no final da resposta da IA
@@ -132,7 +126,7 @@ export async function handleClientFlow(from, text, textLower, session, userInDb,
         const busy = await env.DB.prepare('SELECT appointment_time FROM appointments WHERE barber_email = ? AND appointment_date = ? AND status != "cancelled"').bind(session.selected_barber_email, ds).all();
         const slots = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
         const av = slots.filter(t => !busy.results.map(r => r.appointment_time).includes(t));
-        
+
         await env.DB.prepare('UPDATE whatsapp_sessions SET state = "awaiting_time", appointment_date = ? WHERE phone = ?').bind(ds, from).run();
         let msg = `⏰ *Horários disponíveis para ${ds}:*\n`;
         av.forEach((t, i) => { msg += `\n*${i + 1}* - ${t}`; });
