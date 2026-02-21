@@ -96,34 +96,15 @@ function App() {
     } catch { console.error('Error fetching admin appts'); }
   }, [user]);
 
-  const fetchBusySlots = useCallback(async (date, barber, ts = '') => {
-  // 1. Define quem é o barbeiro de forma segura
-  const effectiveBarber = barber || (user?.isBarber ? user : null);
-  
-  // 2. Se não tiver barbeiro ou a data for inválida, limpa os slots e sai
-  if (!effectiveBarber || !date) {
-    setBusySlots([]);
-    return;
-  }
-
-  try {
-    const dateStr = format(date, 'yyyy-MM-dd');
-    const data = await api.getBusySlots(dateStr, effectiveBarber.email, ts);
-    
-    // 3. Garante que data seja um array antes de mapear
-    const safeData = Array.isArray(data) ? data : [];
-
-    // 4. Transforma em lista de strings (horários)
-    const slotsOnly = safeData.map(slot => 
-      typeof slot === 'string' ? slot : slot.appointment_time
-    );
-    
-    setBusySlots(slotsOnly);
-  } catch (err) { 
-    console.error('Error busy slots:', err); 
-    setBusySlots([]); 
-  }
-}, [user]);
+   const fetchBusySlots = useCallback(async (date, barber, ts = '') => {
+    const effectiveBarber = barber || (user?.isBarber ? user : null);
+    if (!effectiveBarber) return;
+    try {
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const data = await api.getBusySlots(dateStr, effectiveBarber.email, ts);
+      setBusySlots(data || []);
+    } catch { console.error('Error busy slots'); }
+  }, [user]);
 
   const fetchSubscription = useCallback(async (ts = '') => {
     if (!user?.isAdmin && !user?.isBarber) return;
