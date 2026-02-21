@@ -363,35 +363,41 @@ function App() {
     finally { setLoading(false); }
   };
 
-  const handleToggleFullDay = async () => {
+const handleToggleFullDay = async () => {
+    // 1. Determina a ação (Bloquear se houver qualquer slot livre, senão Liberar)
     const isBlocking = busySlots.length < timeSlots.length;
     const action = isBlocking ? 'block' : 'unblock';
 
-    // LOG DE DEBUG
-    console.log('Enviando para API:', {
-      date: format(selectedDate, 'yyyy-MM-dd'),
-      action,
-      totalTimes: timeSlots.length,
-      scope: user.ownerId ? 'individual' : 'shop'
-    });
+    // Log para conferência no Console (F12)
+    console.log(`[Bulk Action] ${action.toUpperCase()} - Slots Ocupados: ${busySlots.length}/${timeSlots.length}`);
 
     setLoading(true);
     try {
-      await api.bulkToggleBlock(user.email, {
+      // 2. Chamada para a API do Worker
+      const res = await api.bulkToggleBlock(user.email, {
         date: format(selectedDate, 'yyyy-MM-dd'),
         action,
-        times: timeSlots,
+        times: timeSlots, // Envia todos os slots para o backend
         scope: user.ownerId ? 'individual' : 'shop'
       });
 
-      // Use await aqui para garantir que a tela só desbloqueie 
-      // após os dados novos chegarem
-      await handleRefresh();
+      // 3. Se o Worker respondeu com sucesso (aquele count: 58 que vimos)
+      if (res.status) {
+        // Pequeno "truque" para garantir que o React re-renderize: 
+        // limpamos o estado local antes de buscar o novo do banco
+        setBusySlots([]);
 
-      alert(isBlocking ? 'Dia bloqueado!' : 'Dia liberado!');
+        // 4. Aguarda a atualização completa dos dados do banco
+        await handleRefresh();
+
+        // 5. Feedback visual para o usuário
+        alert(action === 'block' ? 'Dia bloqueado com sucesso!' : 'Dia liberado com sucesso!');
+      } else {
+        throw new Error('Resposta inválida do servidor');
+      }
     } catch (error) {
-      console.error('Erro na API:', error);
-      alert('Erro ao alterar dia');
+      console.error('Erro na operação de lote:', error);
+      alert('Erro ao processar alteração no dia. Verifique sua conexão.');
     } finally {
       setLoading(false);
     }

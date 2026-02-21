@@ -47,25 +47,33 @@ export const AgendaTab = ({
                 {/* Grid de Horários para Bloqueio Rápido */}
                 <div className="service-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '8px' }}>
                     {timeSlots.map(time => {
-                        const isBlocked = busySlots.includes(time);
-                        return (
-                            <button
-                                key={time}
-                                onClick={() => handleToggleBlock(time)}
-                                style={{
-                                    padding: '8px',
-                                    borderRadius: '8px',
-                                    border: '1px solid var(--border)',
-                                    background: isBlocked ? 'rgba(231, 76, 60, 0.1)' : 'rgba(46, 204, 113, 0.05)',
-                                    color: isBlocked ? '#e74c3c' : '#2ecc71',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 700,
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                {time}
-                            </button>
-                        );
+                        // Substitua a lógica de verificação por esta mais robusta:
+                const isBlocked = busySlots && busySlots.some(s => {
+                    const slotTime = typeof s === 'string' ? s : s.appointment_time;
+                    return slotTime?.trim() === time.trim();
+                });
+
+                return (
+                    <button
+                        key={time}
+                        onClick={() => handleToggleBlock(time)}
+                        style={{
+                            padding: '8px',
+                            borderRadius: '8px',
+                            border: isBlocked ? '1px solid #e74c3c' : '1px solid var(--border)',
+                            // Cores mais vivas para o estado bloqueado para facilitar a visualização
+                            background: isBlocked ? 'rgba(231, 76, 60, 0.2)' : 'rgba(46, 204, 113, 0.05)',
+                            color: isBlocked ? '#ff4d4d' : '#2ecc71',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease' // Suaviza a mudança de cor
+                        }}
+                    >
+                        {time}
+                    </button>
+                );
+                            
                     })}
                 </div>
             </div>
