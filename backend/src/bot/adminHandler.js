@@ -168,8 +168,7 @@ async function showRevenue(from, adminInfo, botBarberEmail, env) {
 
 // Fallback de segurança para manter o CRUD funcionando se a IA central falhar
 async function handleIntentsFallback(from, text, adminInfo, botBarberEmail, env) {
-    const brazilTime = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-    
+
     // Aqui você pode manter sua lógica original de env.AI.run com ADMIN_PROMPTS.system_instruction 
     // ou apenas enviar uma mensagem de erro pedindo para usar o menu.
     await sendMessage(env, from, "⚠️ Tive um problema ao entender sua frase. Por favor, tente usar os números do menu ou seja mais específico.", botBarberEmail);
