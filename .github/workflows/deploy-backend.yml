@@ -11,16 +11,24 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # Atualizado para v6
+      - uses: actions/checkout@v6
+
+      # Atualizado para v6 e Node 22 (LTS)
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
+
+      # 'npm ci' é mais seguro e rápido para o backend
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
       - name: Lint Backend
         run: npx eslint backend/src --config eslint.config.js
+
+      # Wrangler Action v3 é a recomendada para 2026
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v3
         with:
@@ -28,4 +36,3 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: 'backend'
           command: deploy
-

@@ -37,11 +37,12 @@ ${context}
 
 Analise a intenção e responda APENAS com JSON válido:
 - Se quiser cancelar: {"intent": "cancel_next", "count": numero, "reason": "motivo"}
-- Se quiser ver a agenda: {"intent": "show_agenda"}
+- Se quiser ver a agenda: {"intent": "show_agenda", "page": 1}
 - Se quiser faturamento/ganhos: {"intent": "get_revenue"}
 - Se quiser confirmar: {"intent": "confirm_appointment", "time": "HH:MM", "client": "nome"}
 - Se quiser marcar como pago: {"intent": "mark_paid", "time": "HH:MM", "client": "nome"}
-- Se quiser bloquear: {"intent": "block_day", "date": "YYYY-MM-DD" ou "today"}
+- Se quiser bloquear (dia todo ou horário): {"intent": "block", "date": "YYYY-MM-DD" ou "today", "time": "HH:MM" ou "all"}
+- Se quiser desbloquear (dia todo ou horário): {"intent": "unblock", "date": "YYYY-MM-DD" ou "today", "time": "HH:MM" ou "all"}
 - Caso contrário: {"intent": "none"}`
 };
 

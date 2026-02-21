@@ -43,8 +43,8 @@ jobs:
       - name: Build
         run: npm run build:frontend
         env:
-          VITE_API_URL: https://barber-server.celsosilvajunior90.workers.dev/api
-          VITE_GOOGLE_CLIENT_ID: 694887187195-kf7r52e37jec4ibkk33f8l06rq7tojq0.apps.googleusercontent.com
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
       - name: Setup Pages
         uses: actions/configure-pages@v4
       - name: Upload artifact

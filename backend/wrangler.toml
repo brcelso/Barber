@@ -9,13 +9,8 @@ database_name = "barber-db"
 database_id = "833f15c1-bda9-43fa-a890-0dbaf04514e8"
 
 [vars]
-GOOGLE_CLIENT_ID = "694887187195-kf7r52e37jec4ibkk33f8l06rq7tojq0.apps.googleusercontent.com"
-MP_ACCESS_TOKEN = "APP_USR-1253235899009881-021420-881c35d24b04f32cf875035eeb71fe77-124280008"
-FRONTEND_URL = "https://brcelso.github.io/Barber"
-WA_BRIDGE_URL = "https://nisi-marbly-maeve.ngrok-free.dev"
-WA_BRIDGE_KEY = "barber-secret-key"
-GLOBAL_APP_NAME = "Agende Fácil"
-GLOBAL_BRAND_COLOR = "#007AFF"
+GLOBAL_APP_NAME = "Barber"
+GLOBAL_BRAND_COLOR = "#ff00d0ff"
 
 [ai]
 binding = "AI"
