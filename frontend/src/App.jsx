@@ -188,9 +188,10 @@ function App() {
     finally { setLoading(false); }
   };
 
-  const handleToggleFullDay = async () => {
+const handleToggleFullDay = async () => {
     const isBlocking = busySlots.length < timeSlots.length;
     const action = isBlocking ? 'block' : 'unblock';
+    
     setLoading(true);
     try {
       const res = await api.bulkToggleBlock(user.email, {
@@ -199,12 +200,31 @@ function App() {
         times: timeSlots,
         scope: user.ownerId ? 'individual' : 'shop'
       });
+
       if (res.status) {
-        await handleRefresh();
-        alert(isBlocking ? 'Dia bloqueado!' : 'Dia liberado!');
+        // 1. Limpa o estado local para forçar o React a "sentir" a mudança
+        setBusySlots([]); 
+        
+        // 2. Busca os dados novos do servidor
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const newData = await api.getBusySlots(dateStr, user.email);
+        
+        // 3. Aplica a mesma lógica de normalização que usamos no fetchBusySlots
+        const dataArray = Array.isArray(newData) ? newData : [];
+        const slotsOnly = dataArray
+          .filter(slot => slot !== null)
+          .map(slot => typeof slot === 'string' ? slot : slot.appointment_time)
+          .filter(Boolean);
+
+        setBusySlots(slotsOnly);
+        
+        alert(isBlocking ? 'Dia bloqueado com sucesso!' : 'Dia liberado!');
       }
-    } catch { alert('Erro ao alterar dia'); }
-    finally { setLoading(false); }
+    } catch {
+      alert('Erro ao alterar o dia. Verifique sua conexão.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleToggleBlock = async (time) => {
