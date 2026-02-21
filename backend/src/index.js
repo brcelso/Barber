@@ -76,8 +76,8 @@ export default {
                     .catch(() => console.log(`Aviso: Coluna ${col} já existe ou não pôde ser criada.`));
                 }
             }
-            } catch {
-                console.error('[Migration] Erro ao verificar esquema:', e.message);
+            } catch (e) {
+            console.error('[Migration] Erro ao verificar esquema:', e.message);
             }
 
             // --- ROTA DE INTELIGÊNCIA CENTRAL (AGENTE) ---
