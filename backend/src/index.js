@@ -53,16 +53,31 @@ export default {
         try {
             // --- Schema Migration Check ---
             try {
-                const colCheck = await DB.prepare('PRAGMA table_info(users)').all();
-                const cols = colCheck.results.map(r => r.name);
-                const newCols = ['msg_welcome', 'msg_choose_barber', 'msg_choose_service', 'msg_confirm_booking'];
-                for (const col of newCols) {
-                    if (!cols.includes(col)) {
-                        await DB.prepare(`ALTER TABLE users ADD COLUMN ${col} TEXT`).run();
-                    }
+         const tableInfo = await DB.prepare('PRAGMA table_info(users)').all();
+         const columns = tableInfo.results.map(r => r.name);
+    
+         // Lista de todas as colunas novas que seu app precisa
+         const requiredCols = [
+            'msg_welcome', 
+            'msg_choose_barber', 
+            'msg_choose_service', 
+            'msg_confirm_booking',
+            'wa_bridge_url', 
+            'wa_status', 
+            'wa_qr', 
+            'wa_last_seen'
+        ];
+    
+        for (const col of requiredCols) {
+            if (!columns.includes(col)) {
+                // Usamos um .catch() interno para que, se der erro em uma coluna, as outras continuem
+                await DB.prepare(`ALTER TABLE users ADD COLUMN ${col} TEXT`)
+                    .run()
+                    .catch(e => console.log(`Aviso: Coluna ${col} já existe ou não pôde ser criada.`));
                 }
+            }
             } catch (e) {
-                console.error('[Schema Migration] Failed:', e.message);
+                console.error('[Migration] Erro ao verificar esquema:', e.message);
             }
 
             // --- ROTA DE INTELIGÊNCIA CENTRAL (AGENTE) ---
@@ -130,7 +145,7 @@ export default {
             const teamRes = await handleTeamRoutes(request, env, url); if (teamRes) return teamRes;
 
             // --- WHATSAPP BRIDGE STATUS UPDATES (RECUPERADO) ---
-            if (url.pathname === '/api/whatsapp/status' && request.method === 'POST') {
+                if ((url.pathname === '/api/whatsapp/status' || url.pathname === '/api/admin/bridge/update') && request.method === 'POST') {
                 const { email, status, qr } = await request.json();
                 const now = new Date().toISOString();
                 
