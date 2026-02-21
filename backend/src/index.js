@@ -129,8 +129,72 @@ export default {
             const payRes = await handlePaymentRoutes(url, request, env); if (payRes) return payRes;
             const teamRes = await handleTeamRoutes(request, env, url); if (teamRes) return teamRes;
 
-            // ... (Resto do código de Login e Status Webhook mantidos igual) ...
-            // [Cortei aqui por espaço, mas você mantém o que já tinha abaixo no seu arquivo original]
+            // --- WHATSAPP BRIDGE STATUS UPDATES (RECUPERADO) ---
+            if (url.pathname === '/api/whatsapp/status' && request.method === 'POST') {
+                const { email, status, qr } = await request.json();
+                const now = new Date().toISOString();
+                
+                if (status === 'qr') {
+                    await DB.prepare('UPDATE users SET wa_status = "awaiting_qr", wa_qr = ?, wa_last_seen = ? WHERE email = ?').bind(qr, now, email).run();
+                } else if (status === 'connected') {
+                    await DB.prepare('UPDATE users SET wa_status = "connected", wa_qr = NULL, wa_last_seen = ? WHERE email = ?').bind(now, email).run();
+                } else if (status === 'heartbeat') {
+                    await DB.prepare('UPDATE users SET wa_last_seen = ? WHERE email = ?').bind(now, email).run();
+                } else {
+                    await DB.prepare('UPDATE users SET wa_status = "disconnected", wa_qr = NULL, wa_last_seen = ? WHERE email = ?').bind(now, email).run();
+                }
+
+                // Autoconfiguração para o Master Email
+                if (email === MASTER_EMAIL) {
+                    const check = await DB.prepare('SELECT subscription_expires FROM users WHERE email = ?').bind(MASTER_EMAIL).first();
+                    if (!check?.subscription_expires || new Date(check.subscription_expires) < new Date()) {
+                        const future = new Date(); future.setFullYear(future.getFullYear() + 10);
+                        await DB.prepare('UPDATE users SET subscription_expires = ?, plan = "Barber Shop", business_type = "barbearia" WHERE email = ?').bind(future.toISOString(), MASTER_EMAIL).run();
+                    }
+                }
+                return json({ success: true });
+            }
+
+            // Rota GET para o Dashboard consultar o status
+            if (url.pathname === '/api/whatsapp/status' && request.method === 'GET') {
+                const email = request.headers.get('X-User-Email');
+                const user = await DB.prepare('SELECT wa_status, wa_qr, wa_last_seen FROM users WHERE email = ?').bind(email).first();
+                if (!user) return json({ error: 'User not found' }, 404);
+                
+                let status = user.wa_status || 'disconnected';
+                // Checagem de timeout (se a bridge sumir por mais de 45s)
+                if (status === 'connected' && user.wa_last_seen) {
+                    if ((new Date() - new Date(user.wa_last_seen)) > 45000) {
+                        status = 'disconnected';
+                        await DB.prepare('UPDATE users SET wa_status = "disconnected" WHERE email = ?').bind(email).run();
+                    }
+                }
+                return json({ status, qr: user.wa_qr });
+            }
+
+            // --- ROTA DE LOGIN (PARA O FRONTEND) ---
+            if (url.pathname === '/api/login' && request.method === 'POST') {
+                const userData = await request.json();
+                await DB.prepare(`
+                    INSERT INTO users (email, name, picture, phone, last_login)
+                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(email) DO UPDATE SET
+                    name = excluded.name,
+                    picture = excluded.picture,
+                    phone = COALESCE(excluded.phone, users.phone),
+                    last_login = CURRENT_TIMESTAMP
+                `).bind(userData.email, userData.name, userData.picture, userData.phone || null).run();
+
+                const user = await DB.prepare('SELECT * FROM users WHERE email = ?').bind(userData.email).first();
+                return json({
+                    user: {
+                        ...user,
+                        isAdmin: user.is_admin === 1,
+                        isMaster: user.email === MASTER_EMAIL,
+                        isBarber: user.is_barber === 1
+                    }
+                });
+            }
 
             return json({ error: 'Not Found' }, 404);
 
