@@ -12,11 +12,12 @@ export const ADMIN_PROMPTS = {
         msg += "5️⃣ - Bloquear Horário/Dia (🛑)\n";
         msg += "6️⃣ - Faturamento de Hoje (📊)\n";
         msg += "7️⃣ - Assistente de Gestão (IA)\n";
+        // Corrigido: Removidas as barras invertidas das aspas
         msg += "\nVocê também pode digitar ou falar comandos como:\n_\"Quem é o próximo?\"_ ou _\"Cancele o João das 14h\"_";
         return msg;
     },
 
-    error: (name) => `👨‍💼 *Painel do Chefe* 💈\n\nNão entendi, ${name}. Tente usar os números do menu ou mande um comando livre como: _\"Quanto eu ganhei hoje?\"_`,
+    error: (name) => `👨‍💼 *Painel do Chefe* 💈\n\nNão entendi, ${name}. Tente usar os números do menu ou mande um comando livre como: _"Quanto eu ganhei hoje?"_`,
 
     ai_welcome: "Olá, Chefe! Sou seu braço direito. Posso te dar relatórios, tirar dúvidas sobre a agenda ou realizar ações rápidas. O que precisa?",
 

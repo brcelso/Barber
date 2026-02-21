@@ -225,3 +225,20 @@ async function executeAdminIntent(from, parsed, adminInfo, botBarberEmail, env) 
 
     return json({ success: true });
 }
+
+async function showRevenue(from, adminInfo, botBarberEmail, env) {
+    const today = new Date().toLocaleDateString("en-CA");
+    const result = await env.DB.prepare(`
+        SELECT COUNT(id) as total_count, SUM(price) as total_revenue
+        FROM appointments a
+        JOIN services s ON a.service_id = s.id
+        WHERE a.barber_email = ? AND a.appointment_date = ? AND a.payment_status = 'paid'
+    `).bind(adminInfo.email, today).first();
+
+    const revenue = result?.total_revenue || 0;
+    const msg = `💰 *RELATÓRIO DE HOJE*\n\n✅ Atendimentos: ${result?.total_count || 0}\n💵 Total: R$ ${revenue.toFixed(2)}`;
+    
+    const { sendMessage } = await import('../utils/index.js');
+    await sendMessage(env, from, msg, botBarberEmail);
+    return { success: true };
+}
