@@ -234,7 +234,7 @@ const handleToggleFullDay = async () => {
   };
 
 const handleToggleBlock = async (time) => {
-    // 1. Define quem é o profissional alvo com segurança
+    // 1. Define o profissional alvo (quem será bloqueado)
     const effectiveBarber = selectedBarber || (user?.isBarber ? user : null);
     
     if (!effectiveBarber) {
@@ -244,22 +244,24 @@ const handleToggleBlock = async (time) => {
 
     setLoading(true);
     try {
-      // 2. Executa o bloqueio no banco
+      // 2. Executa o bloqueio/liberação enviando o e-mail do barbeiro alvo
+      // O Worker modularizado costuma exigir o barberEmail no corpo do POST
       await api.toggleBlock(user.email, { 
         date: format(selectedDate, 'yyyy-MM-dd'), 
-        time 
+        time: time,
+        barberEmail: effectiveBarber.email 
       });
       
-      // 3. Aguarda a atualização dos slots para garantir que a cor mude
-      // Passamos o effectiveBarber explicitamente
+      // 3. Aguarda a atualização dos slots para garantir que a cor mude na interface
+      // Importante: Passamos o effectiveBarber para buscar os slots dele
       await fetchBusySlots(selectedDate, effectiveBarber);
       
-      // 4. Atualiza a lista de agendamentos em segundo plano
+      // 4. Atualiza a lista de agendamentos (admin) em segundo plano
       fetchAdminAppointments();
       
     } catch {
-      // Catch limpo sem (e) para passar no seu Lint
-      alert('Erro ao processar o bloqueio/liberação do horário.');
+      // Catch limpo para evitar erros de Lint (variável não usada)
+      alert('Erro ao processar o bloqueio ou liberação do horário.');
     } finally {
       setLoading(false);
     }
