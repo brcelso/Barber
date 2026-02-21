@@ -279,57 +279,45 @@ const handleToggleBlock = async (time) => {
   }, []);
 
 const handleBooking = async () => {
-    // 1. Validação de segurança antes de tentar a API
-    if (!selectedService || !selectedTime || !user || !selectedBarber) {
-      alert("Por favor, selecione o barbeiro, o serviço e o horário.");
+  // 1. Validação básica
+  if (!selectedService || !selectedTime || !user || !selectedBarber) {
+    alert('Por favor, selecione o barbeiro, o serviço e o horário.');
+    return;
+  }
+
+  setLoading(true);
+  try {
+    // 2. O objeto DEVE ter exatamente estes nomes de chaves:
+    const bookingData = {
+      email: user.email,          // O Worker espera 'email' para o cliente
+      barberEmail: selectedBarber.email, 
+      serviceId: selectedService.id,
+      date: format(selectedDate, 'yyyy-MM-dd'),
+      time: selectedTime
+    };
+
+    // 3. Chamada da API
+    const res = await api.book(user.email, bookingData);
+
+    // Verificação de erro (O Worker retorna {error: '...'})
+    if (res.error) {
+      alert(`Erro: ${res.error}`);
       return;
     }
 
-    setLoading(true);
-    try {
-      // 2. Montagem dos dados (enviando os dois padrões de nome para garantir)
-      const bookingData = {
-        // CamelCase e Snake_Case para evitar erro 400 no Worker
-        barberEmail: selectedBarber.email,
-        barber_email: selectedBarber.email,
-        
-        serviceId: selectedService.id,
-        service_id: selectedService.id,
-        service_name: selectedService.name,
-        
-        date: format(selectedDate, 'yyyy-MM-dd'),
-        time: selectedTime,
-        
-        // Dados do usuário (muitos Workers exigem nome e telefone para o banco)
-        userEmail: user.email,
-        user_email: user.email,
-        user_name: user.name,
-        user_phone: user.phone || '',
-        
-        // Campo adicional que evita erros em alguns backends de barbearia
-        price: selectedService.price
-      };
-
-      const res = await api.book(user.email, bookingData);
-
-      // 3. Verificação de erro vindo do JSON da API
-      if (res && (res.error || res.status === 'error')) {
-        throw new Error(res.message || res.error || 'Erro interno no servidor');
-      }
-
-      alert('Agendamento realizado com sucesso! ✂️');
-      
-      // 4. Atualiza os dados e muda de tela
-      await fetchAppointments();
-      setView('history');
-      
-    } catch {
-      // Catch limpo para passar no seu Lint (sem a variável 'e')
-      alert('Erro ao agendar: Verifique se o horário ainda está disponível ou se seus dados estão completos.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    alert('Agendado com sucesso! ✂️');
+    
+    // Atualiza a lista e vai para o histórico
+    await fetchAppointments();
+    setView('history');
+    
+  } catch {
+    // Catch limpo para o seu Lint
+    alert('Erro de conexão ao tentar agendar.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   // --- EFFECTS ---
   useEffect(() => { fetchBarbers(); }, [fetchBarbers]);
