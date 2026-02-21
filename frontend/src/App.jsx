@@ -202,25 +202,31 @@ const handleToggleFullDay = async () => {
       });
 
       if (res.status) {
-        // 1. Limpa o estado local para forçar o React a "sentir" a mudança
+        // 1. Limpa o estado local para garantir que a interface reaja
         setBusySlots([]); 
         
-        // 2. Busca os dados novos do servidor
+        // 2. Busca os dados atualizados do servidor
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         const newData = await api.getBusySlots(dateStr, user.email);
         
-        // 3. Aplica a mesma lógica de normalização que usamos no fetchBusySlots
+        // 3. Normalização Inteligente: mapeia 'time' ou 'appointment_time'
         const dataArray = Array.isArray(newData) ? newData : [];
         const slotsOnly = dataArray
-          .filter(slot => slot !== null)
-          .map(slot => typeof slot === 'string' ? slot : slot.appointment_time)
-          .filter(Boolean);
+          .filter(slot => slot !== null && slot !== undefined)
+          .map(slot => {
+            if (typeof slot === 'string') return slot.trim();
+            // Tenta pegar a chave 'time' que o seu backend está enviando agora
+            const value = slot.time || slot.appointment_time;
+            return value ? value.trim() : null;
+          })
+          .filter(Boolean); // Remove nulos e garante array limpo
 
         setBusySlots(slotsOnly);
         
         alert(isBlocking ? 'Dia bloqueado com sucesso!' : 'Dia liberado!');
       }
     } catch {
+      // Removido o '(e)' para evitar erro de 'unused variable' no deploy
       alert('Erro ao alterar o dia. Verifique sua conexão.');
     } finally {
       setLoading(false);
