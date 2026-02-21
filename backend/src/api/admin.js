@@ -180,12 +180,6 @@ export async function handleAdminRoutes(url, request, env) {
         const { key, url: bridgeUrl, email } = await request.json();
         if (key !== env.WA_BRIDGE_KEY) return json({ error: 'Invalid Key' }, 401);
 
-        try {
-            await DB.prepare('ALTER TABLE users ADD COLUMN wa_bridge_url TEXT').run();
-        } catch (e) {
-            console.error('[Column Add Error]', e.message);
-        }
-
         await DB.prepare('UPDATE users SET wa_bridge_url = ? WHERE email = ?').bind(bridgeUrl, email).run();
         return json({ success: true });
     }
