@@ -4,10 +4,7 @@ const {
     DisconnectReason,
     fetchLatestWaWebVersion
 } = require('@whiskeysockets/baileys');
-const qrcode = require('qrcode-terminal');
-let ngrokProcess = null;
-let whatsappProcess = null;
-let isActive = false;
+const qrcodeTerminal = require('qrcode-terminal');
 const express = require('express');
 const bodyParser = require('body-parser');
 const pino = require('pino');
@@ -15,30 +12,30 @@ const { Boom } = require('@hapi/boom');
 const axios = require('axios');
 const QRCode = require('qrcode');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const STATUS_URL = 'https://barber-server.celsosilvajunior90.workers.dev/api/whatsapp/status';
-
-const fs = require('fs');
-const path = require('path');
+const WORKER_URL = 'https://barber-server.celsosilvajunior90.workers.dev/api/whatsapp/webhook';
+const API_KEY = 'barber-secret-key';
+const PORT = 3000;
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-const PORT = 3000;
-const API_KEY = 'barber-secret-key';
-const WORKER_URL = 'https://barber-server.celsosilvajunior90.workers.dev/api/whatsapp/webhook';
-
 const sessions = new Map();
-
-const sessionTimers = new Map(); // Store intervals to clear them on stop
+const sessionTimers = new Map();
 
 async function connectToWhatsApp(email) {
+    // BLOQUEIO DE SEGURANÇA (COMENTADO PARA PERMITIR BOOT SEMPRE)
+    /*
     if (fs.existsSync('.stop-flag')) {
         console.log(`[Session] 🛑 Bloqueado por .stop-flag: ${email}`);
         return;
     }
+    */
 
     if (sessions.has(email)) {
         console.log(`[Session] Sessão já inicializada para ${email}`);
@@ -46,7 +43,6 @@ async function connectToWhatsApp(email) {
     }
 
     console.log(`[Session] 🔄 Iniciando conexão: ${email}`);
-    // Usar base64 para o nome da pasta ser seguro e reversível se necessário
     const safeId = Buffer.from(email).toString('hex');
     const authFolder = `auth_sessions/session_${safeId}`;
 
@@ -60,33 +56,25 @@ async function connectToWhatsApp(email) {
         logger: pino({ level: 'silent' }),
         auth: state,
         browser: ['Barber App', 'Chrome', '1.0.0'],
-        printQRInTerminal: false,
         markOnlineOnConnect: true
+        // printQRInTerminal removido por estar obsoleto
     });
 
     sessions.set(email, sock);
 
+    // Eventos de Mensagem
     sock.ev.on('messages.upsert', async m => {
         const msg = m.messages[0];
         const remoteJid = msg.key.remoteJid || '';
-
-        // 🔑 CHAVE ANTI-LOOP:
-        // Mensagem digitada pelo barbeiro para si mesmo → remoteJid termina em @lid (Saved Messages)
-        // Mensagem enviada pelo BOT de volta ao barbeiro → remoteJid termina em @s.whatsapp.net
-        // Portanto: SÓ considerar "admin cmd" se remoteJid for @lid
         const isSelfAdminCmd = msg.key.fromMe && remoteJid.endsWith('@lid');
 
-        // Mensagens normais de clientes: não são fromMe e precisam ser type='notify'
         if (!isSelfAdminCmd) {
-            if (msg.key.fromMe) return; // bot response — ignora para não entrar em loop
-            if (m.type !== 'notify') return; // sincronização de histórico — ignora
+            if (msg.key.fromMe) return;
+            if (m.type !== 'notify') return;
         }
 
         const rawMyId = sock.user?.id || '';
-        const myNumber = rawMyId.split(':')[0].split('@')[0]; // ex: "5511972509876"
-
-        // Para comandos admin, o sender que o Worker usa para identificar o barbeiro
-        // deve ser o número real no formato padrão
+        const myNumber = rawMyId.split(':')[0].split('@')[0];
         const sender = isSelfAdminCmd ? `${myNumber}@s.whatsapp.net` : remoteJid;
         const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
 
@@ -101,78 +89,63 @@ async function connectToWhatsApp(email) {
         }
     });
 
+    // Atualização de Conexão e QR Code
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
-        // Double check stop flag on update
-        if (fs.existsSync('.stop-flag')) {
-            if (connection === 'open') sock.end();
-            return;
-        }
-
         if (qr) {
-            console.log(`[QR] Novo código para ${email}`);
+            console.log(`[QR] 📲 Novo código gerado para ${email}. Escaneie abaixo:`);
+            // Renderiza o QR no terminal manualmente
+            qrcodeTerminal.generate(qr, { small: true });
+
             try {
                 const qrImage = await QRCode.toDataURL(qr);
                 await axios.post(STATUS_URL, { email, status: 'qr', qr: qrImage });
-            } catch (e) { console.error('Erro ao enviar QR:', e.message); }
+            } catch (e) { console.error('Erro ao enviar QR para o Worker:', e.message); }
         }
 
         if (connection === 'close') {
             const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
-            console.log(`[Session] (${email}) Conexão fechada: ${reason}`);
+            console.log(`[Session] (${email}) Conexão fechada. Razão: ${reason}`);
 
             axios.post(STATUS_URL, { email, status: 'disconnected', reason }).catch(() => { });
 
             if (reason === DisconnectReason.loggedOut || reason === DisconnectReason.connectionReplaced) {
                 sessions.delete(email);
-                const msg = reason === DisconnectReason.loggedOut ? 'LogOUT - Removendo sessão.' : 'Conexão Substituída - Outro dispositivo conectou.';
-                console.log(`[Session] (${email}) ${msg}`);
+                console.log(`[Session] (${email}) Sessão encerrada permanentemente.`);
             } else {
-                // Só reconecta se a sessão ainda existir no mapa (ou seja, não foi removida manualmente pelo /stop)
-                // E SE NÃO TIVER FLAG DE PARADA
-                if (sessions.has(email) && !fs.existsSync('.stop-flag')) {
-                    console.log(`[Session] (${email}) Queda acidental - Tentando reconectar em 5s...`);
+                if (sessions.has(email)) {
+                    console.log(`[Session] (${email}) Tentando reconectar em 5s...`);
                     setTimeout(() => {
-                        // Verifica novamente antes de reconectar
-                        if (sessions.has(email) && !fs.existsSync('.stop-flag')) {
+                        if (sessions.has(email)) {
                             sessions.delete(email);
                             connectToWhatsApp(email);
                         }
                     }, 5000);
-                } else {
-                    console.log(`[Session] (${email}) Desconexão manual ou substituída confirmada. Não reconectando.`);
                 }
             }
         } else if (connection === 'open') {
-            console.log(`[Session] ✅ ${email} CONECTADO!`);
+            console.log(`[Session] ✅ ${email} CONECTADO COM SUCESSO!`);
             axios.post(STATUS_URL, { email, status: 'connected' }).catch(() => { });
         }
     });
 
     sock.ev.on('creds.update', saveCreds);
 
-    // Heartbeat to keep status updated in Worker
+    // Heartbeat
     const heartbeatParams = setInterval(() => {
         if (sessions.get(email) === sock) {
             axios.post(STATUS_URL, { email, status: 'heartbeat' }).catch(() => { });
         } else {
-            clearInterval(heartbeatParams); // Stop if session changed
+            clearInterval(heartbeatParams);
         }
     }, 30000);
     sessionTimers.set(email, heartbeatParams);
 }
 
-// Carregar sessões existentes ao iniciar
 async function loadExistingSessions() {
     const root = 'auth_sessions';
     if (!fs.existsSync(root)) fs.mkdirSync(root);
-
-    // Check for Manual Stop Flag
-    if (fs.existsSync('.stop-flag')) {
-        console.log('[Boot] 🛑 Sistema em modo STANDBY (Flag .stop-flag encontrada). Sessões não serão iniciadas.');
-        return;
-    }
 
     const folders = fs.readdirSync(root);
     for (const folder of folders) {
@@ -180,200 +153,62 @@ async function loadExistingSessions() {
             const hex = folder.replace('session_', '');
             try {
                 const email = Buffer.from(hex, 'hex').toString();
-                console.log(`[Boot] Restaurando sessão: ${email}`);
+                console.log(`[Boot] 📦 Restaurando: ${email}`);
                 connectToWhatsApp(email);
-            } catch (e) {
-                console.log(`[Boot] Erro ao restaurar pasta: ${folder}`);
-            }
+            } catch (e) { console.log(`[Boot] Falha ao ler pasta: ${folder}`); }
         }
     }
 }
 
-app.post('/api/restart', async (req, res) => {
-    const { key, email } = req.body;
-    if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });
-    if (!email) return res.status(400).json({ error: 'Email necessário' });
-
-    if (email === 'ALL') {
-        console.log('[Global Restart] Reiniciando TODOS os robôs...');
-        for (const [id, sock] of sessions.entries()) {
-            try {
-                const timer = sessionTimers.get(id);
-                if (timer) clearInterval(timer);
-                sock.ev.removeAllListeners('connection.update');
-                sock.end();
-            } catch (e) { }
-        }
-        sessions.clear();
-        sessionTimers.clear();
-        setTimeout(() => loadExistingSessions(), 1000);
-        return res.json({ success: true, message: 'Reiniciando todos os robôs do sistema' });
-    }
-
-    if (sessions.has(email)) {
-        console.log(`[Restart] Terminando sessão antiga para ${email}...`);
-        try {
-            const timer = sessionTimers.get(email);
-            if (timer) clearInterval(timer);
-            const sock = sessions.get(email);
-            sock.ev.removeAllListeners('connection.update');
-            sock.end();
-        } catch (e) { }
-        sessions.delete(email);
-    }
-
-    setTimeout(() => {
-        connectToWhatsApp(email);
-        res.json({ success: true, message: `Reiniciando robô para ${email}` });
-    }, 1000);
-});
-
+// Rotas de Controle
 app.post('/api/init', async (req, res) => {
     const { key, email } = req.body;
     if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });
-    if (!email) return res.status(400).json({ error: 'Email necessário' });
-
     if (fs.existsSync('.stop-flag')) fs.unlinkSync('.stop-flag');
-    if (sessions.has(email)) return res.json({ success: true, message: 'Já está online' });
-
     connectToWhatsApp(email);
-    res.json({ success: true, message: `Iniciando sessão para ${email}` });
-});
-
-app.post('/api/start', async (req, res) => {
-    const { key } = req.body;
-    if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });
-
-    if (fs.existsSync('.stop-flag')) {
-        fs.unlinkSync('.stop-flag');
-        console.log('[API Start] Flag removida. Iniciando sessões...');
-        loadExistingSessions();
-        return res.json({ success: true, message: 'Sistema reiniciado com sucesso.' });
-    } else {
-        return res.json({ success: true, message: 'O sistema já está ativo.' });
-    }
+    res.json({ success: true, message: `Iniciando ${email}` });
 });
 
 app.post('/api/stop', async (req, res) => {
     const { key, email } = req.body;
     if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });
-    if (!email) return res.status(400).json({ error: 'Email necessário' });
 
     if (email === 'ALL') {
-        console.log('[Global Stop] Parando TODOS os robôs...');
-        let adminNotified = false;
         for (const [id, sock] of sessions.entries()) {
             try {
-                // Stop Timer
-                const timer = sessionTimers.get(id);
-                if (timer) clearInterval(timer);
-
-                if (id === 'celsosilvajunior90@gmail.com' || !adminNotified) {
-                    const adminJid = '5511972509876@s.whatsapp.net';
-                    await sock.sendMessage(adminJid, {
-                        text: "⚠️ *AVISO MASTER:* O Sistema de Robôs foi desligado globalmente. Todos os serviços foram interrompidos."
-                    }).catch(() => { });
-                    adminNotified = true;
-                }
-
-                if (sock.user && sock.user.id) {
-                    const jid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-                    await sock.sendMessage(jid, {
-                        text: "🛑 *Sistema Geral Desativado* \n\nTodos os robôs do sistema estão sendo desligados agora pelo Mestre."
-                    }).catch(() => { });
-                }
-
-                sock.ev.removeAllListeners('connection.update');
+                clearInterval(sessionTimers.get(id));
                 sock.end();
-            } catch (e) {
-                console.error(`[Global Stop Error] Falha ao parar ${id}:`, e.message);
-                try { sock.end(); } catch (err) { }
-            }
+            } catch (e) { }
         }
         sessions.clear();
-        sessionTimers.clear();
-
-        // Criar flag de parada para o manage.js não reiniciar
-        fs.writeFileSync('.stop-flag', 'STOPPED');
-        console.log('[Global Stop] Flag de parada criada (.stop-flag).');
-
-        console.log('[Global Stop] Todos os robôs foram desconectados. O servidor permanece online.');
-
-        return res.json({ success: true, message: 'Todos os robôs foram parados. O servidor continua ativo.' });
+        return res.json({ success: true, message: 'Todos os robôs parados' });
     }
 
     if (sessions.has(email)) {
-        console.log(`[Stop] Parando robô para ${email}...`);
-        try {
-            // Criar flag de parada específica ou global se for único
-            // Aqui estamos assumindo que o /stop é para desligar o bot deste usuário
-
-            // Stop Timer
-            const timer = sessionTimers.get(email);
-            if (timer) clearInterval(timer);
-
-            const sock = sessions.get(email);
-
-            // Notificar antes de desligar
-            if (sock.user && sock.user.id) {
-                const jid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-                await sock.sendMessage(jid, {
-                    text: "🛑 *Robô Barber Desativado* \n\nO robô foi desligado manualmente. Até logo! 👋"
-                }).catch(() => { });
-            }
-
-            // Remover da memória ANTES de fechar para evitar reconexão automática
-            sessions.delete(email);
-
-            sock.ev.removeAllListeners('connection.update');
-            sock.end();
-
-            // Forçar atualização de status no servidor
-            axios.post(STATUS_URL, { email, status: 'disconnected' }).catch(() => { });
-
-            // CRUCIAL: Se esse é o único/principal robô, criamos a flag global STOP
-            // Para evitar que o manage.js reinicie tudo se ele achar que deve
-            fs.writeFileSync('.stop-flag', 'STOPPED');
-
-        } catch (e) {
-            console.error(`[Stop Error] Falha ao parar ${email}:`, e.message);
-            // Garante limpeza mesmo com erro
-            sessions.delete(email);
-            axios.post(STATUS_URL, { email, status: 'disconnected' }).catch(() => { });
-        }
-        res.json({ success: true, message: `Robô parado para ${email}` });
-    } else {
-        // Mesmo se não achar sessão, força status desconectado no servidor para corrigir UI
-        axios.post(STATUS_URL, { email, status: 'disconnected' }).catch(() => { });
-        // Create Stop Flag just in case
-        fs.writeFileSync('.stop-flag', 'STOPPED');
-        res.json({ success: true, message: `Nenhum robô ativo encontrado, status forçado para desconectado.` });
+        const sock = sessions.get(email);
+        clearInterval(sessionTimers.get(email));
+        sessions.delete(email);
+        sock.end();
+        res.json({ success: true, message: `Robô ${email} parado` });
     }
 });
 
 app.post('/send-message', async (req, res) => {
     const { key, number, message, barber_email } = req.body;
-
     if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });
 
-    const targetEmail = barber_email || ADMIN_EMAIL;
-    const sock = sessions.get(targetEmail);
-
-    if (!sock) return res.status(503).json({ error: `WhatsApp não conectado para ${targetEmail}` });
+    const sock = sessions.get(barber_email || ADMIN_EMAIL);
+    if (!sock) return res.status(503).json({ error: 'WhatsApp não conectado' });
 
     try {
         let cleanNumber = number.replace(/\D/g, '');
         if (!cleanNumber.startsWith('55')) cleanNumber = '55' + cleanNumber;
-        const jid = `${cleanNumber}@s.whatsapp.net`;
-
-        await sock.sendMessage(jid, { text: message });
+        await sock.sendMessage(`${cleanNumber}@s.whatsapp.net`, { text: message });
         res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Barber Multi-Bridge ativo na porta ${PORT}`);
+    console.log(`🚀 Barber Multi-Bridge rodando na porta ${PORT}`);
     loadExistingSessions();
 });
