@@ -99,14 +99,24 @@ function App() {
     } catch { console.error('Error fetching admin appts'); }
   }, [user]);
 
-  const fetchBusySlots = useCallback(async (date, barber, ts = '') => {
+ const fetchBusySlots = useCallback(async (date, barber, ts = '') => {
     const effectiveBarber = barber || (user?.isBarber ? user : null);
     if (!effectiveBarber) return;
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
       const data = await api.getBusySlots(dateStr, effectiveBarber.email, ts);
-      setBusySlots(data || []);
-    } catch { console.error('Error busy slots'); }
+      
+      // O AJUSTE ESTÁ AQUI:
+      // Transformamos a lista de objetos em uma lista simples de horários (strings)
+      const slotsOnly = (data || []).map(slot => 
+        typeof slot === 'string' ? slot : slot.appointment_time
+      );
+      
+      setBusySlots(slotsOnly);
+    } catch { 
+      console.error('Error busy slots'); 
+      setBusySlots([]); // Garante que limpe em caso de erro
+    }
   }, [user]);
 
   const fetchSubscription = useCallback(async (ts = '') => {
@@ -227,14 +237,21 @@ function App() {
   const handleRefresh = async () => {
     setLoading(true);
     const ts = Date.now();
-    await Promise.all([
-      fetchSubscription(ts),
-      fetchAppointments(ts),
-      fetchAdminAppointments(ts),
-      fetchWaStatus(),
-      fetchBarbers()
-    ]);
-    setLoading(false);
+    try {
+      await Promise.all([
+        fetchSubscription(ts),
+        fetchAppointments(ts),
+        fetchAdminAppointments(ts),
+        fetchWaStatus(),
+        fetchBarbers(),
+        // ESSA É A LINHA QUE FALTAVA:
+        fetchBusySlots(selectedDate, selectedBarber || (user?.isBarber ? user : null), ts)
+      ]);
+    } catch (e) {
+      console.error("Erro ao atualizar dados:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBooking = async () => {
