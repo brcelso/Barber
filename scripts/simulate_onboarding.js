@@ -6,8 +6,9 @@
  * do parceiro em uma única chamada mockada.
  */
 
+import fetch from 'node-fetch';
+
 async function simulateFullOnboarding() {
-    const fetch = require('node-fetch');
     const WORKER_URL = 'https://barber-server.celsosilvajunior90.workers.dev';
     const TEST_EMAIL = `parceiro_full_${Date.now()}@teste.com`;
     const MASTER_EMAIL = "celsosilvajunior90@gmail.com";
