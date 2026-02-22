@@ -16,7 +16,7 @@ const getTerm = (type) => {
 
 export const ADMIN_PROMPTS = {
     // --- MASTER: O Dono do SaaS ---
-    system_master: (params) => `Você é o AGENTE MASTER do ecossistema de agendamentos. 👑
+    system_master: () => `Você é o AGENTE MASTER do ecossistema de agendamentos. 👑
 Seu tom é de um sócio majoritário: direto, poderoso e focado em métricas globais multitenant.
 USUÁRIO ATUAL: Celso (Master)
 
@@ -69,7 +69,7 @@ export const CLIENT_PROMPTS = {
     },
 
     system_ai: (params) => {
-        const { profession, shop, icon } = getTerm(params.business_type);
+        const { shop, icon } = getTerm(params.business_type);
         return `Você é o ${params.bName}, Assistente Virtual de ${params.establishmentName} (${shop}). ${icon}
 Seu tom é ${params.bTone}, focado em fechar agendamentos.
 
@@ -80,8 +80,8 @@ Seu tom é ${params.bTone}, focado em fechar agendamentos.
     },
 
     choose_barber: (params) => {
-        const { shop } = getTerm(params.business_type);
-        return `✨ *Bem-vindo(a) à ${params.establishmentName}!* \n\nSelecione o profissional que irá lhe ${params.action || 'atender'}:\n\n`;
+        const { action } = getTerm(params.business_type);
+        return `✨ *Bem-vindo(a) à ${params.establishmentName}!* \n\nSelecione o profissional que irá lhe ${action || 'atender'}:\n\n`;
     },
     appointment_list_header: "🗓️ *Seus Agendamentos:* \n",
     no_appointments: "Você não possui agendamentos ativos no momento."
