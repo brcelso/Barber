@@ -20,6 +20,11 @@ export const BARBER_TOOLS = [
 ];
 
 export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEmail }) {
+    if (!prompt || String(prompt).trim() === '' || String(prompt) === 'undefined') {
+        console.log("🚨 [Agente] Prompt vazio ou evento de status recebido. Abortando IA.");
+        return { text: "" }; // Retorna vazio para não mandar nada pro cliente
+    }
+
     const { DB, AI } = env;
     const model = '@cf/google/embeddinggemma-300m'; 
 
