@@ -21,28 +21,29 @@ export const BARBER_TOOLS = [
 ];
 
 export async function runAgentChat(env, { prompt, isAdmin, barberContext }) {
-    
+
     // 🛡️ ESCUDO ANTI-STATUS
     if (!prompt || String(prompt).trim() === '' || String(prompt) === 'undefined') {
-        return { text: "" }; 
+        return { text: "" };
     }
 
     const { DB, AI } = env;
     const model = '@cf/meta/llama-3.1-8b-instruct';
-    const emailReal = (barberContext?.barberEmail && barberContext.barberEmail !== "undefined") 
-        ? barberContext.barberEmail 
+    const emailReal = (barberContext?.barberEmail && barberContext.barberEmail !== "undefined")
+        ? barberContext.barberEmail
         : "celsosilvajunior90@gmail.com";
 
     let dynamicContext = "";
 
     // 🚀 ESTRATÉGIA ANTECIPATÓRIA (Busca no D1 antes da IA)
     if (isAdmin) {
-        const hoje = new Date().toISOString().split('T')[0];
+        // Correção de Fuso: Garante que "hoje" seja no horário do Brasil
+        const hoje = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).toISOString().split('T')[0];
         try {
             const res = await DB.prepare(
                 "SELECT * FROM appointments WHERE appointment_date = ? AND barber_email = ? AND status != 'cancelled'"
             ).bind(hoje, emailReal).all();
-            
+
             if (res.results && res.results.length > 0) {
                 dynamicContext = `\n\n[BRIEFING DO DIA - ${hoje}]: Existem ${res.results.length} agendamentos hoje: ${JSON.stringify(res.results)}.`;
             } else {
@@ -53,8 +54,8 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext }) {
         }
     }
 
-    const systemPrompt = isAdmin 
-        ? ADMIN_PROMPTS.system_admin(barberContext) + dynamicContext 
+    const systemPrompt = isAdmin
+        ? ADMIN_PROMPTS.system_admin(barberContext) + dynamicContext
         : CLIENT_PROMPTS.system_ai(barberContext);
 
     // 🚀 O EMPURRÃO DE CONTEXTO (Garante que a IA não ignore o briefing no "Oi")
@@ -73,12 +74,12 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext }) {
     // 1. PRIMEIRA CHAMADA (THINK)
     const aiResponse = await AI.run(model, {
         messages: messages,
-        tools: BARBER_TOOLS 
+        tools: BARBER_TOOLS
     });
 
     // 2. FASE ACT (FERRAMENTAS)
     if (aiResponse.tool_calls && aiResponse.tool_calls.length > 0) {
-        
+
         const toolMessages = [
             ...messages,
             { role: 'assistant', content: '', tool_calls: aiResponse.tool_calls }
@@ -88,9 +89,9 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext }) {
             let toolData = "";
 
             if (call.name === 'consultar_agenda') {
-                let { appointment_date } = call.arguments; 
-                
-                const anoAtual = new Date().getFullYear().toString(); 
+                let { appointment_date } = call.arguments;
+
+                const anoAtual = new Date().getFullYear().toString();
                 if (appointment_date && appointment_date.includes('-')) {
                     const partesData = appointment_date.split('-');
                     if (partesData[0] !== anoAtual) {
@@ -103,7 +104,7 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext }) {
                     const res = await DB.prepare(
                         "SELECT * FROM appointments WHERE appointment_date LIKE ? AND barber_email = ? AND status != 'cancelled'"
                     ).bind(`${appointment_date}%`, emailReal).all();
-                    
+
                     toolData = JSON.stringify({
                         status: "sucesso",
                         contexto_da_agenda: {

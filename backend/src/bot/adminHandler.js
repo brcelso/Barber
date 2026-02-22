@@ -10,14 +10,13 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
 
     if (!session || isMenuCommand) {
         await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email, selected_barber_email, metadata) VALUES (?, "admin_ai_chat", ?, ?, "{}")').bind(from, adminInfo.email, adminInfo.email).run();
-        await sendMessage(env, from, ADMIN_PROMPTS.ai_welcome(adminInfo.name), botBarberEmail);
-        return json({ success: true });
+        // Removido o sendMessage fixo para deixar a IA responder com o briefing
     }
 
-    const metadata = JSON.parse(session.metadata || '{}');
+    const metadata = JSON.parse(session?.metadata || '{}');
 
     // 2.1 PAGINAÇÃO DA AGENDA
-    if (session.state === 'admin_viewing_agenda' && text === '8') {
+    if (session?.state === 'admin_viewing_agenda' && text === '8') {
         const lastPage = metadata.last_agenda_page || 1;
         return await showAgenda(from, adminInfo, botBarberEmail, env, lastPage + 1);
     }
@@ -26,6 +25,7 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
     try {
         const barberContext = {
             establishmentName: adminInfo.shop_name || adminInfo.name || 'Barbearia',
+            barberEmail: adminInfo.email, // Adicionado e-mail faltante
             bName: adminInfo.bot_name || 'Leo',
             bTone: adminInfo.bot_tone || 'profissional'
         };
