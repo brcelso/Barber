@@ -74,5 +74,62 @@ export async function handleMasterRoutes(url, request, env) {
         return json({ success: true });
     }
 
+    // MASTER: Simular Onboarding Completo (Mock Total)
+    if (url.pathname === '/api/master/simulate-onboarding' && request.method === 'POST') {
+        const { email, name, phone, shopName, niche } = await request.json();
+        const now = new Date();
+        const expires = new Date();
+        expires.setFullYear(now.getFullYear() + 1);
+
+        const targetEmail = email || `demo_${Date.now()}@universal.com`;
+
+        // 1. Criar Usuário Admin e Profissional
+        await DB.prepare(`
+            INSERT OR REPLACE INTO users (
+                email, name, phone, is_admin, is_barber, business_type, shop_name, 
+                plan, subscription_expires, bot_active, bot_name, bot_tone, 
+                msg_welcome, wa_status, last_login
+            ) VALUES (?, ?, ?, 1, 1, ?, ?, "Pro", ?, 1, "Leo", "profissional", ?, "connected", CURRENT_TIMESTAMP)
+        `).bind(
+            targetEmail,
+            name || "João Exemplo",
+            phone || "551199999999",
+            niche || "barbearia",
+            shopName || "Barbearia de Demonstração",
+            expires.toISOString(),
+            `Olá! Bem-vindo ao atendimento da nossa unidade. Como posso te ajudar?`
+        ).run();
+
+        // 2. Criar Serviços Mockados
+        const services = [
+            { id: `corte-${Date.now()}`, name: "Corte Social", price: 45 },
+            { id: `barba-${Date.now()}`, name: "Barba Completa", price: 30 },
+            { id: `combo-${Date.now()}`, name: "Cabelo e Barba", price: 65 }
+        ];
+
+        for (const s of services) {
+            await DB.prepare('INSERT OR IGNORE INTO services (id, name, price, barber_email) VALUES (?, ?, ?, ?)')
+                .bind(s.id, s.name, s.price, targetEmail).run();
+        }
+
+        // 3. Configurar Disponibilidade (Seg-Sex, 08-18h)
+        for (let day = 1; day <= 5; day++) {
+            await DB.prepare('INSERT OR IGNORE INTO availability (barber_email, day_of_week, start_time, end_time) VALUES (?, ?, "08:00", "18:00")')
+                .bind(targetEmail, day).run();
+        }
+
+        return json({
+            success: true,
+            message: "Ecossistema criado com sucesso!",
+            details: {
+                email: targetEmail,
+                plan: "Pro",
+                botStatus: "connected",
+                servicesCount: services.length,
+                expires: expires.toISOString()
+            }
+        });
+    }
+
     return null;
 }
