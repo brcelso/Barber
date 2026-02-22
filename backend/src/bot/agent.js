@@ -65,6 +65,9 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
         // --- 1. CONSULTA DE AGENDA (Ajustado para appointment_date) ---
         if (call.name === 'consultar_agenda') {
             const { appointment_date, barber_email } = call.arguments;
+
+            console.log(`[Agente] Consultando data: ${appointment_date} para o barbeiro: ${barber_email}`);
+
             const res = await DB.prepare(
                 'SELECT appointment_time FROM appointments WHERE appointment_date = ? AND barber_email = ? AND status != "cancelled"'
             ).bind(appointment_date, barber_email).all();
