@@ -1,92 +1,56 @@
 /**
- * Agentic AI Logic for Barber Bot - Atualizado para Schema D1
+ * Centralized prompts and templates for the WhatsApp Bot
+ * Arquitetura: Agentic AI com Chain of Thought (CoT)
  */
 
-import { ADMIN_PROMPTS, CLIENT_PROMPTS } from './prompts.js';
+export const ADMIN_PROMPTS = {
+    main_menu: (name) => {
+        let msg = `👨‍💼 *Painel do Chefe* 💈\n\nOlá, ${name}! Sou seu Agente de Gestão.\n\n`;
+        msg += "O que você precisa observar agora?\n";
+        msg += "_\"Como está a agenda hoje?\"_\n";
+        msg += "_\"Qual o faturamento até agora?\"_\n";
+        return msg;
+    },
 
-export const BARBER_TOOLS = [
-    {
-        name: 'consultar_agenda',
-        description: 'Verifica horários ocupados no banco de dados. Use sempre que o usuário perguntar sobre disponibilidade.',
-        parameters: {
-            type: 'object',
-            properties: {
-                appointment_date: { type: 'string', description: 'Data YYYY-MM-DD' },
-                barber_email: { type: 'string', description: 'E-mail do barbeiro' }
-            },
-            required: ['appointment_date', 'barber_email']
-        }
-    }
-];
+    ai_welcome: (name) => `Olá, ${name}! Sou seu assistente de gestão inteligente. Posso consultar sua agenda e faturamento no banco de dados. O que você precisa?`,
 
-export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEmail }) {
-    const { DB, AI } = env;
-    const model = '@cf/meta/llama-3.1-8b-instruct';
+    system_admin: (params) => `Você é o assistente de gestão executiva de ${params.establishmentName}. 💈
+Seu tom é profissional, eficiente e baseado em dados. O e-mail do dono da conta é ${params.barberEmail}.
 
-    const systemPrompt = isAdmin ? ADMIN_PROMPTS.system_admin(barberContext) : CLIENT_PROMPTS.system_ai(barberContext);
+⚠️ DIRETRIZ DE RACIOCÍNIO (CHAIN OF THOUGHT):
+Para responder, siga estritamente esta ordem mental:
+1. INTENÇÃO: O chefe quer saber sobre dinheiro (faturamento) ou tempo (agenda)?
+2. FERRAMENTA: Se for dinheiro, OBRIGATORIAMENTE chame 'get_faturamento_hoje'. Se for tempo, OBRIGATORIAMENTE chame 'consultar_agenda'.
+3. REGRA DE OURO: NUNCA responda com dados da sua memória. Se a ferramenta não trouxer nada, diga "Não há registros no sistema".
+4. RESPOSTA FINAL: Entregue a informação de forma direta e executiva. Não mostre os passos 1, 2 e 3 na sua resposta.`,
 
-    console.log(`[Agente] Iniciando chat. Admin: ${isAdmin} | User: ${userEmail}`);
+    error: (name) => `👨‍💼 *Painel do Chefe* 💈\n\nDesculpe ${name}, tive uma falha de processamento. Pode repetir?`
+};
 
-    // 1. Primeira chamada para a IA
-    const aiResponse = await AI.run(model, {
-        messages: [
-            { role: 'system', content: String(systemPrompt) },
-            { role: 'user', content: String(prompt) }
-        ],
-        tools: BARBER_TOOLS // O Llama 3.1 no Workers AI espera um array simples de objetos
-    });
+export const CLIENT_PROMPTS = {
+    ai_welcome: `✨ *Bem-vindo(a)!* \n\nSou o assistente virtual da barbearia. 💈\n\nComo posso te ajudar hoje? (Ex: "Tem horário pra hoje?", "Quais os preços?")`,
 
-    // LOG CRÍTICO: Vamos ver o que a IA decidiu no primeiro passo
-    console.log("[Agente] Resposta inicial da IA:", JSON.stringify(aiResponse));
+    system_ai: (params) => `Você é o ${params.bName}, um Agente Virtual Proativo de ${params.establishmentName}. 💈
+Seu tom é ${params.bTone}, amigável e resolutivo. Hoje é ${new Date().toLocaleDateString('pt-BR')}.
 
-    if (aiResponse.tool_calls && aiResponse.tool_calls.length > 0) {
-        console.log(`[Agente] 🛠️ Ferramenta detectada: ${aiResponse.tool_calls[0].name}`);
-        
-        const toolMessages = [
-            { role: 'system', content: String(systemPrompt) },
-            { role: 'user', content: String(prompt) },
-            { role: 'assistant', content: '', tool_calls: aiResponse.tool_calls }
-        ];
+SEUS SERVIÇOS E PREÇOS:
+${params.servicesList}
 
-        for (const call of aiResponse.tool_calls) {
-            let toolData = "";
+⚠️ DIRETRIZ DE RACIOCÍNIO (CHAIN OF THOUGHT - OBSERVE, THINK, ACT):
+Antes de gerar qualquer palavra para o cliente, você deve processar a solicitação seguindo estes 4 passos mentalmente:
 
-            if (call.name === 'consultar_agenda') {
-                const { appointment_date, barber_email } = call.arguments;
-                console.log(`[D1 Forward] Consultando agenda de ${barber_email} em ${appointment_date}`);
+PASSO 1 (Intenção): O que o cliente quer? (Ex: Agendar, saber preço, cancelar).
+PASSO 2 (Dados e Restrições): Eu sei qual serviço ele quer? Eu sei o dia? NUNCA presuma que há horários livres.
+PASSO 3 (Ação Obrigatória): Se o cliente falou sobre datas ou horários, EU DEVO OBRIGATORIAMENTE usar a ferramenta 'consultar_agenda' no banco de dados ANTES de sugerir qualquer coisa.
+PASSO 4 (Proatividade): Baseado na resposta do banco de dados, qual é a melhor sugestão? 
+   - Se o cliente pediu 10h e está ocupado, ofereça ativamente o horário livre mais próximo (ex: 10:30h ou 09:30h).
+   - NUNCA faça perguntas abertas como "Que horas você prefere?". Sempre guie a negociação: "Tenho às 14h ou 15h, qual fica melhor?"
 
-                try {
-                    const res = await DB.prepare(
-                        'SELECT appointment_time FROM appointments WHERE appointment_date = ? AND barber_email = ? AND status != "cancelled"'
-                    ).bind(appointment_date, barber_email).all();
-                    
-                    toolData = res.results.length > 0 
-                        ? `Horários ocupados: ${res.results.map(r => r.appointment_time).join(', ')}`
-                        : "A agenda está livre no sistema para esta data.";
-                    
-                    console.log(`[D1 Success] Dados encontrados: ${toolData}`);
-                } catch (dbError) {
-                    console.error("[D1 Error]", dbError.message);
-                    toolData = "Erro ao acessar o banco de dados.";
-                }
-            }
+REGRA DE SAÍDA: Gere APENAS a resposta final amigável baseada no Passo 4. O cliente não deve ver esse processo de raciocínio lógico.`,
 
-            toolMessages.push({
-                role: 'tool',
-                name: call.name,
-                tool_call_id: call.id,
-                content: String(toolData)
-            });
-        }
+    choose_barber: (establishmentName) => `✨ *Bem-vindo(a) à ${establishmentName}!* \n\nSelecione o profissional desejado digitando o número:\n\n`,
 
-        // 2. Segunda chamada com os dados do D1
-        const finalResponse = await AI.run(model, {
-            messages: toolMessages
-        });
+    appointment_list_header: "🗓️ *Seus Agendamentos:* \n",
 
-        return { text: finalResponse.response };
-    }
-
-    console.log("[Agente] Nenhuma ferramenta foi chamada. IA respondeu diretamente.");
-    return { text: aiResponse.response };
-}
+    no_appointments: "Você não possui agendamentos ativos no banco de dados no momento."
+};
