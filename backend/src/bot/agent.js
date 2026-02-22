@@ -129,6 +129,17 @@ export const BUSINESS_TOOLS = [
         }
     },
     {
+        name: 'ver_status_whatsapp',
+        description: 'Verifica o status atual da conexão do WhatsApp e obtém o QR Code se estiver aguardando conexão.',
+        parameters: {
+            type: 'object',
+            properties: {
+                email: { type: 'string', description: 'E-mail da unidade' }
+            },
+            required: ['email']
+        }
+    },
+    {
         name: 'gerenciar_configuracoes',
         description: 'Altera configurações básicas do estabelecimento como nome, nicho, tom de voz ou tokens de pagamento.',
         parameters: {

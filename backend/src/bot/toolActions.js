@@ -175,6 +175,20 @@ export const TOOL_ACTIONS = {
         }
     },
 
+    async ver_status_whatsapp({ args, DB }) {
+        const { email } = args;
+        try {
+            const user = await DB.prepare("SELECT wa_status, wa_qr FROM users WHERE email = ?").bind(email).first();
+            if (!user) throw new Error("Usuário não encontrado.");
+            return {
+                status: "sucesso",
+                wa_status: user.wa_status || 'disconnected',
+                has_qr: !!user.wa_qr,
+                qr_preview: user.wa_qr ? "QR Code disponível. Informe ao usuário que ele pode escanear no painel ou peça para ele digitar 'gerar qr' se precisar reinicializar." : "Sem QR Code no momento."
+            };
+        } catch (e) { return { status: "erro", msg: e.message }; }
+    },
+
     async gerenciar_configuracoes({ args, DB }) {
         const { email, shop_name, business_type, bot_name, bot_tone, mp_access_token } = args;
         try {

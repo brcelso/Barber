@@ -22,27 +22,32 @@ export const MasterPanelTab = ({
 
     return (
         <div className="fade-in">
-            {/* Estatísticas Globais */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1.2rem', marginBottom: '2.5rem' }}>
-                <div className="glass-card" style={{ textAlign: 'center' }}>
+            {/* Dashboard de Governança e Saúde */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.2rem', marginBottom: '2.5rem' }}>
+                <div className="glass-card" style={{ textAlign: 'center', borderBottom: '3px solid var(--primary)' }}>
                     <Users size={20} className="text-primary" style={{ marginBottom: '10px' }} />
-                    <h3 style={{ fontSize: '1.5rem', margin: 0 }}>{masterStats.totalUsers?.count}</h3>
+                    <h3 style={{ fontSize: '1.5rem', margin: 0 }}>{masterStats.totalUsers}</h3>
                     <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Usuários Totais</p>
                 </div>
-                <div className="glass-card" style={{ textAlign: 'center' }}>
-                    <Shield size={20} style={{ color: '#2ecc71', marginBottom: '10px' }} />
-                    <h3 style={{ fontSize: '1.5rem', margin: 0 }}>{masterStats.activeAdmins?.count}</h3>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Admins Ativos</p>
+                <div className="glass-card" style={{ textAlign: 'center', borderBottom: masterStats.offlinePremiumBots > 0 ? '3px solid #e74c3c' : '3px solid #2ecc71' }}>
+                    <Activity size={20} style={{ color: masterStats.offlinePremiumBots > 0 ? '#e74c3c' : '#2ecc71', marginBottom: '10px' }} />
+                    <h3 style={{ fontSize: '1.5rem', margin: 0 }}>{masterStats.connectedBots}</h3>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Bots Ativos ({masterStats.offlinePremiumBots} Offline)</p>
                 </div>
-                <div className="glass-card" style={{ textAlign: 'center' }}>
-                    <Activity size={20} style={{ color: '#3498db', marginBottom: '10px' }} />
-                    <h3 style={{ fontSize: '1.5rem', margin: 0 }}>{masterStats.connectedBots?.count}</h3>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Bots Conectados</p>
+                <div className="glass-card" style={{ textAlign: 'center', borderBottom: masterStats.expiringSoon > 0 ? '3px solid #f39c12' : '3px solid var(--border)' }}>
+                    <CreditCard size={20} style={{ color: masterStats.expiringSoon > 0 ? '#f39c12' : '#2ecc71', marginBottom: '10px' }} />
+                    <h3 style={{ fontSize: '1.5rem', margin: 0 }}>{masterStats.expiringSoon}</h3>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Vencendo em 7 dias</p>
                 </div>
                 <div className="glass-card" style={{ textAlign: 'center' }}>
                     <Calendar size={20} style={{ color: 'var(--primary)', marginBottom: '10px' }} />
-                    <h3 style={{ fontSize: '1.5rem', margin: 0 }}>{masterStats.totalAppointments?.count}</h3>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Agendamentos</p>
+                    <h3 style={{ fontSize: '1.5rem', margin: 0 }}>{masterStats.totalAppointments}</h3>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Agendamentos Totais</p>
+                </div>
+                <div className="glass-card" style={{ textAlign: 'center', background: 'rgba(46,204,113,0.05)' }}>
+                    <Activity size={20} style={{ color: '#2ecc71', marginBottom: '10px' }} />
+                    <h3 style={{ fontSize: '1.5rem', margin: 0 }}>R$ {masterStats.revenueToday}</h3>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Receita Estimada (Hoje)</p>
                 </div>
             </div>
 

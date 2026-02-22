@@ -182,11 +182,14 @@ export default {
         console.log('[Cron] Running scheduled tasks...');
         const { handleDailyBriefing } = await import('./cron/dailyBriefing.js');
         const { handleProactiveScheduling } = await import('./cron/proactiveScheduler.js');
+        const { handleMasterBriefing, handleHealthMonitor } = await import('./cron/masterBriefing.js');
 
         // Parallel execution
         ctx.waitUntil(Promise.all([
             handleDailyBriefing(env),
-            handleProactiveScheduling(env)
+            handleProactiveScheduling(env),
+            handleMasterBriefing(env),
+            handleHealthMonitor(env)
         ]));
     }
 };

@@ -7,15 +7,25 @@ export async function handleMasterRoutes(url, request, env) {
     const email = request.headers.get('X-User-Email');
     if (email !== MASTER_EMAIL) return null; // Not authorized or not master route
 
-    // MASTER: Global Stats
+    // MASTER: Global Stats & Health
     if (url.pathname === '/api/master/stats' && request.method === 'GET') {
         const stats = {
-            totalUsers: await DB.prepare('SELECT COUNT(*) as count FROM users').first(),
-            totalProfessionals: await DB.prepare('SELECT COUNT(*) as count FROM users WHERE is_barber = 1').first(),
-            activeBusinesses: await DB.prepare('SELECT COUNT(*) as count FROM users WHERE is_admin = 1 AND owner_id IS NULL').first(),
-            totalAppointments: await DB.prepare('SELECT COUNT(*) as count FROM appointments').first(),
-            connectedBots: await DB.prepare('SELECT COUNT(*) as count FROM users WHERE wa_status = "connected"').first(),
-            planCounts: await DB.prepare('SELECT plan, COUNT(*) as count FROM users WHERE plan IS NOT NULL GROUP BY plan').all()
+            totalUsers: (await DB.prepare('SELECT COUNT(*) as count FROM users').first()).count,
+            totalProfessionals: (await DB.prepare('SELECT COUNT(*) as count FROM users WHERE is_barber = 1').first()).count,
+            activeBusinesses: (await DB.prepare('SELECT COUNT(*) as count FROM users WHERE is_admin = 1 AND owner_id IS NULL').first()).count,
+            totalAppointments: (await DB.prepare('SELECT COUNT(*) as count FROM appointments').first()).count,
+            connectedBots: (await DB.prepare('SELECT COUNT(*) as count FROM users WHERE wa_status = "connected"').first()).count,
+            planCounts: await DB.prepare('SELECT plan, COUNT(*) as count FROM users WHERE plan IS NOT NULL GROUP BY plan').all(),
+
+            // Novos dados de Governança
+            expiringSoon: (await DB.prepare('SELECT COUNT(*) as count FROM users WHERE subscription_expires > CURRENT_TIMESTAMP AND subscription_expires <= date("now", "+7 days") AND is_admin = 1 AND owner_id IS NULL').first()).count,
+            offlinePremiumBots: (await DB.prepare('SELECT COUNT(*) as count FROM users WHERE wa_status != "connected" AND subscription_expires > CURRENT_TIMESTAMP AND bot_active = 1').first()).count,
+            revenueToday: (await DB.prepare(`
+                SELECT SUM(s.price) as total
+                FROM appointments a
+                JOIN services s ON a.service_id = s.id
+                WHERE a.appointment_date = date("now", "localtime") AND a.status = 'confirmed'
+            `).first()).total || 0
         };
         return json(stats);
     }

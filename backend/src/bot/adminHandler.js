@@ -13,6 +13,15 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botProfe
         // Removido o sendMessage fixo para deixar a IA responder com o briefing
     }
 
+    // 2. Buscar Status do WhatsApp para Contexto do Admin
+    const waStatus = await env.DB.prepare('SELECT wa_status FROM users WHERE email = ?').bind(adminInfo.email).first();
+    const currentStatus = waStatus?.wa_status || 'disconnected';
+
+    let promptEnriched = text;
+    if (isMenuCommand && currentStatus !== 'connected') {
+        promptEnriched += ` (Nota para IA: O WhatsApp está ${currentStatus === 'awaiting_qr' ? 'aguardando QR Code' : 'desconectado'}. Informe o usuário e sugira conectar se necessário)`;
+    }
+
     const metadata = JSON.parse(session?.metadata || '{}');
 
     // 2.1 PAGINAÇÃO DA AGENDA
@@ -34,7 +43,7 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botProfe
         };
 
         const aiData = await runAgentChat(env, {
-            prompt: text,
+            prompt: promptEnriched,
             isAdmin: true,
             professionalContext: professionalContext
         });
