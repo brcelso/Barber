@@ -12,7 +12,7 @@ export const Header = ({
     setShowPlanSelection,
     handleMockPay,
     handleUpdateProfile,
-    handlePromoteToBarber,
+    handlePromoteToProfessional,
     isAdminMode
 }) => {
     return (
@@ -95,7 +95,7 @@ export const Header = ({
                     >
                         <History size={18} /> <span>Histórico</span>
                     </button>
-                    {(user.isAdmin || user.isBarber) && (
+                    {(user.isAdmin || user.isProfessional) && (
                         <button
                             className={`nav-item-fluid ${view === 'admin' ? 'active' : ''}`}
                             onClick={() => setView('admin')}
@@ -128,7 +128,7 @@ export const Header = ({
                     <button
                         className="btn-primary"
                         style={{ fontSize: '0.7rem', padding: '5px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--primary)', color: 'var(--primary)' }}
-                        onClick={handlePromoteToBarber}
+                        onClick={handlePromoteToProfessional}
                     >
                         Quero ser Parceiro
                     </button>

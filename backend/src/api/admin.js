@@ -233,12 +233,13 @@ export async function handleAdminRoutes(url, request, env) {
     if (url.pathname === '/api/admin/toggle-block' && request.method === 'POST') {
         const body = await request.json().catch(() => ({}));
         const adminEmail = request.headers.get('X-User-Email') || body.adminEmail;
-        const { date, time } = body;
+        const { date, time, professionalEmail, barberEmail: oldBarberEmail } = body;
+        const targetEmail = professionalEmail || oldBarberEmail || adminEmail;
 
         const admin = await DB.prepare('SELECT is_admin, is_barber FROM users WHERE email = ?').bind(adminEmail).first();
         if (!admin || (admin.is_admin !== 1 && admin.is_barber !== 1)) return json({ error: 'Forbidden' }, 403);
 
-        const existing = await DB.prepare('SELECT id, status FROM appointments WHERE appointment_date = ? AND appointment_time = ? AND barber_email = ?').bind(date, time, adminEmail).first();
+        const existing = await DB.prepare('SELECT id, status FROM appointments WHERE appointment_date = ? AND appointment_time = ? AND barber_email = ?').bind(date, time, targetEmail).first();
 
         if (existing) {
             if (existing.status === 'blocked') {
@@ -248,12 +249,12 @@ export async function handleAdminRoutes(url, request, env) {
                 return json({ error: 'Existem agendamentos neste horário' }, 409);
             }
         } else {
-            const id = `block-${adminEmail}-${date}-${time.replace(':', '')}`;
+            const id = `block-${targetEmail}-${date}-${time.replace(':', '')}`;
             await DB.prepare(`
                 INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status)
                 VALUES (?, 'system', ?, 'block', ?, ?, 'blocked')
                 ON CONFLICT(id) DO UPDATE SET status = 'blocked'
-            `).bind(id, adminEmail, date, time).run();
+            `).bind(id, targetEmail, date, time).run();
             return json({ status: 'blocked' });
         }
     }

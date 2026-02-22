@@ -61,15 +61,15 @@ export async function handleAppointmentRoutes(url, request, env) {
     // 3. HORÁRIOS OCUPADOS (Calendário do App)
     if (url.pathname === '/api/appointments/busy-slots' && request.method === 'GET') {
         const date = url.searchParams.get('date');
-        const barberEmail = url.searchParams.get('barber_email');
+        const professionalEmail = url.searchParams.get('professional_email') || url.searchParams.get('barber_email');
         if (!date) return json({ error: 'Missing date' }, 400);
 
         let query = 'SELECT appointment_time as time, status FROM appointments WHERE appointment_date = ? AND status != "cancelled"';
         let params = [date];
 
-        if (barberEmail) {
+        if (professionalEmail) {
             query += ' AND barber_email = ?';
-            params.push(barberEmail);
+            params.push(professionalEmail);
         }
 
         const busy = await DB.prepare(query).bind(...params).all();
@@ -162,13 +162,13 @@ export async function handleAppointmentRoutes(url, request, env) {
 
     // 9. LISTAR SERVIÇOS (Público)
     if (url.pathname === '/api/services' && request.method === 'GET') {
-        const barberEmail = url.searchParams.get('barber_email');
+        const professionalEmail = url.searchParams.get('professional_email') || url.searchParams.get('barber_email');
         let query = 'SELECT * FROM services WHERE id != "block"';
         let params = [];
 
-        if (barberEmail) {
+        if (professionalEmail) {
             query += ' AND barber_email = ?';
-            params.push(barberEmail);
+            params.push(professionalEmail);
         }
 
         const services = await DB.prepare(query).bind(...params).all();

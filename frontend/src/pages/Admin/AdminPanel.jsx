@@ -23,7 +23,7 @@ export const AdminPanel = ({
     professionals,
     teamMembers,
     handleAddTeamMember,
-    handleRecruitBarber,
+    handleRecruitProfessional,
     handleRemoveTeamMember,
     handleUpdateTeamMember,
     // Bot Props
@@ -166,7 +166,7 @@ export const AdminPanel = ({
                     professionals={professionals}
                     teamMembers={teamMembers}
                     handleAddTeamMember={handleAddTeamMember}
-                    handleRecruitBarber={handleRecruitBarber}
+                    handleRecruitBarber={handleRecruitProfessional}
                     handleRemoveTeamMember={handleRemoveTeamMember}
                     handleUpdateTeamMember={handleUpdateTeamMember}
                     loading={loading}

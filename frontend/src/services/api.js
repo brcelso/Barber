@@ -27,7 +27,7 @@ export const api = {
         });
         return res.json();
     },
-    promoteToBarber: async (email) => {
+    promoteToProfessional: async (email) => {
         const res = await fetch(`${API_URL}/user/promote`, {
             method: 'POST',
             headers: headers(email),
@@ -42,7 +42,7 @@ export const api = {
         return res.json();
     },
     getServices: async (providerEmail, ts = '') => {
-        const url = providerEmail ? `${API_URL}/services?barber_email=${providerEmail}&t=${ts}` : `${API_URL}/services?t=${ts}`;
+        const url = providerEmail ? `${API_URL}/services?professional_email=${providerEmail}&t=${ts}` : `${API_URL}/services?t=${ts}`;
         const res = await fetch(url);
         return res.json();
     },
@@ -60,8 +60,8 @@ export const api = {
         });
         return res.json();
     },
-    getBusySlots: async (dateStr, barberEmail, ts = '') => {
-        const res = await fetch(`${API_URL}/appointments/busy-slots?date=${dateStr}&barber_email=${barberEmail}&t=${ts}`);
+    getBusySlots: async (dateStr, professionalEmail, ts = '') => {
+        const res = await fetch(`${API_URL}/appointments/busy-slots?date=${dateStr}&professional_email=${professionalEmail}&t=${ts}`);
         return res.json();
     },
     book: async (email, data) => {
@@ -237,7 +237,7 @@ export const api = {
         });
         return res.json();
     },
-    recruitBarber: async (email, targetEmail) => {
+    recruitProfessional: async (email, targetEmail) => {
         const res = await fetch(`${API_URL}/team/recruit`, {
             method: 'POST',
             headers: headers(email),

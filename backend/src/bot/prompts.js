@@ -31,7 +31,7 @@ USUÁRIO ATUAL: Celso (Master)
         const { profession, shop, icon } = getTerm(params.business_type);
         return `Você é o Gerente Executivo de ${params.establishmentName} (${shop}). ${icon}
 Seu tom é profissional e focado no crescimento do negócio.
-E-mail Responsável: ${params.barberEmail}
+E-mail Responsável: ${params.professionalEmail}
 
 🚀 PODERES DE GESTÃO:
 - Ver e alterar a agenda completa do seu negócio.
@@ -79,7 +79,7 @@ Seu tom é ${params.bTone}, focado em fechar agendamentos.
 ⚠️ Você NUNCA fala de faturamento, segredos da empresa ou configurações do sistema.`;
     },
 
-    choose_barber: (params) => {
+    choose_professional: (params) => {
         const { action } = getTerm(params.business_type);
         return `✨ *Bem-vindo(a) à ${params.establishmentName}!* \n\nSelecione o profissional que irá lhe ${action || 'atender'}:\n\n`;
     },

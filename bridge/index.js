@@ -18,7 +18,7 @@ const path = require('path');
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const STATUS_URL = 'https://barber-server.celsosilvajunior90.workers.dev/api/whatsapp/status';
 const WORKER_URL = 'https://barber-server.celsosilvajunior90.workers.dev/api/whatsapp/webhook';
-const API_KEY = 'barber-secret-key';
+const API_KEY = 'universal-secret-key';
 const PORT = 3000;
 
 const app = express();
@@ -47,7 +47,7 @@ async function connectToWhatsApp(email) {
         version,
         logger: pino({ level: 'info' }),
         auth: state,
-        browser: ['Barber App', 'Chrome', '1.0.0'],
+        browser: ['Universal App', 'Chrome', '1.0.0'],
         markOnlineOnConnect: true
     });
 
@@ -61,14 +61,14 @@ async function connectToWhatsApp(email) {
         if (!msg.message) return;
 
         const remoteJid = msg.key.remoteJid || '';
-        const remoteJidAlt = msg.key.remoteJidAlt || ''; 
+        const remoteJidAlt = msg.key.remoteJidAlt || '';
         const rawMyId = sock.user?.id || '';
-        const myNumber = rawMyId.split(':')[0].split('@')[0]; 
+        const myNumber = rawMyId.split(':')[0].split('@')[0];
 
         // 1. Identifica se é Self-Chat (Eu comigo mesmo)
         const isSelfChat = myNumber && (
-            remoteJid.includes(myNumber) || 
-            remoteJidAlt.includes(myNumber) || 
+            remoteJid.includes(myNumber) ||
+            remoteJidAlt.includes(myNumber) ||
             remoteJid.includes('@lid')
         );
 
@@ -82,15 +82,15 @@ async function connectToWhatsApp(email) {
             return;
         }
 
-        const text = msg.message?.conversation || 
-                     msg.message?.extendedTextMessage?.text || 
-                     msg.message?.buttonsResponseMessage?.selectedButtonId || 
-                     msg.message?.listResponseMessage?.singleSelectReply?.selectedRowId;
+        const text = msg.message?.conversation ||
+            msg.message?.extendedTextMessage?.text ||
+            msg.message?.buttonsResponseMessage?.selectedButtonId ||
+            msg.message?.listResponseMessage?.singleSelectReply?.selectedRowId;
 
         if (text) {
             // 3. Define o remetente e limpa o número
             const sender = isSelfChat ? `${myNumber}@s.whatsapp.net` : remoteJid;
-            let cleanPhone = sender.replace(/\D/g, ""); 
+            let cleanPhone = sender.replace(/\D/g, "");
 
             // 4. AJUSTE PARA O D1: Remove o prefixo "55" se ele existir
             if (cleanPhone.startsWith("55") && cleanPhone.length > 10) {
@@ -98,14 +98,15 @@ async function connectToWhatsApp(email) {
             }
 
             console.log(`[Forward] Enviando para Worker (${email}) - De: ${cleanPhone} - Msg: ${text}`);
-            
+
             axios.post(WORKER_URL, {
                 phone: cleanPhone, // Agora envia ex: "11972509876"
                 message: text,
+                professional_email: email,
                 barber_email: email,
                 is_self_chat: isSelfChat
             }).then(() => console.log('✅ POST OK'))
-              .catch(e => console.error('❌ ERRO NO WORKER:', e.message));
+                .catch(e => console.error('❌ ERRO NO WORKER:', e.message));
         } else {
             console.log('[Upsert] Mensagem sem texto ignorada.');
         }
@@ -221,13 +222,14 @@ app.post('/api/stop', async (req, res) => {
 });
 
 app.post('/send-message', async (req, res) => {
-    const { key, number, message, barber_email } = req.body;
+    const { key, number, message, professional_email, barber_email: oldBarberEmail } = req.body;
+    const targetEmail = professional_email || oldBarberEmail;
 
     console.log(`Tentando enviar via: ${barber_email}. Sessões ativas:`, Array.from(sessions.keys()));
 
     if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });
 
-    const sock = sessions.get(barber_email || ADMIN_EMAIL);
+    const sock = sessions.get(targetEmail || ADMIN_EMAIL);
     if (!sock) return res.status(503).json({ error: 'WhatsApp não conectado' });
 
     try {
@@ -239,6 +241,6 @@ app.post('/send-message', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Barber Multi-Bridge rodando na porta ${PORT}`);
+    console.log(`🚀 Universal Multi-Bridge rodando na porta ${PORT}`);
     loadExistingSessions();
 });

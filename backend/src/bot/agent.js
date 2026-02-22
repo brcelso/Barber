@@ -126,7 +126,7 @@ export const BUSINESS_TOOLS = [
     }
 ];
 
-export async function runAgentChat(env, { prompt, isAdmin, barberContext }) {
+export async function runAgentChat(env, { prompt, isAdmin, professionalContext }) {
 
     // 🛡️ ESCUDO ANTI-STATUS
     if (!prompt || String(prompt).trim() === '' || String(prompt) === 'undefined') {
@@ -135,15 +135,15 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext }) {
 
     const { DB, AI } = env;
     const model = '@cf/meta/llama-3.1-8b-instruct';
-    const emailReal = (barberContext?.barberEmail && barberContext.barberEmail !== "undefined")
-        ? barberContext.barberEmail
+    const emailReal = (professionalContext?.professionalEmail && professionalContext.professionalEmail !== "undefined")
+        ? professionalContext.professionalEmail
         : "celsosilvajunior90@gmail.com";
 
     // 🔑 DETERMINAR NÍVEL DE ACESSO (RBAC)
     let role = 'client';
     if (isAdmin) {
         if (emailReal === 'celsosilvajunior90@gmail.com') role = 'master';
-        else if (!barberContext.owner_id) role = 'owner';
+        else if (!professionalContext.owner_id) role = 'owner';
         else role = 'staff';
     }
 
@@ -159,10 +159,10 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext }) {
 
     // 📝 SELEÇÃO DE PROMPT
     let systemPrompt = "";
-    if (role === 'master') systemPrompt = ADMIN_PROMPTS.system_master(barberContext);
-    else if (role === 'owner') systemPrompt = ADMIN_PROMPTS.system_owner(barberContext);
-    else if (role === 'staff') systemPrompt = ADMIN_PROMPTS.system_staff(barberContext);
-    else systemPrompt = CLIENT_PROMPTS.system_ai(barberContext);
+    if (role === 'master') systemPrompt = ADMIN_PROMPTS.system_master(professionalContext);
+    else if (role === 'owner') systemPrompt = ADMIN_PROMPTS.system_owner(professionalContext);
+    else if (role === 'staff') systemPrompt = ADMIN_PROMPTS.system_staff(professionalContext);
+    else systemPrompt = CLIENT_PROMPTS.system_ai(professionalContext);
 
     let dynamicContext = "";
 
@@ -223,7 +223,7 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext }) {
                     DB,
                     AI,
                     emailReal,
-                    barberContext
+                    professionalContext
                 });
                 toolData = JSON.stringify(result);
             } else {

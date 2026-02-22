@@ -1,6 +1,6 @@
 import Dexie from 'dexie';
 
-export const db = new Dexie('BarberDB');
+export const db = new Dexie('UniversalSchedulerDB');
 
 db.version(1).stores({
     user: 'email',

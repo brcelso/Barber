@@ -79,7 +79,7 @@ function stopAll() {
 }
 
 async function run() {
-    console.log('--- GERENCIADOR BARBER BRIDGE ---');
+    console.log('--- GERENCIADOR UNIVERSAL BRIDGE ---');
 
 
 
@@ -122,7 +122,7 @@ async function run() {
                         console.log('📡 Atualizando Backend com nova URL da Bridge...');
                         // Update Bridge URL
                         await axios.post(`${API_URL}/admin/bridge/update`, {
-                            key: 'barber-secret-key',
+                            key: 'universal-secret-key',
                             url: bridgeUrl,
                             email: ADMIN_EMAIL
                         });

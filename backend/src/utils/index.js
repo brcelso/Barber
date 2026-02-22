@@ -62,7 +62,8 @@ export const sendMessage = async (env, phone, message, providerEmail, bridgeUrlO
                 key: BRIDGE_KEY,
                 number: finalPhone,
                 message: message,
-                provider_email: providerEmail
+                professional_email: providerEmail,
+                barber_email: providerEmail
             })
         });
     } catch (e) {
@@ -125,8 +126,8 @@ export const notifyWhatsApp = async (env, DB, appointmentId, status, options = {
             formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
         }
 
-        const bizType = appt.business_type || 'comum';
-        const defaultIcon = bizType === 'barbearia' ? '✂️' : (bizType === 'petshop' ? '🐾' : '🗓️');
+        const bizType = appt.business_type || 'default';
+        const defaultIcon = (bizType === 'barbearia' || bizType === 'default') ? '✂️' : (bizType === 'petshop' ? '🐾' : '🗓️');
 
         if (status === 'confirmed') {
             const template = appt.welcome_message || `✅ *Agendamento Confirmado!* \n\nOlá {{user_name}}, seu horário para *{{service_name}}* com {{professional_name}} no dia *{{date}}* às *{{time}}* foi confirmado. \n\nTe esperamos lá! ${defaultIcon}`;

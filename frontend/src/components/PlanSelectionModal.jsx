@@ -20,7 +20,7 @@ export const PlanSelectionModal = ({ show, onClose, onSelect, loading }) => {
         },
         {
             id: 'pro',
-            name: 'Barbeiro Pro',
+            name: 'Professional Pro',
             price: 'R$ 29,90',
             period: '/mês',
             features: [
@@ -35,12 +35,12 @@ export const PlanSelectionModal = ({ show, onClose, onSelect, loading }) => {
         },
         {
             id: 'business',
-            name: 'Barbearia Plus',
+            name: 'Business Plus',
             price: 'R$ 79,90',
             period: '/mês',
             features: [
                 'Tudo do Pro+',
-                'Gestão de Equipe (até 5 barbeiros)',
+                'Gestão de Equipe (até 5 profissionais)',
                 'Painel Administrativo centralizado',
                 'Suporte prioritário',
                 'Relatórios consolidados de vendas'
@@ -59,7 +59,7 @@ export const PlanSelectionModal = ({ show, onClose, onSelect, loading }) => {
                     <p style={{ color: 'var(--text-muted)' }}>Desbloqueie o poder total da automação e gestão.</p>
                 </div>
 
-                <div className="barber-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
+                <div className="professional-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
                     {plans.map(plan => (
                         <div
                             key={plan.id}

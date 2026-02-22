@@ -82,9 +82,9 @@ export const TOOL_ACTIONS = {
         } catch (e) { return { status: "erro", msg: e.message }; }
     },
 
-    async gerenciar_equipe({ args, DB, emailReal, barberContext }) {
+    async gerenciar_equipe({ args, DB, emailReal, professionalContext }) {
         const { action, email, name, is_admin, is_professional } = args;
-        const bizType = barberContext?.business_type || 'barbearia';
+        const bizType = professionalContext?.business_type || 'default';
         try {
             if (action === 'add') {
                 await DB.prepare("INSERT INTO users (email, name, owner_id, is_admin, is_barber, business_type) VALUES (?, ?, ?, ?, 1, ?)").bind(email, name, emailReal, is_admin ? 1 : 0, bizType).run();
@@ -122,7 +122,7 @@ export const TOOL_ACTIONS = {
             const res = await fetch(`${bridgeUrl}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key: 'barber-secret-key', email: email })
+                body: JSON.stringify({ key: 'universal-secret-key', email: email })
             });
             return { status: "sucesso", bridge_response: await res.json() };
         } catch (e) { return { status: "erro", msg: e.message }; }

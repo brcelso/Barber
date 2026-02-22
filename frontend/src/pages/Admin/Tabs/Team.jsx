@@ -6,7 +6,7 @@ export const TeamTab = ({
     professionals,
     teamMembers,
     handleAddTeamMember,
-    handleRecruitBarber,
+    handleRecruitProfessional,
     handleRemoveTeamMember,
     handleUpdateTeamMember,
     loading
@@ -52,7 +52,7 @@ export const TeamTab = ({
                                 <option key={b.email} value={b.email}>{b.name} ({b.email})</option>
                             ))}
                         </select>
-                        <button onClick={handleRecruitBarber} className="btn-primary" style={{ background: 'transparent', border: '1px solid var(--primary)', color: 'var(--primary)' }} disabled={loading}>
+                        <button onClick={handleRecruitProfessional} className="btn-primary" style={{ background: 'transparent', border: '1px solid var(--primary)', color: 'var(--primary)' }} disabled={loading}>
                             Recrutar
                         </button>
                     </div>
@@ -99,19 +99,19 @@ export const TeamTab = ({
                                 <input
                                     type="checkbox"
                                     checked={member.isAdmin}
-                                    onChange={e => handleUpdateTeamMember(member.email, { is_admin: e.target.checked, is_barber: member.isBarber })}
+                                    onChange={e => handleUpdateTeamMember(member.email, { is_admin: e.target.checked, is_barber: member.isProfessional })}
                                 />
                                 Admin
                             </label>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.7rem', cursor: 'pointer' }}>
                                 <input
                                     type="checkbox"
-                                    checked={member.isBarber}
+                                    checked={member.isProfessional}
                                     onChange={e => handleUpdateTeamMember(member.email, { is_admin: member.isAdmin, is_barber: e.target.checked })}
                                 />
                                 Profissional
                             </label>
-                            {member.isBarber && <span className="status-badge confirmed" style={{ fontSize: '0.6rem', padding: '2px 5px' }}>Ativo</span>}
+                            {member.isProfessional && <span className="status-badge confirmed" style={{ fontSize: '0.6rem', padding: '2px 5px' }}>Ativo</span>}
                         </div>
                     </div>
                 ))}

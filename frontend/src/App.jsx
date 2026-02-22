@@ -19,7 +19,7 @@ import { AdminPanel } from './pages/Admin/AdminPanel';
 
 function App() {
   // --- ESTADOS ---
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('barber_user') || 'null'));
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('universal_user') || 'null'));
   const [view, setView] = useState('book');
   const [services, setServices] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
@@ -51,7 +51,7 @@ function App() {
     bot_tone: 'prestativo e amigável',
     welcome_message: '',
     msg_welcome: '',
-    msg_choose_barber: '',
+    msg_choose_professional: '',
     msg_choose_service: '',
     msg_confirm_booking: ''
   });
@@ -108,17 +108,17 @@ function App() {
     } catch { console.error('Error fetching admin appts'); }
   }, [user]);
 
-  const fetchBusySlots = useCallback(async (date, barber, ts = '') => {
-    const effectiveBarber = barber || (user?.isBarber ? user : null);
+  const fetchBusySlots = useCallback(async (date, professional, ts = '') => {
+    const effectiveProfessional = professional || (user?.isProfessional ? user : null);
 
-    if (!effectiveBarber || !date) {
+    if (!effectiveProfessional || !date) {
       setBusySlots([]);
       return;
     }
 
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
-      const data = await api.getBusySlots(dateStr, effectiveBarber.email, ts);
+      const data = await api.getBusySlots(dateStr, effectiveProfessional.email, ts);
 
       const dataArray = Array.isArray(data) ? data : [];
 
@@ -149,7 +149,7 @@ function App() {
       if ((data.isMaster && !user.isMaster) || (data.isProfessional && !user.isProfessional)) {
         const updatedUser = { ...user, isMaster: data.isMaster, isProfessional: data.isProfessional };
         setUser(updatedUser);
-        localStorage.setItem('barber_user', JSON.stringify(updatedUser));
+        localStorage.setItem('universal_user', JSON.stringify(updatedUser));
       }
     } catch { console.error('Subscription fail'); }
   }, [user]);
@@ -262,7 +262,7 @@ function App() {
       await api.toggleBlock(user.email, {
         date: format(selectedDate, 'yyyy-MM-dd'),
         time: time,
-        barberEmail: effectiveProfessional.email
+        professionalEmail: effectiveProfessional.email
       });
 
       // 3. Aguarda a atualização dos slots
@@ -297,13 +297,13 @@ function App() {
     }
   };
 
-  const handleRecruitBarber = async () => {
+  const handleRecruitProfessional = async () => {
     const select = document.getElementById('recruitSelect');
     const email = select.value;
     if (!email) return;
     setLoading(true);
     try {
-      await api.recruitBarber(user.email, email);
+      await api.recruitProfessional(user.email, email);
       await Promise.all([fetchProfessionals(), fetchTeamMembers()]);
     } catch {
       alert('Erro ao recrutar profissional.');
@@ -405,7 +405,7 @@ function App() {
       const res = await api.login(data);
       if (res.user) {
         setUser(res.user);
-        localStorage.setItem('barber_user', JSON.stringify(res.user));
+        localStorage.setItem('universal_user', JSON.stringify(res.user));
         if (!res.user.phone) setShowPhoneSetup(true);
       }
     } catch { alert('Erro no login'); }
@@ -422,7 +422,7 @@ function App() {
     try {
       const bookingData = {
         email: user.email,
-        barberEmail: selectedProfessional.email,
+        professionalEmail: selectedProfessional.email,
         serviceId: selectedService.id,
         date: format(selectedDate, 'yyyy-MM-dd'),
         time: selectedTime
@@ -484,7 +484,7 @@ function App() {
     <div className="container">
       <Header
         user={user} view={view} setView={setView} loading={loading}
-        handleRefresh={handleRefresh} handleLogout={() => { setUser(null); localStorage.removeItem('barber_user'); }}
+        handleRefresh={handleRefresh} handleLogout={() => { setUser(null); localStorage.removeItem('universal_user'); }}
         subscription={subscription} setShowPlanSelection={setShowPlanSelection} isAdminMode={isAdminMode}
       />
 
@@ -524,7 +524,7 @@ function App() {
           setSelectedActionAppt={setSelectedActionAppt} handleRefresh={handleRefresh}
           professionals={professionals} teamMembers={teamMembers} loading={loading} waStatus={waStatus} botSettings={botSettings}
           setBotSettings={setBotSettings} handleUpdateBotSettings={handleUpdateBotSettings}
-          handleAddTeamMember={handleAddTeamMember} handleRecruitBarber={handleRecruitBarber}
+          handleAddTeamMember={handleAddTeamMember} handleRecruitProfessional={handleRecruitProfessional}
           handleRemoveTeamMember={handleRemoveTeamMember} handleUpdateTeamMember={handleUpdateTeamMember}
           masterStats={masterStats} masterUsers={masterUsers} masterFilter={masterFilter} setMasterFilter={setMasterFilter}
           handleMasterUpdate={handleMasterUpdate} handleMasterDelete={handleMasterDelete}

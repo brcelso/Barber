@@ -699,13 +699,13 @@ button {
   min-width: 110px;
 }
 
-.barber-card:hover {
+.professional-card:hover {
   border-color: rgba(212, 175, 55, 0.4);
   background: rgba(255, 255, 255, 0.07);
   transform: translateY(-3px);
 }
 
-.barber-card.active {
+.professional-card.active {
   border-color: var(--primary);
   background: rgba(212, 175, 55, 0.12);
   box-shadow: 0 0 20px rgba(212, 175, 55, 0.25);
@@ -721,7 +721,7 @@ button {
   transition: border-color 0.3s ease;
 }
 
-.barber-card.active img {
+.professional-card.active img {
   border-color: var(--primary);
 }
 

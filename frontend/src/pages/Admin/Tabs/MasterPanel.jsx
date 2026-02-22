@@ -94,7 +94,7 @@ export const MasterPanelTab = ({
                             </label>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', cursor: 'pointer' }}>
                                 <input type="checkbox" checked={u.is_barber === 1} onChange={e => handleMasterUpdate(u.email, { is_barber: e.target.checked })} />
-                                É Barbeiro
+                                É Profissional
                             </label>
                         </div>
                     </div>

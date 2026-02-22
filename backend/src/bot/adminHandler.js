@@ -2,7 +2,7 @@ import { json, sendMessage } from '../utils/index.js';
 import { ADMIN_PROMPTS } from './prompts.js';
 import { runAgentChat } from './agent.js';
 
-export async function handleAdminFlow(from, text, textLower, adminInfo, botBarberEmail, env) {
+export async function handleAdminFlow(from, text, textLower, adminInfo, botProfessionalEmail, env) {
     const isMenuCommand = ['menu', 'oi', 'ola', 'opa', 'ok', 'voltar', 'ajuda'].includes(textLower);
 
     // 1. Gerenciamento de Sessão
@@ -18,16 +18,16 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
     // 2.1 PAGINAÇÃO DA AGENDA
     if (session?.state === 'admin_viewing_agenda' && text === '8') {
         const lastPage = metadata.last_agenda_page || 1;
-        return await showAgenda(from, adminInfo, botBarberEmail, env, lastPage + 1);
+        return await showAgenda(from, adminInfo, botProfessionalEmail, env, lastPage + 1);
     }
 
     // 3. FLUXO AGÊNTICO
     try {
-        const barberContext = {
-            establishmentName: adminInfo.shop_name || adminInfo.name || 'Barbearia',
-            barberEmail: adminInfo.email,
+        const professionalContext = {
+            establishmentName: adminInfo.shop_name || adminInfo.name || 'Estabelecimento',
+            professionalEmail: adminInfo.email,
             owner_id: adminInfo.owner_id,
-            business_type: adminInfo.business_type || 'barbearia', // Multi-nicho
+            business_type: adminInfo.business_type || 'default', // Multi-nicho
             name: adminInfo.name,
             bName: adminInfo.bot_name || 'Leo',
             bTone: adminInfo.bot_tone || 'profissional'
@@ -36,20 +36,20 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
         const aiData = await runAgentChat(env, {
             prompt: text,
             isAdmin: true,
-            barberContext: barberContext
+            professionalContext: professionalContext
         });
 
         const aiMsg = aiData.text || "Chefe, não consegui processar isso agora. Pode me mandar a dúvida de novo?";
-        await sendMessage(env, from, aiMsg, botBarberEmail);
+        await sendMessage(env, from, aiMsg, botProfessionalEmail);
         return json({ success: true });
 
     } catch (e) {
         console.error('[Agentic Admin Flow Error]', e);
-        return await handleIntentsFallback(from, text, adminInfo, botBarberEmail, env);
+        return await handleIntentsFallback(from, text, adminInfo, botProfessionalEmail, env);
     }
 }
 
-async function showAgenda(from, adminInfo, botBarberEmail, env, page = 1) {
+async function showAgenda(from, adminInfo, botProfessionalEmail, env, page = 1) {
     const limit = 8;
     const offset = (page - 1) * limit;
     const brazilTime = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
@@ -71,7 +71,7 @@ async function showAgenda(from, adminInfo, botBarberEmail, env, page = 1) {
     await env.DB.prepare('UPDATE whatsapp_sessions SET metadata = ? WHERE phone = ?').bind(JSON.stringify(metadata), from).run();
 
     if (appts.results.length === 0 && page === 1) {
-        await sendMessage(env, from, "Chefe, sua agenda está livre. 👍\n\n" + ADMIN_PROMPTS.main_menu(adminInfo), botBarberEmail);
+        await sendMessage(env, from, "Chefe, sua agenda está livre. 👍\n\n" + ADMIN_PROMPTS.main_menu(adminInfo), botProfessionalEmail);
         return json({ success: true });
     }
 
@@ -86,13 +86,13 @@ async function showAgenda(from, adminInfo, botBarberEmail, env, page = 1) {
     if (appts.results.length > limit) msg += "8️⃣ - ➕ Ver mais clientes\n";
     msg += "\n*Comandos Rápidos:* Digite 'Cancele o das 14h' ou 'Confirme João'.";
 
-    await sendMessage(env, from, msg, botBarberEmail);
+    await sendMessage(env, from, msg, botProfessionalEmail);
     return json({ success: true });
 }
 
 
-async function handleIntentsFallback(from, text, adminInfo, botBarberEmail, env) {
-    await sendMessage(env, from, "⚠️ Tive um problema ao acessar a inteligência agora. Por favor, tente usar os números do menu ou tente novamente em instantes.", botBarberEmail);
-    await sendMessage(env, from, ADMIN_PROMPTS.main_menu(adminInfo), botBarberEmail);
+async function handleIntentsFallback(from, text, adminInfo, botProfessionalEmail, env) {
+    await sendMessage(env, from, "⚠️ Tive um problema ao acessar a inteligência agora. Por favor, tente usar os números do menu ou tente novamente em instantes.", botProfessionalEmail);
+    await sendMessage(env, from, ADMIN_PROMPTS.main_menu(adminInfo), botProfessionalEmail);
     return json({ success: true });
 }

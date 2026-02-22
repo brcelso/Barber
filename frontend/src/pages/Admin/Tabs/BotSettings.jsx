@@ -25,7 +25,7 @@ export const BotSettingsTab = ({
                 </div>
 
                 {!waStatus.qr && waStatus.status !== 'connected' && (
-                    <LocalBridgeStarter userEmail={JSON.parse(localStorage.getItem('barber_user') || '{}').email} />
+                    <LocalBridgeStarter userEmail={JSON.parse(localStorage.getItem('universal_user') || '{}').email} />
                 )}
 
                 {waStatus.qr && waStatus.status !== 'connected' && (
@@ -64,7 +64,7 @@ export const BotSettingsTab = ({
                     <div className="form-group">
                         <label>Mensagem de Confirmação (Notificação)</label>
                         <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '5px' }}>
-                            Tags: {'{{user_name}}, {{service_name}}, {{barber_name}}, {{date}}, {{time}}'}
+                            Tags: {'{{user_name}}, {{service_name}}, {{professional_name}}, {{date}}, {{time}}'}
                         </p>
                         <textarea
                             rows="4"
@@ -83,7 +83,7 @@ export const BotSettingsTab = ({
                             </div>
                             <div>
                                 <label style={{ fontSize: '0.75rem' }}>2. Seleção de Profissional</label>
-                                <textarea rows="2" value={botSettings.msg_choose_barber} onChange={e => setBotSettings({ ...botSettings, msg_choose_barber: e.target.value })} className="glass-card" style={{ width: '100%', padding: '10px', fontSize: '0.85rem' }} />
+                                <textarea rows="2" value={botSettings.msg_choose_professional} onChange={e => setBotSettings({ ...botSettings, msg_choose_professional: e.target.value })} className="glass-card" style={{ width: '100%', padding: '10px', fontSize: '0.85rem' }} />
                             </div>
                             <div>
                                 <label style={{ fontSize: '0.75rem' }}>3. Seleção de Serviço</label>
