@@ -3,7 +3,9 @@ import { handleAdminFlow } from './adminHandler.js';
 import { handleClientFlow } from './clientHandler.js';
 
 export async function handleWhatsAppWebhook(request, env) {
+    console.log('[Webhook] Recibido POST');
     const body = await request.json();
+
     const from = body.phone?.replace(/\D/g, ""); // Telefone de quem enviou
     const text = (body.message || "").trim();
     const textLower = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");

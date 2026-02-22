@@ -29,14 +29,6 @@ const sessions = new Map();
 const sessionTimers = new Map();
 
 async function connectToWhatsApp(email) {
-    // BLOQUEIO DE SEGURANÇA (COMENTADO PARA PERMITIR BOOT SEMPRE)
-    /*
-    if (fs.existsSync('.stop-flag')) {
-        console.log(`[Session] 🛑 Bloqueado por .stop-flag: ${email}`);
-        return;
-    }
-    */
-
     if (sessions.has(email)) {
         console.log(`[Session] Sessão já inicializada para ${email}`);
         return;
@@ -53,16 +45,15 @@ async function connectToWhatsApp(email) {
 
     const sock = makeWASocket({
         version,
-        logger: pino({ level: 'silent' }),
+        logger: pino({ level: 'info' }),
         auth: state,
         browser: ['Barber App', 'Chrome', '1.0.0'],
         markOnlineOnConnect: true
-        // printQRInTerminal removido por estar obsoleto
     });
 
     sessions.set(email, sock);
 
-    // Eventos de Mensagem
+    // --- EVENTOS DE MENSAGEM ---
     sock.ev.on('messages.upsert', async m => {
         if (m.type !== 'notify') return;
 
@@ -70,37 +61,62 @@ async function connectToWhatsApp(email) {
         if (!msg.message) return;
 
         const remoteJid = msg.key.remoteJid || '';
-        const isLid = remoteJid.endsWith('@lid');
-
+        const remoteJidAlt = msg.key.remoteJidAlt || ''; 
         const rawMyId = sock.user?.id || '';
-        const myNumber = rawMyId.split(':')[0].split('@')[0];
+        const myNumber = rawMyId.split(':')[0].split('@')[0]; 
 
-        const isSelfChat = myNumber && remoteJid.startsWith(myNumber);
+        // 1. Identifica se é Self-Chat (Eu comigo mesmo)
+        const isSelfChat = myNumber && (
+            remoteJid.includes(myNumber) || 
+            remoteJidAlt.includes(myNumber) || 
+            remoteJid.includes('@lid')
+        );
 
-        if (msg.key.fromMe && !isSelfChat) return;
+        const fromMe = msg.key.fromMe;
 
-        const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
+        console.log(`[Debug] Msg de: ${remoteJid}, Me: ${myNumber}, isSelf: ${isSelfChat}, fromMe: ${fromMe}`);
+
+        // 2. Trava de segurança: Pula mensagens que eu envio para outras pessoas (não bot)
+        if (fromMe && !isSelfChat) {
+            console.log('[Upsert] Pulando: Enviada por mim para terceiros.');
+            return;
+        }
+
+        const text = msg.message?.conversation || 
+                     msg.message?.extendedTextMessage?.text || 
+                     msg.message?.buttonsResponseMessage?.selectedButtonId || 
+                     msg.message?.listResponseMessage?.singleSelectReply?.selectedRowId;
 
         if (text) {
+            // 3. Define o remetente e limpa o número
             const sender = isSelfChat ? `${myNumber}@s.whatsapp.net` : remoteJid;
-            const tag = isSelfChat ? '[ADMIN CMD]' : '[Recebido]';
-            console.log(`${tag} (${email}) De: ${sender} - Msg: ${text}`);
+            let cleanPhone = sender.replace(/\D/g, ""); 
+
+            // 4. AJUSTE PARA O D1: Remove o prefixo "55" se ele existir
+            if (cleanPhone.startsWith("55") && cleanPhone.length > 10) {
+                cleanPhone = cleanPhone.substring(2);
+            }
+
+            console.log(`[Forward] Enviando para Worker (${email}) - De: ${cleanPhone} - Msg: ${text}`);
+            
             axios.post(WORKER_URL, {
-                phone: sender,
+                phone: cleanPhone, // Agora envia ex: "11972509876"
                 message: text,
                 barber_email: email,
                 is_self_chat: isSelfChat
-            }).catch(e => console.error('❌ ERRO NO WORKER:', e.message));
+            }).then(() => console.log('✅ POST OK'))
+              .catch(e => console.error('❌ ERRO NO WORKER:', e.message));
+        } else {
+            console.log('[Upsert] Mensagem sem texto ignorada.');
         }
     });
 
-    // Atualização de Conexão e QR Code
+    // --- ATUALIZAÇÃO DE CONEXÃO E QR CODE ---
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
             console.log(`[QR] 📲 Novo código gerado para ${email}. Escaneie abaixo:`);
-            // Renderiza o QR no terminal manualmente
             qrcodeTerminal.generate(qr, { small: true });
 
             try {
@@ -117,18 +133,13 @@ async function connectToWhatsApp(email) {
 
             if (reason === DisconnectReason.loggedOut || reason === DisconnectReason.connectionReplaced) {
                 sessions.delete(email);
-                console.log(`[Session] (${email}) Sessão encerrada permanentemente. Limpando arquivos...`);
-
-                // Limpa a pasta de autenticação para permitir novo login
                 const safeId = Buffer.from(email).toString('hex');
                 const authFolder = path.join('auth_sessions', `session_${safeId}`);
                 if (fs.existsSync(authFolder)) {
                     try {
                         fs.rmSync(authFolder, { recursive: true, force: true });
                         console.log(`[Session] 🗑️ Arquivos de sessão removidos: ${email}`);
-                    } catch (err) {
-                        console.error(`[Session] ❌ Erro ao remover arquivos de sessão:`, err.message);
-                    }
+                    } catch (err) { console.error(`[Session] ❌ Erro ao remover arquivos:`, err.message); }
                 }
             } else {
                 if (sessions.has(email)) {
@@ -149,7 +160,6 @@ async function connectToWhatsApp(email) {
 
     sock.ev.on('creds.update', saveCreds);
 
-    // Heartbeat
     const heartbeatParams = setInterval(() => {
         if (sessions.get(email) === sock) {
             axios.post(STATUS_URL, { email, status: 'heartbeat' }).catch(() => { });
