@@ -225,7 +225,7 @@ app.post('/send-message', async (req, res) => {
     const { key, number, message, professional_email, barber_email: oldBarberEmail } = req.body;
     const targetEmail = professional_email || oldBarberEmail;
 
-    console.log(`Tentando enviar via: ${barber_email}. Sessões ativas:`, Array.from(sessions.keys()));
+    console.log(`Tentando enviar via: ${targetEmail}. Sessões ativas:`, Array.from(sessions.keys()));
 
     if (key !== API_KEY) return res.status(401).json({ error: 'Chave inválida' });
 

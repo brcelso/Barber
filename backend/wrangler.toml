@@ -9,8 +9,8 @@ database_name = "barber-db"
 database_id = "833f15c1-bda9-43fa-a890-0dbaf04514e8"
 
 [vars]
-GLOBAL_APP_NAME = "Universal"
-GLOBAL_BRAND_COLOR = "#ff00d0ff"
+GLOBAL_APP_NAME = "Universal Scheduler"
+GLOBAL_BRAND_COLOR = "#0066ffff"
 WA_BRIDGE_KEY = "universal-secret-key"
 WA_BRIDGE_URL = "https://nisi-marbly-maeve.ngrok-free.dev"
 
