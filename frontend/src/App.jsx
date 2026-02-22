@@ -44,6 +44,7 @@ function App() {
   const [waStatus, setWaStatus] = useState({ status: 'disconnected', qr: null });
   const [masterStats, setMasterStats] = useState(null);
   const [masterUsers, setMasterUsers] = useState([]);
+  const [masterFilter, setMasterFilter] = useState('');
   const [botSettings, setBotSettings] = useState({
     bot_name: 'Leo',
     business_type: 'barbearia',
@@ -281,6 +282,53 @@ function App() {
     }
   };
 
+  const handleAddTeamMember = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = {
+      name: formData.get('memberName'),
+      email: formData.get('memberEmail')
+    };
+    setLoading(true);
+    try {
+      await api.addTeamMember(user.email, data);
+      await Promise.all([fetchBarbers(), fetchTeamMembers()]);
+      e.target.reset();
+    } catch {
+      alert('Erro ao adicionar membro.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRecruitBarber = async () => {
+    const select = document.getElementById('recruitSelect');
+    const email = select.value;
+    if (!email) return;
+    setLoading(true);
+    try {
+      await api.recruitBarber(user.email, email);
+      await Promise.all([fetchBarbers(), fetchTeamMembers()]);
+    } catch {
+      alert('Erro ao recrutar barbeiro.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveTeamMember = async (memberEmail) => {
+    if (!confirm('Tem certeza que deseja remover este membro?')) return;
+    setLoading(true);
+    try {
+      await api.removeTeamMember(user.email, memberEmail);
+      await Promise.all([fetchBarbers(), fetchTeamMembers()]);
+    } catch {
+      alert('Erro ao remover membro.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleUpdateTeamMember = async (memberEmail, updates) => {
     setLoading(true);
     try {
@@ -288,6 +336,68 @@ function App() {
       await Promise.all([fetchBarbers(), fetchTeamMembers()]);
     } catch {
       alert('Erro ao atualizar membro da equipe.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateBotSettings = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api.updateBotSettings(user.email, botSettings);
+      alert('Configurações do Bot atualizadas!');
+    } catch {
+      alert('Erro ao atualizar configurações.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMasterUpdate = async (targetEmail, updates) => {
+    setLoading(true);
+    try {
+      await api.masterUpdateUser(user.email, targetEmail, updates);
+      await fetchMasterData();
+    } catch {
+      alert('Erro ao atualizar usuário.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMasterDelete = async (targetEmail) => {
+    if (!confirm('Tem certeza?')) return;
+    setLoading(true);
+    try {
+      await api.masterDeleteUser(user.email, targetEmail);
+      await fetchMasterData();
+    } catch {
+      alert('Erro ao deletar usuário.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMasterRestartBot = async (targetEmail) => {
+    setLoading(true);
+    try {
+      await api.startBot(user.email, targetEmail);
+      alert('Bot reiniciado!');
+    } catch {
+      alert('Erro ao reiniciar bot.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMasterStopBot = async (targetEmail) => {
+    setLoading(true);
+    try {
+      await api.stopBot(user.email, targetEmail);
+      alert('Bot parado!');
+    } catch {
+      alert('Erro ao parar bot.');
     } finally {
       setLoading(false);
     }
@@ -371,7 +481,7 @@ function App() {
       fetchTeamMembers();
       if (user.isMaster) fetchMasterData();
     }
-  }, [user, fetchBotSettings, fetchMasterData, fetchWaStatus]);
+  }, [user, fetchBotSettings, fetchMasterData, fetchWaStatus, fetchTeamMembers]);
 
   useEffect(() => {
     const barber = selectedBarber || (user?.isBarber ? user : null);
@@ -426,7 +536,12 @@ function App() {
           handleToggleBlock={handleToggleBlock} handleToggleFullDay={handleToggleFullDay}
           setSelectedActionAppt={setSelectedActionAppt} handleRefresh={handleRefresh}
           barbers={barbers} teamMembers={teamMembers} loading={loading} waStatus={waStatus} botSettings={botSettings}
-          setBotSettings={setBotSettings} masterStats={masterStats} masterUsers={masterUsers}
+          setBotSettings={setBotSettings} handleUpdateBotSettings={handleUpdateBotSettings}
+          handleAddTeamMember={handleAddTeamMember} handleRecruitBarber={handleRecruitBarber}
+          handleRemoveTeamMember={handleRemoveTeamMember} handleUpdateTeamMember={handleUpdateTeamMember}
+          masterStats={masterStats} masterUsers={masterUsers} masterFilter={masterFilter} setMasterFilter={setMasterFilter}
+          handleMasterUpdate={handleMasterUpdate} handleMasterDelete={handleMasterDelete}
+          handleMasterRestartBot={handleMasterRestartBot} handleMasterStopBot={handleMasterStopBot}
         />
       )}
 
