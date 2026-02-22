@@ -1,6 +1,6 @@
 /**
- * Agentic AI Logic for Barber Bot - Versão Antecipatória
- * Arquitetura: Pre-fetch Context (Admin) + Dynamic Tools (Client)
+ * Agentic AI Logic for Barber Bot - Versão Produção
+ * Arquitetura: Pre-fetch Context (Admin) + Dynamic Tools + ESLint Clean
  */
 
 import { ADMIN_PROMPTS, CLIENT_PROMPTS } from './prompts.js';
@@ -20,9 +20,9 @@ export const BARBER_TOOLS = [
     }
 ];
 
-export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEmail }) {
+export async function runAgentChat(env, { prompt, isAdmin, barberContext }) {
     
-    // 🛡️ ESCUDO ANTI-STATUS (WhatsApp Recibos)
+    // 🛡️ ESCUDO ANTI-STATUS (Previne Erro 5006 por prompts vazios)
     if (!prompt || String(prompt).trim() === '' || String(prompt) === 'undefined') {
         return { text: "" }; 
     }
@@ -35,7 +35,7 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
 
     let dynamicContext = "";
 
-    // 🚀 ESTRATÉGIA ANTECIPATÓRIA (Apenas para o Chefe)
+    // 🚀 ESTRATÉGIA ANTECIPATÓRIA (Breifing Proativo para o Chefe)
     if (isAdmin) {
         const hoje = new Date().toISOString().split('T')[0];
         try {
@@ -44,16 +44,16 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
             ).bind(hoje, emailReal).all();
             
             if (res.results && res.results.length > 0) {
-                dynamicContext = `\n\n[BRIEFING DO DIA - ${hoje}]: Você já sabe que o chefe tem ${res.results.length} agendamentos hoje: ${JSON.stringify(res.results)}. Use isso para dar um 'Oi' proativo.`;
+                dynamicContext = `\n\n[BRIEFING DO DIA - ${hoje}]: Você já sabe que o chefe tem ${res.results.length} agendamentos hoje: ${JSON.stringify(res.results)}. Use isso para dar um 'Oi' inteligente e proativo.`;
             } else {
-                dynamicContext = `\n\n[BRIEFING DO DIA]: A agenda de hoje (${hoje}) está livre até o momento.`;
+                dynamicContext = `\n\n[BRIEFING DO DIA]: A agenda de hoje (${hoje}) está livre até o momento. Informe isso de forma amigável se ele te saudar.`;
             }
         } catch (e) {
-            console.error("Erro no Pre-fetch", e);
+            console.error("[Pre-fetch Error]", e);
         }
     }
 
-    // Injeção do Prompt com Contexto Antecipado
+    // Injeção do Prompt com Contexto Antecipado (Injetado apenas se for Admin)
     const systemPrompt = isAdmin 
         ? ADMIN_PROMPTS.system_admin(barberContext) + dynamicContext 
         : CLIENT_PROMPTS.system_ai(barberContext);
@@ -84,14 +84,14 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
             if (call.name === 'consultar_agenda') {
                 let { appointment_date } = call.arguments; 
                 
-                // ⏱️ NORMALIZADOR DINÂMICO DE TEMPO (2026+)
+                // ⏱️ NORMALIZADOR DINÂMICO DE TEMPO (Corrige 1970/2024 para o ano atual)
                 const anoAtual = new Date().getFullYear().toString(); 
                 if (appointment_date && appointment_date.includes('-')) {
                     const partesData = appointment_date.split('-');
                     if (partesData[0] !== anoAtual) {
                         partesData[0] = anoAtual;
                         appointment_date = partesData.join('-');
-                        console.log(`[Normalização] Data ajustada: ${appointment_date}`);
+                        console.log(`[Normalização] Data ajustada para: ${appointment_date}`);
                     }
                 }
 
@@ -110,8 +110,9 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
                             agendamentos: res.results
                         }
                     });
-                } catch (dbError) {
-                    toolData = JSON.stringify({ status: "erro", mensagem: "Erro no D1." });
+                } catch (e) {
+                    console.error("[D1 Error]", e);
+                    toolData = JSON.stringify({ status: "erro", mensagem: "Erro ao acessar base de dados." });
                 }
             }
 
@@ -123,7 +124,7 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
             });
         }
 
-        // 3. FASE REFINEMENT (RESPOSTA FINAL)
+        // 3. FASE REFINEMENT (RESPOSTA FINAL PERSONALIZADA)
         const finalResponse = await AI.run(model, {
             messages: toolMessages
         });
@@ -131,6 +132,6 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
         return { text: finalResponse.response };
     }
 
-    // Retorno direto (Aproveita o dynamicContext injetado se for um "Oi")
+    // Retorno direto para "Ois" e conversas simples (com o briefing já na mente da IA)
     return { text: aiResponse.response };
 }
