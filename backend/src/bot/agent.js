@@ -50,7 +50,8 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
 
     const systemPrompt = isAdmin ? ADMIN_PROMPTS.system_admin(barberContext) : CLIENT_PROMPTS.system_ai(barberContext);
 
-    const aiResponse = await AI.run('@cf/meta/llama-3.1-8b-instruct', {
+    // 1. PRIMEIRA CHAMADA: IA decide se usa ferramenta
+    let aiResponse = await AI.run('@cf/meta/llama-3.1-8b-instruct', {
         messages: [
             { role: 'system', content: String(systemPrompt) },
             { role: 'user', content: String(prompt) }
@@ -58,73 +59,69 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
         tools: BARBER_TOOLS
     });
 
+    // 2. LOOP DE EXECUÇÃO DE FERRAMENTAS
     if (aiResponse.tool_calls && aiResponse.tool_calls.length > 0) {
-        const call = aiResponse.tool_calls[0];
-        let toolData = "";
+        const toolMessages = [
+            { role: 'system', content: String(systemPrompt) },
+            { role: 'user', content: String(prompt) },
+            { role: 'assistant', content: '', tool_calls: aiResponse.tool_calls }
+        ];
 
-        // --- 1. CONSULTA DE AGENDA (Ajustado para appointment_date) ---
-        if (call.name === 'consultar_agenda') {
-            const { appointment_date, barber_email } = call.arguments;
+        for (const call of aiResponse.tool_calls) {
+            let toolData = "";
 
-            console.log(`[Agente] Consultando data: ${appointment_date} para o barbeiro: ${barber_email}`);
+            if (call.name === 'consultar_agenda') {
+                const { appointment_date, barber_email } = call.arguments;
+                const res = await DB.prepare(
+                    'SELECT appointment_time FROM appointments WHERE appointment_date = ? AND barber_email = ? AND status != "cancelled"'
+                ).bind(appointment_date, barber_email).all();
+                
+                toolData = res.results.length > 0 
+                    ? `Horários ocupados em ${appointment_date}: ${res.results.map(r => r.appointment_time).join(', ')}`
+                    : `A agenda para o dia ${appointment_date} está totalmente livre no banco de dados.`;
+            }
 
-            const res = await DB.prepare(
-                'SELECT appointment_time FROM appointments WHERE appointment_date = ? AND barber_email = ? AND status != "cancelled"'
-            ).bind(appointment_date, barber_email).all();
-            
-            toolData = res.results.length > 0 
-                ? `Horários ocupados em ${appointment_date}: ${res.results.map(r => r.appointment_time).join(', ')}`
-                : `A agenda para o dia ${appointment_date} está totalmente livre.`;
+            if (call.name === 'criar_agendamento') {
+                const id = crypto.randomUUID(); 
+                const { user_email, barber_email, service_id, appointment_date, appointment_time } = call.arguments;
+                const finalUserEmail = user_email || userEmail; 
+
+                await DB.prepare(`
+                    INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status)
+                    VALUES (?, ?, ?, ?, ?, ?, 'confirmed')
+                `).bind(id, finalUserEmail, barber_email || null, service_id, appointment_date, appointment_time).run();
+                
+                toolData = "Sucesso: Agendamento inserido no banco de dados.";
+            }
+
+            if (call.name === 'get_faturamento_hoje' && isAdmin) {
+                const stats = await DB.prepare(`
+                    SELECT SUM(s.price) as total 
+                    FROM appointments a
+                    JOIN services s ON a.service_id = s.id
+                    WHERE a.payment_status = 'paid' 
+                    AND a.appointment_date = DATE('now')
+                    AND a.barber_email = ?
+                `).bind(call.arguments.barber_email).first();
+                
+                toolData = `Dado Real do D1: Total faturado hoje é R$ ${stats?.total || 0}`;
+            }
+
+            // Adiciona o resultado da ferramenta ao histórico para a IA ler
+            toolMessages.push({
+                role: 'tool',
+                name: call.name,
+                tool_call_id: call.id,
+                content: String(toolData)
+            });
         }
 
-        // --- 2. CRIAR AGENDAMENTO (Ajustado para o seu Schema D1) ---
-        if (call.name === 'criar_agendamento') {
-    const id = crypto.randomUUID(); 
-    const { user_email, barber_email, service_id, appointment_date, appointment_time } = call.arguments;
-    
-    // CORREÇÃO AQUI: Usamos o userEmail que veio do parâmetro da função 
-    // caso a IA não tenha preenchido o user_email nos argumentos.
-    const finalUserEmail = user_email || userEmail; 
-
-    await DB.prepare(`
-        INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status)
-        VALUES (?, ?, ?, ?, ?, ?, 'confirmed')
-    `).bind(
-        id, 
-        finalUserEmail, // Agora a variável 'userEmail' está sendo usada aqui!
-        barber_email || null, 
-        service_id, 
-        appointment_date, 
-        appointment_time
-    ).run();
-    
-    toolData = "Agendamento realizado com sucesso no sistema.";
-}
-
-        // --- 3. FATURAMENTO (Ajustado com JOIN pois appointments não tem preço direto) ---
-        if (call.name === 'get_faturamento_hoje' && isAdmin) {
-            const stats = await DB.prepare(`
-                SELECT SUM(s.price) as total 
-                FROM appointments a
-                JOIN services s ON a.service_id = s.id
-                WHERE a.payment_status = 'paid' 
-                AND a.appointment_date = DATE('now')
-                AND a.barber_email = ?
-            `).bind(call.arguments.barber_email).first();
-            
-            toolData = `Total faturado hoje: R$ ${stats?.total || 0}`;
-        }
-
-        // 3. Resposta Final baseada nos dados reais
-        const final = await AI.run('@cf/meta/llama-3.1-8b-instruct', {
-            messages: [
-                { role: 'system', content: String(systemPrompt) },
-                { role: 'user', content: String(prompt) },
-                { role: 'assistant', content: '', tool_calls: [call] },
-                { role: 'tool', name: call.name, tool_call_id: call.id, content: String(toolData) }
-            ]
+        // 3. SEGUNDA CHAMADA: IA gera a resposta final baseada nos dados REAIS
+        const finalResponse = await AI.run('@cf/meta/llama-3.1-8b-instruct', {
+            messages: toolMessages
         });
-        return { text: final.response };
+
+        return { text: finalResponse.response };
     }
 
     return { text: aiResponse.response };
