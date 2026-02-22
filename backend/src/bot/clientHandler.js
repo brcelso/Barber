@@ -19,7 +19,7 @@ export async function handleClientFlow(from, text, textLower, session, userInDb,
             const team = await env.DB.prepare('SELECT email, name FROM users WHERE is_barber = 1 AND (owner_id = ? OR email = ?)').bind(botBarberEmail, botBarberEmail).all();
             if (team.results.length > 1) {
                 await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email) VALUES (?, "awaiting_barber", ?)').bind(from, userEmail).run();
-                let msg = b.msg_choose_barber || CLIENT_PROMPTS.choose_barber(establishmentName);
+                let msg = b.msg_choose_barber || CLIENT_PROMPTS.choose_barber(b);
                 team.results.forEach((m, i) => { msg += `*${i + 1}* - ${m.name}\n`; });
                 await sendMessage(env, from, msg, botBarberEmail);
                 return json({ success: true });
@@ -28,7 +28,7 @@ export async function handleClientFlow(from, text, textLower, session, userInDb,
 
         // Sessão padrão no Agente IA (Direto)
         await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email, selected_barber_email) VALUES (?, "ai_chat", ?, ?)').bind(from, userEmail, b.email).run();
-        const msg = (b.msg_welcome || CLIENT_PROMPTS.ai_welcome).replace(/{{establishment_name}}/g, establishmentName);
+        const msg = (b.msg_welcome || CLIENT_PROMPTS.ai_welcome(b)).replace(/{{establishment_name}}/g, establishmentName);
         await sendMessage(env, from, msg, botBarberEmail);
         return json({ success: true });
     }
@@ -48,13 +48,15 @@ export async function handleClientFlow(from, text, textLower, session, userInDb,
     try {
         const barberEmail = session.selected_barber_email || botBarberEmail;
         const barber = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(barberEmail).first();
-        const services = await env.DB.prepare('SELECT name, price FROM services WHERE barber_email = ? AND id != "block"').bind(barberEmail).all();
+        const services = await env.DB.prepare('SELECT id, name, price FROM services WHERE barber_email = ? AND id != "block"').bind(barberEmail).all();
 
         const barberContext = {
             establishmentName: barber?.shop_name || barber?.name || 'Barbearia',
+            barberEmail: barberEmail,
+            business_type: barber?.business_type || 'barbearia',
             bName: barber?.bot_name || 'Leo',
             bTone: barber?.bot_tone || 'amigável',
-            servicesList: services.results.map(s => `✂️ ${s.name}: R$ ${s.price}`).join('\n')
+            servicesList: services.results.map(s => `📍 [ID: ${s.id}] ${s.name}: R$ ${s.price.toFixed(2)}`).join('\n')
         };
 
         const aiData = await runAgentChat(env, {

@@ -15,12 +15,12 @@ export async function handleAppointmentRoutes(url, request, env) {
                 s.price, 
                 u.name as client_name, 
                 u.picture as client_picture,
-                b.name as barber_name,
-                b.picture as barber_picture
+                pr.name as professional_name,
+                pr.picture as professional_picture
             FROM appointments a
             LEFT JOIN services s ON a.service_id = s.id
             LEFT JOIN users u ON a.user_email = u.email
-            LEFT JOIN users b ON a.barber_email = b.email
+            LEFT JOIN users pr ON a.barber_email = pr.email
             WHERE (a.user_email = ? OR a.barber_email = ?)
             ORDER BY a.appointment_date DESC, a.appointment_time DESC
         `).bind(email, email).all();
@@ -154,10 +154,10 @@ export async function handleAppointmentRoutes(url, request, env) {
         return json({ success: true });
     }
 
-    // 8. LISTAR BARBEIROS (Público)
-    if (url.pathname === '/api/barbers' && request.method === 'GET') {
-        const barbers = await DB.prepare('SELECT email, name, picture, shop_name, owner_id as ownerId, is_admin as isAdmin, is_barber as isBarber FROM users WHERE is_barber = 1').all();
-        return json(barbers.results);
+    // 8. LISTAR PROFISSIONAIS (Público)
+    if (url.pathname === '/api/professionals' && request.method === 'GET') {
+        const professionals = await DB.prepare('SELECT email, name, picture, shop_name as business_name, owner_id as ownerId, is_admin as isAdmin, is_barber as isProfessional FROM users WHERE is_barber = 1').all();
+        return json(professionals.results);
     }
 
     // 9. LISTAR SERVIÇOS (Público)

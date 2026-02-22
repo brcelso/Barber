@@ -36,13 +36,13 @@ export const api = {
         return res.json();
     },
 
-    // Barbers & Services
-    getBarbers: async () => {
-        const res = await fetch(`${API_URL}/barbers`);
+    // Professionals & Services
+    getProfessionals: async () => {
+        const res = await fetch(`${API_URL}/professionals`);
         return res.json();
     },
-    getServices: async (barberEmail, ts = '') => {
-        const url = barberEmail ? `${API_URL}/services?barber_email=${barberEmail}&t=${ts}` : `${API_URL}/services?t=${ts}`;
+    getServices: async (providerEmail, ts = '') => {
+        const url = providerEmail ? `${API_URL}/services?barber_email=${providerEmail}&t=${ts}` : `${API_URL}/services?t=${ts}`;
         const res = await fetch(url);
         return res.json();
     },

@@ -11,8 +11,8 @@ export async function handleMasterRoutes(url, request, env) {
     if (url.pathname === '/api/master/stats' && request.method === 'GET') {
         const stats = {
             totalUsers: await DB.prepare('SELECT COUNT(*) as count FROM users').first(),
-            totalBarbers: await DB.prepare('SELECT COUNT(*) as count FROM users WHERE is_barber = 1').first(),
-            activeAdmins: await DB.prepare('SELECT COUNT(*) as count FROM users WHERE is_admin = 1').first(),
+            totalProfessionals: await DB.prepare('SELECT COUNT(*) as count FROM users WHERE is_barber = 1').first(),
+            activeBusinesses: await DB.prepare('SELECT COUNT(*) as count FROM users WHERE is_admin = 1 AND owner_id IS NULL').first(),
             totalAppointments: await DB.prepare('SELECT COUNT(*) as count FROM appointments').first(),
             connectedBots: await DB.prepare('SELECT COUNT(*) as count FROM users WHERE wa_status = "connected"').first(),
             planCounts: await DB.prepare('SELECT plan, COUNT(*) as count FROM users WHERE plan IS NOT NULL GROUP BY plan').all()
@@ -41,7 +41,7 @@ export async function handleMasterRoutes(url, request, env) {
 
     // MASTER: Update User Role/Subscription/Phone/Name/Email
     if (url.pathname === '/api/master/user/update' && request.method === 'POST') {
-        const { targetEmail, is_admin, is_barber, expires, plan, phone, newName, newEmail, newShopName } = await request.json();
+        const { targetEmail, is_admin, is_professional, expires, plan, phone, newName, newEmail, newShopName } = await request.json();
 
         await DB.prepare(`
             UPDATE users 
@@ -49,7 +49,7 @@ export async function handleMasterRoutes(url, request, env) {
             WHERE email = ?
         `).bind(
             is_admin ? 1 : 0,
-            is_barber ? 1 : 0,
+            is_professional ? 1 : 0,
             expires || null,
             plan || null,
             phone || null,

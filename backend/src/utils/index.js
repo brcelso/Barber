@@ -1,5 +1,6 @@
 /**
- * Utility functions for Barber App Server
+ * Utility functions for Universal Scheduler App Server
+ * Suporte Multi-Nicho: Barbearia, Petshop, Clínicas, etc.
  */
 
 export const corsHeaders = {
@@ -17,12 +18,21 @@ export const MASTER_EMAIL = 'celsosilvajunior90@gmail.com';
 
 export const getMasterEmail = (env) => env.SUPER_ADMIN_EMAIL || MASTER_EMAIL;
 
-export const sendMessage = async (env, phone, message, barberEmail, bridgeUrlOverride = null) => {
+/**
+ * Envia uma mensagem via WhatsApp usando a Bridge configurada do provedor.
+ * @param {object} env - Ambiente Cloudflare
+ * @param {string} phone - Número do destinatário
+ * @param {string} message - Texto da mensagem
+ * @param {string} providerEmail - E-mail do profissional/unidade (antigo barberEmail)
+ * @param {string} bridgeUrlOverride - URL opcional para sobrescrever a busca
+ */
+export const sendMessage = async (env, phone, message, providerEmail, bridgeUrlOverride = null) => {
     let BRIDGE_URL = bridgeUrlOverride;
 
-    if (!BRIDGE_URL && barberEmail && env.DB) {
+    // Busca dinâmica da Bridge vinculada ao profissional ou ao dono da unidade
+    if (!BRIDGE_URL && providerEmail && env.DB) {
         try {
-            const user = await env.DB.prepare('SELECT wa_bridge_url, owner_id FROM users WHERE email = ?').bind(barberEmail).first();
+            const user = await env.DB.prepare('SELECT wa_bridge_url, owner_id FROM users WHERE email = ?').bind(providerEmail).first();
             BRIDGE_URL = user?.wa_bridge_url;
             if (!BRIDGE_URL && user?.owner_id) {
                 const owner = await env.DB.prepare('SELECT wa_bridge_url FROM users WHERE email = ?').bind(user.owner_id).first();
@@ -37,11 +47,13 @@ export const sendMessage = async (env, phone, message, barberEmail, bridgeUrlOve
     const BRIDGE_KEY = env.WA_BRIDGE_KEY;
 
     if (!BRIDGE_URL || !BRIDGE_KEY) {
-        console.log(`[WhatsApp Bot] Bridge not set. MSG: ${message} (Target: ${phone})`);
+        console.log(`[WhatsApp Bot] Bridge não configurada. MSG: ${message} (Destino: ${phone})`);
         return;
     }
+
     const cleanPhone = phone.replace(/\D/g, "");
     const finalPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
+
     try {
         await fetch(`${BRIDGE_URL}/send-message`, {
             method: 'POST',
@@ -50,7 +62,7 @@ export const sendMessage = async (env, phone, message, barberEmail, bridgeUrlOve
                 key: BRIDGE_KEY,
                 number: finalPhone,
                 message: message,
-                barber_email: barberEmail
+                provider_email: providerEmail
             })
         });
     } catch (e) {
@@ -58,36 +70,37 @@ export const sendMessage = async (env, phone, message, barberEmail, bridgeUrlOve
     }
 };
 
+/**
+ * Notifica o cliente sobre o status de um agendamento.
+ */
 export const notifyWhatsApp = async (env, DB, appointmentId, status, options = {}) => {
-    const BRIDGE_KEY = env.WA_BRIDGE_KEY;
-
     try {
         let appt = null;
         if (appointmentId) {
             appt = await DB.prepare(`
-                SELECT a.*, s.name as service_name, u.phone, u.name as user_name, b.name as barber_name, 
-                       b.welcome_message, b.business_type, b.bot_name
+                SELECT a.*, s.name as service_name, u.phone, u.name as user_name, pr.name as professional_name, 
+                       pr.welcome_message, pr.business_type, pr.bot_name
                 FROM appointments a
                 JOIN services s ON a.service_id = s.id
                 JOIN users u ON a.user_email = u.email
-                LEFT JOIN users b ON a.barber_email = b.email
+                LEFT JOIN users pr ON a.barber_email = pr.email
                 WHERE a.id = ?
             `).bind(appointmentId).first();
         } else if (options.to) {
-            appt = { phone: options.to, barber_email: options.barberEmail };
+            appt = { phone: options.to, barber_email: options.providerEmail };
         }
 
         if (!appt || !appt.phone) return;
 
-        const barberEmail = appt.barber_email || options.barberEmail || getMasterEmail(env);
-        const barberUser = await DB.prepare('SELECT subscription_expires, owner_id, wa_bridge_url FROM users WHERE email = ?').bind(barberEmail).first();
+        const providerEmail = appt.barber_email || options.providerEmail || getMasterEmail(env);
+        const providerUser = await DB.prepare('SELECT subscription_expires, owner_id, wa_bridge_url FROM users WHERE email = ?').bind(providerEmail).first();
 
-        let expiresStr = barberUser?.subscription_expires;
-        let bridgeUrl = barberUser?.wa_bridge_url;
+        let expiresStr = providerUser?.subscription_expires;
+        let bridgeUrl = providerUser?.wa_bridge_url;
 
-        // INHERITANCE: If staff, use owner's subscription and bridge
-        if (barberUser?.owner_id) {
-            const owner = await DB.prepare('SELECT subscription_expires, wa_bridge_url FROM users WHERE email = ?').bind(barberUser.owner_id).first();
+        // Herança: Se for staff, usa a assinatura e bridge do dono
+        if (providerUser?.owner_id) {
+            const owner = await DB.prepare('SELECT subscription_expires, wa_bridge_url FROM users WHERE email = ?').bind(providerUser.owner_id).first();
             expiresStr = owner?.subscription_expires;
             if (!bridgeUrl) bridgeUrl = owner?.wa_bridge_url;
         }
@@ -95,13 +108,13 @@ export const notifyWhatsApp = async (env, DB, appointmentId, status, options = {
         const now = new Date();
         let expires = expiresStr ? new Date(expiresStr) : null;
 
-        // MASTER PRIVILEGE: Master is always active
-        if (barberEmail === getMasterEmail(env)) {
-            expires = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 365); // 1 year fake buffer
+        // Privilégio Master: Celso sempre ativo
+        if (providerEmail === getMasterEmail(env)) {
+            expires = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 365);
         }
 
         if (!expires || expires < now) {
-            console.log(`[WhatsApp] AVISO: Assinatura do barbeiro ${barberEmail} (ou seu dono) vencida.`);
+            console.log(`[WhatsApp] AVISO: Assinatura do provedor ${providerEmail} vencida.`);
             return;
         }
 
@@ -112,24 +125,27 @@ export const notifyWhatsApp = async (env, DB, appointmentId, status, options = {
             formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
         }
 
+        const bizType = appt.business_type || 'comum';
+        const defaultIcon = bizType === 'barbearia' ? '✂️' : (bizType === 'petshop' ? '🐾' : '🗓️');
+
         if (status === 'confirmed') {
-            const template = appt.welcome_message || `✅ *Agendamento Confirmado!* \n\nOlá {{user_name}}, seu horário para *{{service_name}}* com {{barber_name}} no dia *{{date}}* às *{{time}}* foi confirmado. \n\nTe esperamos lá! ✂️`;
+            const template = appt.welcome_message || `✅ *Agendamento Confirmado!* \n\nOlá {{user_name}}, seu horário para *{{service_name}}* com {{professional_name}} no dia *{{date}}* às *{{time}}* foi confirmado. \n\nTe esperamos lá! ${defaultIcon}`;
             message = template
                 .replace(/{{user_name}}/g, appt.user_name)
                 .replace(/{{service_name}}/g, appt.service_name)
-                .replace(/{{barber_name}}/g, appt.barber_name || 'Profissional')
+                .replace(/{{professional_name}}/g, appt.professional_name || 'Profissional')
                 .replace(/{{date}}/g, formattedDate)
                 .replace(/{{time}}/g, appt.appointment_time);
         } else if (status === 'cancelled') {
-            message = `❌ *Agendamento Cancelado* \n\nOlá ${appt.user_name}, informamos que o agendamento para *${appt.service_name}* com *${appt.barber_name || 'Profissional'}* no dia *${formattedDate}* às *${appt.appointment_time}* foi cancelado.`;
+            message = `❌ *Agendamento Cancelado* \n\nOlá ${appt.user_name}, informamos que o agendamento para *${appt.service_name}* com *${appt.professional_name || 'Profissional'}* no dia *${formattedDate}* às *${appt.appointment_time}* foi cancelado.`;
         } else if (status === 'pending') {
-            message = `⏳ *Agendamento Recebido* \n\nOlá ${appt.user_name}, seu agendamento para *${appt.service_name}* com *${appt.barber_name || 'Profissional'}* no dia *${formattedDate}* às *${appt.appointment_time}* foi recebido e está sendo processado.`;
+            message = `⏳ *Agendamento Recebido* \n\nOlá ${appt.user_name}, seu agendamento para *${appt.service_name}* com *${appt.professional_name || 'Profissional'}* no dia *${formattedDate}* às *${appt.appointment_time}* foi recebido e está aguardando confirmação.`;
         } else if (status === 'custom') {
             message = options.message;
         }
 
         if (message) {
-            await sendMessage(env, appt.phone, message, barberEmail, bridgeUrl);
+            await sendMessage(env, appt.phone, message, providerEmail, bridgeUrl);
         }
     } catch (e) {
         console.error('[WhatsApp Notify Error]', e);

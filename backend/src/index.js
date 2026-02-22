@@ -57,7 +57,12 @@ export default {
 
             // --- Health Check ---
             if (url.pathname === '/') {
-                return json({ status: 'API Online', app_name: env.GLOBAL_APP_NAME || 'Barber API', time: new Date().toISOString() });
+                return json({
+                    status: 'Online',
+                    system: 'Universal Scheduler Ecosystem',
+                    version: '2.0-multi-niche',
+                    time: new Date().toISOString()
+                });
             }
 
             // --- Modular Routes ---
@@ -73,7 +78,7 @@ export default {
             const payRes = await handlePaymentRoutes(url, request, env); if (payRes) return payRes;
             const teamRes = await handleTeamRoutes(request, env, url); if (teamRes) return teamRes;
 
-            // --- WHATSAPP BRIDGE STATUS UPDATES (RECUPERADO) ---
+            // --- WHATSAPP BRIDGE STATUS UPDATES ---
             if ((url.pathname === '/api/whatsapp/status' || url.pathname === '/api/admin/bridge/update') && request.method === 'POST') {
                 const { email, status, qr } = await request.json();
                 const now = new Date().toISOString();
@@ -88,12 +93,12 @@ export default {
                     await DB.prepare('UPDATE users SET wa_status = "disconnected", wa_qr = NULL, wa_last_seen = ? WHERE email = ?').bind(now, email).run();
                 }
 
-                // Autoconfiguração para o Master Email
+                // Autoconfiguração para o Master (Celso)
                 if (email === MASTER_EMAIL) {
                     const check = await DB.prepare('SELECT subscription_expires FROM users WHERE email = ?').bind(MASTER_EMAIL).first();
                     if (!check?.subscription_expires || new Date(check.subscription_expires) < new Date()) {
                         const future = new Date(); future.setFullYear(future.getFullYear() + 10);
-                        await DB.prepare('UPDATE users SET subscription_expires = ?, plan = "Barber Shop", business_type = "barbearia" WHERE email = ?').bind(future.toISOString(), MASTER_EMAIL).run();
+                        await DB.prepare('UPDATE users SET subscription_expires = ?, plan = "Ecosystem Pro", business_type = "master" WHERE email = ?').bind(future.toISOString(), MASTER_EMAIL).run();
                     }
                 }
                 return json({ success: true });

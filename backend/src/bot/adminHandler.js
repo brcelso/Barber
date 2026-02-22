@@ -25,7 +25,10 @@ export async function handleAdminFlow(from, text, textLower, adminInfo, botBarbe
     try {
         const barberContext = {
             establishmentName: adminInfo.shop_name || adminInfo.name || 'Barbearia',
-            barberEmail: adminInfo.email, // Adicionado e-mail faltante
+            barberEmail: adminInfo.email,
+            owner_id: adminInfo.owner_id,
+            business_type: adminInfo.business_type || 'barbearia', // Multi-nicho
+            name: adminInfo.name,
             bName: adminInfo.bot_name || 'Leo',
             bTone: adminInfo.bot_tone || 'profissional'
         };
@@ -68,7 +71,7 @@ async function showAgenda(from, adminInfo, botBarberEmail, env, page = 1) {
     await env.DB.prepare('UPDATE whatsapp_sessions SET metadata = ? WHERE phone = ?').bind(JSON.stringify(metadata), from).run();
 
     if (appts.results.length === 0 && page === 1) {
-        await sendMessage(env, from, "Chefe, sua agenda está livre. 👍\n\n" + ADMIN_PROMPTS.main_menu(adminInfo.name), botBarberEmail);
+        await sendMessage(env, from, "Chefe, sua agenda está livre. 👍\n\n" + ADMIN_PROMPTS.main_menu(adminInfo), botBarberEmail);
         return json({ success: true });
     }
 
@@ -90,6 +93,6 @@ async function showAgenda(from, adminInfo, botBarberEmail, env, page = 1) {
 
 async function handleIntentsFallback(from, text, adminInfo, botBarberEmail, env) {
     await sendMessage(env, from, "⚠️ Tive um problema ao acessar a inteligência agora. Por favor, tente usar os números do menu ou tente novamente em instantes.", botBarberEmail);
-    await sendMessage(env, from, ADMIN_PROMPTS.main_menu(adminInfo.name), botBarberEmail);
+    await sendMessage(env, from, ADMIN_PROMPTS.main_menu(adminInfo), botBarberEmail);
     return json({ success: true });
 }
