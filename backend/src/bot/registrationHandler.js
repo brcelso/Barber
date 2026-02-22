@@ -86,8 +86,8 @@ export async function handleRegistrationFlow(from, text, textLower, session, env
 
         // 1. Criar o usuário no banco
         await env.DB.prepare(`
-            INSERT OR IGNORE INTO users (email, name, phone, is_admin, is_barber, business_type, plan, shop_name)
-            VALUES (?, ?, ?, 1, 1, ?, ?, ?)
+            INSERT OR IGNORE INTO users (email, name, phone, is_admin, is_barber, business_type, plan, shop_name, bot_active)
+            VALUES (?, ?, ?, 1, 1, ?, ?, ?, 1)
         `).bind(email, `Profissional ${from}`, from, metadata.business_type, metadata.plan, `${metadata.business_type} do ${from}`).run();
 
         // 2. Inserir serviços parseados
@@ -98,12 +98,30 @@ export async function handleRegistrationFlow(from, text, textLower, session, env
             }
         }
 
+        // 3. Configurar disponibilidade padrão (Seg-Sex, 08:00 - 18:00)
+        for (let day = 1; day <= 5; day++) {
+            await env.DB.prepare('INSERT OR IGNORE INTO availability (barber_email, day_of_week, start_time, end_time) VALUES (?, ?, "08:00", "18:00")')
+                .bind(email, day).run();
+        }
+
+        // 4. Configurar Mensagens padrão
+        await env.DB.prepare('UPDATE users SET msg_welcome = ?, bot_name = "Leo", bot_tone = "profissional" WHERE email = ?')
+            .bind(`Olá! Bem-vindo ao atendimento da nossa unidade. Como posso te ajudar?`, email).run();
+
         await env.DB.prepare('UPDATE whatsapp_sessions SET state = "reg_awaiting_qr", metadata = ? WHERE phone = ?').bind(JSON.stringify(metadata), from).run();
+
+        // 5. Link de Pagamento (Simulado ou Real se houver Token)
+        const paymentLink = `${env.FRONTEND_URL || 'https://universal-scheduler.pages.dev'}/pay/sub?email=${email}&plan=${metadata.plan}`;
 
         // Link para o QR Code (Exemplo: um subdomínio ou página de bridge)
         const qrLink = `https://universal-scheduler.pages.dev/connect?email=${email}`;
 
-        await sendMessage(env, from, REGISTRATION_PROMPTS.qr_instructions + `\n\n🔗 *Link para o QR Code:* ${qrLink}`, botProfessionalEmail);
+        const finalMessage = `✅ *Perfil criado com sucesso!* \n\n` +
+            `💳 *Assinatura:* Você escolheu o plano *${metadata.plan}*.\n` +
+            `Para ativar plenamente, acesse seu link de pagamento: ${paymentLink}\n\n` +
+            REGISTRATION_PROMPTS.qr_instructions + `\n\n🔗 *Link para o QR Code:* ${qrLink}`;
+
+        await sendMessage(env, from, finalMessage, botProfessionalEmail);
         return json({ success: true });
     }
 

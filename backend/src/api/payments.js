@@ -135,6 +135,13 @@ export async function handlePaymentRoutes(url, request, env) {
                         const expires = new Date();
                         expires.setMonth(expires.getMonth() + 1);
                         await DB.prepare('UPDATE users SET subscription_expires = ?, plan = "Ecosystem Pro" WHERE email = ?').bind(expires.toISOString(), email).run();
+
+                        // Notificar o usuário sobre a ativação
+                        const user = await DB.prepare('SELECT phone FROM users WHERE email = ?').bind(email).first();
+                        if (user?.phone) {
+                            const { sendMessage } = await import('../utils/index.js');
+                            await sendMessage(env, user.phone, "🚀 *Assinatura Ativada!* \n\nParabéns! Seu pagamento foi processado e seu Agente Inteligente agora tem acesso total aos recursos Pro. Boas vendas! 💰", email);
+                        }
                     } else {
                         // Tratar agendamento normal
                         const appt = await DB.prepare('SELECT id, status FROM appointments WHERE id = ?').bind(appointmentId).first();
