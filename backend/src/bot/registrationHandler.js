@@ -53,8 +53,6 @@ export async function handleRegistrationFlow(from, text, textLower, session, env
 
     // 3. Cadastro de Serviços
     if (session.state === 'reg_awaiting_services') {
-        const emailPlaceholder = metadata.email || `temp_${from}@universal.com`;
-
         // Usar a AI para extrair serviços do texto do usuário
         const aiResponse = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
             messages: [

@@ -12,7 +12,7 @@ database_id = "833f15c1-bda9-43fa-a890-0dbaf04514e8"
 GLOBAL_APP_NAME = "Barber"
 GLOBAL_BRAND_COLOR = "#ff00d0ff"
 WA_BRIDGE_KEY = "barber-secret-key"
-WA_BRIDGE_URL = ""
+WA_BRIDGE_URL = "https://nisi-marbly-maeve.ngrok-free.dev"
 
 
 [ai]
