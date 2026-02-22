@@ -88,12 +88,14 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
                     
                     console.log(`[D1 RAW DB RESULT]`, JSON.stringify(res.results));
 
-                    // 🤖 Deixamos a resposta 100% NEUTRA e DIRETA para a IA não se confundir
-                    toolData = res.results.length > 0 
-                        ? `DADOS RETORNADOS: A agenda para esta data possui horários OCUPADOS às: ${res.results.map(r => r.appointment_time).join(', ')}.`
-                        : `DADOS RETORNADOS: A agenda para esta data está 100% LIVRE.`;
+                    // 🤖 Devolvemos os dados em JSON puro. É assim que o cérebro do Llama 3.1 gosta de ler!
+                    toolData = JSON.stringify({
+                        status: "sucesso",
+                        data_consultada: appointment_date,
+                        horarios_ocupados_no_banco: res.results.length > 0 ? res.results.map(r => r.appointment_time) : "Nenhum horário ocupado"
+                    });
                     
-                    console.log(`[D1 Success] Dados enviados de volta para a IA: ${toolData}`);
+                    console.log(`[D1 Success] JSON enviado para a IA: ${toolData}`);
                     
                 } catch (dbError) {
                     console.error("[D1 Error]", dbError.message);
