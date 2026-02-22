@@ -2,22 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit2, Check, X, Package } from 'lucide-react';
 import { api } from '../../../services/api';
 
-export const ServicesTab = ({ user, loading: globalLoading }) => {
+export const ServicesTab = ({ user }) => {
     const [services, setServices] = useState([]);
     const [loading, setLoading] = useState(false);
     const [editing, setEditing] = useState(null); // id do serviço sendo editado
     const [showAdd, setShowAdd] = useState(false);
 
-    const fetchServices = async () => {
-        setLoading(true);
-        try {
-            const data = await api.getAdminServices(user.email);
-            setServices(data);
-        } catch (e) { console.error(e); }
-        finally { setLoading(false); }
-    };
-
-    useEffect(() => { fetchServices(); }, []);
+    useEffect(() => {
+        const fetchServices = async () => {
+            setLoading(true);
+            try {
+                const data = await api.getAdminServices(user.email);
+                setServices(data);
+            } catch (err) { console.error('Error fetching services:', err); }
+            finally { setLoading(false); }
+        };
+        fetchServices();
+    }, [user.email]);
 
     const handleSave = async (e) => {
         e.preventDefault();
@@ -33,10 +34,14 @@ export const ServicesTab = ({ user, loading: globalLoading }) => {
         setLoading(true);
         try {
             await api.saveService(user.email, data);
-            await fetchServices();
+            const updatedData = await api.getAdminServices(user.email);
+            setServices(updatedData);
             setEditing(null);
             setShowAdd(false);
-        } catch (e) { alert('Erro ao salvar serviço'); }
+        } catch (err) {
+            console.error('Error saving service:', err);
+            alert('Erro ao salvar serviço');
+        }
         finally { setLoading(false); }
     };
 
@@ -45,8 +50,12 @@ export const ServicesTab = ({ user, loading: globalLoading }) => {
         setLoading(true);
         try {
             await api.deleteService(user.email, id);
-            await fetchServices();
-        } catch (e) { alert('Erro ao excluir'); }
+            const updatedData = await api.getAdminServices(user.email);
+            setServices(updatedData);
+        } catch (err) {
+            console.error('Error deleting service:', err);
+            alert('Erro ao excluir');
+        }
         finally { setLoading(false); }
     };
 

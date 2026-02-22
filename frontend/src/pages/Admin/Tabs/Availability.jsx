@@ -33,11 +33,11 @@ export const AvailabilityTab = ({ user }) => {
                 } else {
                     setSchedules(data.map(d => ({ ...d, active: true })));
                 }
-            } catch (e) { console.error(e); }
+            } catch (err) { console.error('Error fetching availability:', err); }
             finally { setLoading(false); }
         };
         fetchAvail();
-    }, []);
+    }, [user.email]);
 
     const handleToggleDay = (dayId) => {
         if (schedules.find(s => s.day_of_week === dayId)) {
@@ -56,7 +56,10 @@ export const AvailabilityTab = ({ user }) => {
         try {
             await api.saveAvailability(user.email, { schedules });
             alert('Horários de funcionamento atualizados!');
-        } catch (e) { alert('Erro ao salvar'); }
+        } catch (err) {
+            console.error('Error saving availability:', err);
+            alert('Erro ao salvar');
+        }
         finally { setLoading(false); }
     };
 
