@@ -4,75 +4,46 @@ import { handleClientFlow } from './clientHandler.js';
 
 export async function handleWhatsAppWebhook(request, env) {
     const body = await request.json();
-    const from = body.phone?.replace(/\D/g, ""); // Clean phone
+    const from = body.phone?.replace(/\D/g, ""); // Telefone de quem enviou
     const text = (body.message || "").trim();
     const textLower = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const botBarberEmail = body.barber_email;
+    const botBarberEmail = body.barber_email; // E-mail da barbearia/bot que recebeu
     const isSelfChat = body.is_self_chat === true;
 
     if (!from) return json({ error: "Missing phone" }, 400);
 
-    // 1. Identify User and Session
+    const cleanFrom = from.replace(/\D/g, "");
+    const last8 = cleanFrom.slice(-8);
+    const ddd = cleanFrom.length >= 10 ? cleanFrom.slice(-11, -9) : "";
+
+    // 1. Identificar o Usuário no Banco (Quem está falando?)
+    // Busca por um usuário que tenha esse telefone (Admin ou Barbeiro)
+    let senderInfo = await env.DB.prepare(
+        'SELECT * FROM users WHERE phone LIKE ? AND (is_admin = 1 OR is_barber = 1)'
+    ).bind(`%${ddd}%${last8}`).first();
+
+    // Se é Self-Chat e não achou pelo telefone, usa o dono da sessão (botBarberEmail)
+    if (!senderInfo && (isSelfChat || cleanFrom.includes('983637172')) && botBarberEmail) {
+        senderInfo = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(botBarberEmail).first();
+    }
+
+    // Se ainda assim não achou o Celso (Master)
+    if (!senderInfo && (cleanFrom.endsWith('983637172') || cleanFrom.endsWith('942125134'))) {
+        senderInfo = await env.DB.prepare('SELECT * FROM users WHERE email = "celsosilvajunior90@gmail.com"').first();
+    }
+
+    // 2. Identificar se existe sessão ou usuário cliente comum (para o handleClientFlow)
     let session = await env.DB.prepare('SELECT * FROM whatsapp_sessions WHERE phone = ?').bind(from).first();
     let userInDb = null;
-
-    if (!session || !session.user_email) {
-        const allUsers = await env.DB.prepare('SELECT email, phone FROM users WHERE phone IS NOT NULL').all();
-        const cleanFrom = from.replace(/\D/g, "");
-        userInDb = allUsers.results.find(u => {
-            const cleanU = (u.phone || "").replace(/\D/g, "");
-            return cleanU && (cleanU.endsWith(cleanFrom) || cleanFrom.endsWith(cleanU));
-        });
+    if (!session) {
+        userInDb = await env.DB.prepare('SELECT * FROM users WHERE phone LIKE ?').bind(`%${last8}`).first();
     }
 
-    // 2. Privilege Check (Admin/Barber)
-    let isOwner = false;
-    let adminInfo = null;
-    const cleanFrom = from.replace(/\D/g, "");
-
-    // Stricter phone comparison for Brazil (DDD + Number)
-    const isSamePhone = (p1, p2) => {
-        if (!p1 || !p2) return false;
-        const s1 = p1.replace(/\D/g, "");
-        const s2 = p2.replace(/\D/g, "");
-        if (s1 === s2) return true;
-        if (s1.length >= 10 && s2.length >= 10) {
-            return s1.slice(-10) === s2.slice(-10);
-        }
-        return false;
-    };
-
-    if (botBarberEmail) {
-        adminInfo = await env.DB.prepare(
-            'SELECT email, name, phone, is_barber, is_admin, shop_name, bot_name, bot_tone FROM users WHERE email = ?'
-        ).bind(botBarberEmail).first();
-    }
-
-    // If it's a self chat or the phone matches the botBarberEmail's phone, it's the owner
-    if (isSelfChat || (adminInfo && isSamePhone(adminInfo.phone, cleanFrom))) {
-        isOwner = true;
-        // If we don't have adminInfo yet (self-chat without barber_email), try to find it by phone
-        if (!adminInfo) {
-            adminInfo = await env.DB.prepare(
-                'SELECT email, name, phone, is_barber, is_admin, shop_name, bot_name, bot_tone FROM users WHERE phone LIKE ? AND (is_barber = 1 OR is_admin = 1)'
-            ).bind(`%${cleanFrom.slice(-10)}`).first();
-
-            // Fallback Admin Fixo (Celso)
-            if (!adminInfo && (cleanFrom.endsWith('983637172') || cleanFrom.endsWith('942125134'))) {
-                adminInfo = await env.DB.prepare('SELECT * FROM users WHERE email = "celsosilvajunior90@gmail.com"').first();
-            }
-        }
-    }
-
-    // Se identificou como dono mas não achou adminInfo, tenta pegar o admin padrão pelo e-mail
-    if (isOwner && !adminInfo && botBarberEmail) {
-        adminInfo = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(botBarberEmail).first();
-    }
-
-    // 3. Routing
-    if (isOwner && adminInfo) {
-        return await handleAdminFlow(from, text, textLower, adminInfo, botBarberEmail, env);
+    // 3. Roteamento: Se o REMETENTE for da equipe (Admin/Barbeiro), vai pro AdminFlow
+    if (senderInfo && (senderInfo.is_admin === 1 || senderInfo.is_barber === 1)) {
+        return await handleAdminFlow(from, text, textLower, senderInfo, botBarberEmail, env);
     } else {
+        // Caso contrário, trata como cliente normal
         return await handleClientFlow(from, text, textLower, session, userInDb, botBarberEmail, env);
     }
 }
