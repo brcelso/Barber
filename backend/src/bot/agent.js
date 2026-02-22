@@ -55,22 +55,24 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
             if (call.name === 'consultar_agenda') {
                 const { appointment_date } = call.arguments;
                 
-                // 🚨 TRAVA DE SEGURANÇA MÁXIMA: 
-                // Ignoramos o e-mail que a IA tentou adivinhar e forçamos o seu e-mail real.
                 const emailReal = barberContext?.barberEmail || "celsosilvajunior90@gmail.com";
 
                 console.log(`[D1 Forward] Consultando agenda de ${emailReal} em ${appointment_date}`);
 
                 try {
+                    // MUDANÇA 1: Mudamos "cancelled" para 'cancelled' (aspas simples para texto no SQL)
+                    // MUDANÇA 2: Usamos LIKE na data caso tenha algum espaço invisível salvo no banco
                     const res = await DB.prepare(
-                        'SELECT appointment_time FROM appointments WHERE appointment_date = ? AND barber_email = ? AND status != "cancelled"'
-                    ).bind(appointment_date, emailReal).all();
+                        "SELECT appointment_time FROM appointments WHERE appointment_date LIKE ? AND barber_email = ? AND status != 'cancelled'"
+                    ).bind(`${appointment_date}%`, emailReal).all();
                     
+                    console.log(`[D1 RAW DB RESULT]`, JSON.stringify(res.results)); // LOG NOVO CRÍTICO
+
                     toolData = res.results.length > 0 
-                        ? `Horários ocupados: ${res.results.map(r => r.appointment_time).join(', ')}`
-                        : "A agenda está livre no sistema para esta data.";
+                        ? `INFORMAÇÃO REAL DO BANCO: Horários já ocupados neste dia: ${res.results.map(r => r.appointment_time).join(', ')}. Diga isso ao usuário.`
+                        : `A agenda está livre no sistema para esta data.`;
                     
-                    console.log(`[D1 Success] Dados encontrados: ${toolData}`);
+                    console.log(`[D1 Success] Dados enviados para a IA: ${toolData}`);
                 } catch (dbError) {
                     console.error("[D1 Error]", dbError.message);
                     toolData = "Erro ao acessar o banco de dados.";
