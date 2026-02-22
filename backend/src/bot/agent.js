@@ -26,7 +26,7 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
     }
 
     const { DB, AI } = env;
-    const model = '@cf/google/embeddinggemma-300m'; 
+    const model = '@cf/meta/llama-3.1-8b-instruct'; 
 
     // 1. Injeta o Chain of Thought do prompts.js
     const systemPrompt = isAdmin ? ADMIN_PROMPTS.system_admin(barberContext) : CLIENT_PROMPTS.system_ai(barberContext);
