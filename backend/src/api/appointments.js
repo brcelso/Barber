@@ -156,7 +156,7 @@ export async function handleAppointmentRoutes(url, request, env) {
 
     // 8. LISTAR BARBEIROS (Público)
     if (url.pathname === '/api/barbers' && request.method === 'GET') {
-        const barbers = await DB.prepare('SELECT email, name, picture, shop_name FROM users WHERE is_barber = 1').all();
+        const barbers = await DB.prepare('SELECT email, name, picture, shop_name, owner_id as ownerId, is_admin as isAdmin, is_barber as isBarber FROM users WHERE is_barber = 1').all();
         return json(barbers.results);
     }
 

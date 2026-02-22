@@ -4,9 +4,11 @@ import { User, Users, Plus, Trash2, Shield, Activity } from 'lucide-react';
 export const TeamTab = ({
     user,
     barbers,
+    teamMembers,
     handleAddTeamMember,
     handleRecruitBarber,
     handleRemoveTeamMember,
+    handleUpdateTeamMember,
     loading
 }) => {
     return (
@@ -75,7 +77,7 @@ export const TeamTab = ({
                 </div>
 
                 {/* Staff */}
-                {barbers.filter(b => b.ownerId === user.email).map(member => (
+                {teamMembers.filter(b => b.email !== user.email).map(member => (
                     <div key={member.email} className="glass-card" style={{ position: 'relative' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                             <img src={member.picture} alt={member.name} style={{ width: '50px', height: '50px', borderRadius: '12px', opacity: 0.8 }} />
@@ -91,14 +93,30 @@ export const TeamTab = ({
                         >
                             <Trash2 size={16} />
                         </button>
-                        <div style={{ marginTop: '1rem', display: 'flex', gap: '5px' }}>
-                            <span className="status-badge confirmed" style={{ fontSize: '0.6rem', padding: '2px 5px' }}>Ativo</span>
-                            <span className="status-badge" style={{ fontSize: '0.6rem', padding: '2px 5px', background: 'rgba(255,255,255,0.05)' }}>Equipe</span>
+
+                        <div style={{ marginTop: '1.2rem', paddingTop: '1rem', borderTop: '1px solid var(--border)', display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.7rem', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={member.isAdmin}
+                                    onChange={e => handleUpdateTeamMember(member.email, { is_admin: e.target.checked, is_barber: member.isBarber })}
+                                />
+                                Admin
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.7rem', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={member.isBarber}
+                                    onChange={e => handleUpdateTeamMember(member.email, { is_admin: member.isAdmin, is_barber: e.target.checked })}
+                                />
+                                Barbeiro
+                            </label>
+                            {member.isBarber && <span className="status-badge confirmed" style={{ fontSize: '0.6rem', padding: '2px 5px' }}>Ativo</span>}
                         </div>
                     </div>
                 ))}
 
-                {barbers.filter(b => b.ownerId === user.email).length === 0 && (
+                {teamMembers.filter(b => b.email !== user.email).length === 0 && (
                     <div className="glass-card" style={{ textAlign: 'center', padding: '2rem', opacity: 0.3, gridColumn: '1 / -1' }}>
                         <Users size={30} style={{ marginBottom: '0.5rem' }} />
                         <p>Sua equipe está vazia. Adicione barbeiros acima.</p>

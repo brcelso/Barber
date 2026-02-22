@@ -11,22 +11,30 @@ export async function handleTeamRoutes(request, env, url) {
         const requester = await DB.prepare('SELECT is_barber FROM users WHERE email = ?').bind(ownerEmail).first();
         if (!requester || requester.is_barber !== 1) return json({ error: 'Unauthorized' }, 401);
 
-        // Insert new staff member linked to owner
+        // Insert or Update staff member linked to owner
         try {
-            await DB.prepare(`
+            const result = await DB.prepare(`
                 INSERT INTO users (email, name, is_admin, is_barber, owner_id, business_type, picture, created_at)
                 VALUES (?, ?, 1, 1, ?, 'staff', ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(email) DO UPDATE SET
+                    is_admin = 1,
+                    is_barber = 1,
+                    owner_id =Excluded.owner_id,
+                    business_type = 'staff'
+                WHERE owner_id IS NULL OR owner_id = Excluded.owner_id
             `).bind(
                 email,
                 name,
                 ownerEmail,
                 `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`
             ).run();
+
+            if (result.meta.changes === 0) {
+                return json({ error: 'Este usuário já pertence a outra equipe ou não pôde ser atualizado.' }, 409);
+            }
+
             return json({ success: true });
         } catch (e) {
-            if (e.message.includes('UNIQUE')) {
-                return json({ error: 'Email já cadastrado' }, 409);
-            }
             return json({ error: e.message }, 500);
         }
     }
@@ -71,6 +79,40 @@ export async function handleTeamRoutes(request, env, url) {
         `).bind(memberEmail, ownerEmail).run();
 
         return json({ success: true, message: 'Barbeiro removido da equipe.' });
+    }
+
+    // Update Team Member Roles
+    if (url.pathname === '/api/team/update' && request.method === 'POST') {
+        const { memberEmail, ownerEmail, is_admin, is_barber } = await request.json();
+
+        // 1. Verify Owner
+        const owner = await DB.prepare('SELECT is_barber FROM users WHERE email = ?').bind(ownerEmail).first();
+        if (!owner || owner.is_barber !== 1) return json({ error: 'Unauthorized' }, 401);
+
+        // 2. Execute Update (only if member belongs to owner)
+        await DB.prepare(`
+            UPDATE users 
+            SET is_admin = ?, is_barber = ? 
+            WHERE email = ? AND owner_id = ?
+        `).bind(
+            is_admin ? 1 : 0,
+            is_barber ? 1 : 0,
+            memberEmail,
+            ownerEmail
+        ).run();
+
+        return json({ success: true, message: 'Barbeiro atualizado com sucesso!' });
+    }
+
+    // List Team Members
+    if (url.pathname === '/api/team/list' && request.method === 'GET') {
+        const ownerEmail = request.headers.get('X-User-Email');
+        const members = await DB.prepare(`
+            SELECT email, name, picture, is_admin as isAdmin, is_barber as isBarber, owner_id as ownerId 
+            FROM users 
+            WHERE owner_id = ? OR email = ?
+        `).bind(ownerEmail, ownerEmail).all();
+        return json(members.results);
     }
 
     return null;

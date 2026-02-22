@@ -21,9 +21,11 @@ export const AdminPanel = ({
     handleRefresh,
     // Team Props
     barbers,
+    teamMembers,
     handleAddTeamMember,
     handleRecruitBarber,
     handleRemoveTeamMember,
+    handleUpdateTeamMember,
     // Bot Props
     botSettings,
     setBotSettings,
@@ -162,9 +164,11 @@ export const AdminPanel = ({
                 <TeamTab
                     user={user}
                     barbers={barbers}
+                    teamMembers={teamMembers}
                     handleAddTeamMember={handleAddTeamMember}
                     handleRecruitBarber={handleRecruitBarber}
                     handleRemoveTeamMember={handleRemoveTeamMember}
+                    handleUpdateTeamMember={handleUpdateTeamMember}
                     loading={loading}
                 />
             )}

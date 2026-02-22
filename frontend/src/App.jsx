@@ -28,6 +28,7 @@ function App() {
   const [appointments, setAppointments] = useState([]);
   const [adminAppointments, setAdminAppointments] = useState([]);
   const [barbers, setBarbers] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [selectedBarber, setSelectedBarber] = useState(null);
   const [busySlots, setBusySlots] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -71,6 +72,14 @@ function App() {
       if (Array.isArray(data) && data.length === 1) setSelectedBarber(data[0]);
     } catch { console.error('Error fetching barbers'); setBarbers([]); }
   }, []);
+
+  const fetchTeamMembers = useCallback(async () => {
+    if (!user?.email) return;
+    try {
+      const data = await api.getTeamMembers(user.email);
+      setTeamMembers(Array.isArray(data) ? data : []);
+    } catch { console.error('Error fetching team'); setTeamMembers([]); }
+  }, [user]);
 
   const fetchServices = useCallback(async (ts = '') => {
     try {
@@ -184,6 +193,7 @@ function App() {
         fetchAdminAppointments(ts),
         fetchWaStatus(),
         fetchBarbers(),
+        fetchTeamMembers(),
         fetchBusySlots(selectedDate, selectedBarber || user, ts)
       ]);
       // CORREÇÃO LINT: Alterado catch para não usar a variável 'e' se não for necessário
@@ -271,6 +281,18 @@ function App() {
     }
   };
 
+  const handleUpdateTeamMember = async (memberEmail, updates) => {
+    setLoading(true);
+    try {
+      await api.updateTeamMember(user.email, memberEmail, updates);
+      await Promise.all([fetchBarbers(), fetchTeamMembers()]);
+    } catch {
+      alert('Erro ao atualizar membro da equipe.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogin = useCallback(async (data) => {
     setLoading(true);
     try {
@@ -346,6 +368,7 @@ function App() {
     if (user?.isAdmin || user?.isBarber) {
       fetchWaStatus();
       fetchBotSettings();
+      fetchTeamMembers();
       if (user.isMaster) fetchMasterData();
     }
   }, [user, fetchBotSettings, fetchMasterData, fetchWaStatus]);
@@ -402,7 +425,7 @@ function App() {
           timeSlots={timeSlots} busySlots={busySlots} adminAppointments={adminAppointments}
           handleToggleBlock={handleToggleBlock} handleToggleFullDay={handleToggleFullDay}
           setSelectedActionAppt={setSelectedActionAppt} handleRefresh={handleRefresh}
-          barbers={barbers} loading={loading} waStatus={waStatus} botSettings={botSettings}
+          barbers={barbers} teamMembers={teamMembers} loading={loading} waStatus={waStatus} botSettings={botSettings}
           setBotSettings={setBotSettings} masterStats={masterStats} masterUsers={masterUsers}
         />
       )}

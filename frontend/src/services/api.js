@@ -69,7 +69,7 @@ export const api = {
             method: 'POST',
             headers: headers(email),
             // Mudamos userEmail para email para bater com o que o Worker espera
-            body: JSON.stringify({ ...data, email: email }) 
+            body: JSON.stringify({ ...data, email: email })
         });
         return res.json();
     },
@@ -250,6 +250,20 @@ export const api = {
             method: 'POST',
             headers: headers(email),
             body: JSON.stringify({ memberEmail, ownerEmail: email })
+        });
+        return res.json();
+    },
+    updateTeamMember: async (email, memberEmail, updates) => {
+        const res = await fetch(`${API_URL}/team/update`, {
+            method: 'POST',
+            headers: headers(email),
+            body: JSON.stringify({ memberEmail, ownerEmail: email, ...updates })
+        });
+        return res.json();
+    },
+    getTeamMembers: async (email) => {
+        const res = await fetch(`${API_URL}/team/list`, {
+            headers: headers(email)
         });
         return res.json();
     }
