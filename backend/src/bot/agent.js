@@ -11,12 +11,11 @@ const ANO_ATUAL = new Date().getFullYear();
 export const BARBER_TOOLS = [
     {
         name: 'consultar_agenda',
-        // Injetamos a regra temporal DIRETAMENTE na mente da IA antes dela usar a ferramenta
-        description: `Verifica horários ocupados no banco de dados. O ANO ATUAL É ${ANO_ATUAL}. Ao preencher 'appointment_date', você DEVE obrigatoriamente usar o ano de ${ANO_ATUAL} (ex: ${ANO_ATUAL}-02-22), a menos que o usuário mencione explicitamente um ano diferente.`,
+        description: 'Verifica horários ocupados no banco de dados para uma data específica.',
         parameters: {
             type: 'object',
             properties: {
-                appointment_date: { type: 'string', description: `Data no formato exato YYYY-MM-DD. Lembre-se que o ano atual é ${ANO_ATUAL}.` },
+                appointment_date: { type: 'string', description: 'Data no formato YYYY-MM-DD' },
                 barber_email: { type: 'string', description: 'E-mail do barbeiro' }
             },
             required: ['appointment_date', 'barber_email']
@@ -69,10 +68,23 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
             let toolData = "";
 
             if (call.name === 'consultar_agenda') {
-                const { appointment_date } = call.arguments;
+                let { appointment_date } = call.arguments; // Usamos 'let' para poder corrigir
                 
-                // 🚨 TRAVA DE SEGURANÇA DO E-MAIL: 
-                // Ignoramos qualquer e-mail genérico que a IA tente inventar e forçamos o e-mail real do barbeiro.
+                // ⏱️ NORMALIZADOR DINÂMICO DE TEMPO (Padrão Ouro de Arquitetura)
+                // Pega o ano atual do servidor na hora exata da requisição
+                const anoAtual = new Date().getFullYear().toString(); 
+                
+                // Se a IA alucinar qualquer ano passado (1970, 2024), nós dividimos a string e arrumamos
+                if (appointment_date && appointment_date.includes('-')) {
+                    const partesData = appointment_date.split('-'); // Divide em ['1970', '02', '22']
+                    if (partesData[0] !== anoAtual) {
+                        partesData[0] = anoAtual; // Injeta o ano correto dinamicamente
+                        appointment_date = partesData.join('-'); // Remonta para '2026-02-22'
+                        console.log(`[Normalização] Ano bizarro corrigido pela engenharia para: ${appointment_date}`);
+                    }
+                }
+                
+                // Trava de segurança do e-mail real
                 const emailReal = (barberContext?.barberEmail && barberContext.barberEmail !== "undefined") 
                     ? barberContext.barberEmail 
                     : "celsosilvajunior90@gmail.com";
@@ -80,7 +92,6 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
                 console.log(`[D1 Forward] Consultando agenda de ${emailReal} em ${appointment_date}`);
 
                 try {
-                    // Usamos LIKE e aspas simples 'cancelled' para garantir compatibilidade com o SQLite do D1
                     const res = await DB.prepare(
                         "SELECT appointment_time FROM appointments WHERE appointment_date LIKE ? AND barber_email = ? AND status != 'cancelled'"
                     ).bind(`${appointment_date}%`, emailReal).all();
@@ -88,7 +99,7 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
                     console.log(`[D1 RAW DB RESULT]`, JSON.stringify(res.results));
 
                     toolData = res.results.length > 0 
-                        ? `INFORMAÇÃO REAL DO BANCO: Horários já ocupados neste dia: ${res.results.map(r => r.appointment_time).join(', ')}. Baseado nisso, sugira horários livres.`
+                        ? `INFORMAÇÃO REAL DO BANCO: Horários já ocupados neste dia: ${res.results.map(r => r.appointment_time).join(', ')}.`
                         : `A agenda está totalmente livre no sistema para esta data.`;
                     
                     console.log(`[D1 Success] Dados enviados de volta para a IA: ${toolData}`);
