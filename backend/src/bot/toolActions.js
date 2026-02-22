@@ -173,5 +173,29 @@ export const TOOL_ACTIONS = {
             console.error('[Tool Error: gerenciar_robos]', e.message);
             return { status: "erro", msg: e.message };
         }
+    },
+
+    async gerenciar_configuracoes({ args, DB }) {
+        const { email, shop_name, business_type, bot_name, bot_tone, mp_access_token } = args;
+        try {
+            const updates = [];
+            const values = [];
+
+            if (shop_name) { updates.push("shop_name = ?"); values.push(shop_name); }
+            if (business_type) { updates.push("business_type = ?"); values.push(business_type); }
+            if (bot_name) { updates.push("bot_name = ?"); values.push(bot_name); }
+            if (bot_tone) { updates.push("bot_tone = ?"); values.push(bot_tone); }
+            if (mp_access_token) { updates.push("mp_access_token = ?"); values.push(mp_access_token); }
+
+            if (updates.length === 0) return { status: "erro", msg: "Nenhum campo informado para atualização." };
+
+            values.push(email);
+            await DB.prepare(`UPDATE users SET ${updates.join(", ")} WHERE email = ?`).bind(...values).run();
+
+            return { status: "sucesso", msg: "Configurações atualizadas com sucesso!" };
+        } catch (e) {
+            console.error('[Tool Error: gerenciar_configuracoes]', e.message);
+            return { status: "erro", msg: e.message };
+        }
     }
 };

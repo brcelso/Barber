@@ -30,12 +30,14 @@ export default {
                 const requiredCols = [
                     'msg_welcome',
                     'msg_choose_barber',
+                    'msg_choose_professional',
                     'msg_choose_service',
                     'msg_confirm_booking',
                     'wa_bridge_url',
                     'wa_status',
                     'wa_qr',
-                    'wa_last_seen'
+                    'wa_last_seen',
+                    'mp_access_token'
                 ];
 
                 for (const col of requiredCols) {
@@ -164,7 +166,15 @@ export default {
 
         } catch (e) {
             console.error('[Global Error]', e);
-            return json({ error: 'Internal Server Error', message: e.message }, 500);
+            return new Response(JSON.stringify({
+                error: 'Internal Server Error',
+                message: e.message,
+                stack: e.stack,
+                details: e.toString()
+            }), {
+                status: 500,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
         }
     },
 

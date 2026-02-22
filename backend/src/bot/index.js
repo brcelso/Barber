@@ -53,6 +53,15 @@ export async function handleWhatsAppWebhook(request, env) {
     } else {
         // Caso contrário, trata como cliente normal
         let userInDb = await env.DB.prepare('SELECT * FROM users WHERE phone LIKE ?').bind(`%${last8}`).first();
+
+        // Se o cliente não existe, criar perfil básico para evitar erro de FK
+        if (!userInDb) {
+            const guestEmail = `guest_${from}@whatsapp.com`;
+            await env.DB.prepare('INSERT OR IGNORE INTO users (email, name, phone, is_admin, is_barber) VALUES (?, ?, ?, 0, 0)')
+                .bind(guestEmail, `Cliente ${from}`, from).run();
+            userInDb = { email: guestEmail, phone: from, name: `Cliente ${from}` };
+        }
+
         return await handleClientFlow(from, text, textLower, session, userInDb, botProfessionalEmail, env);
     }
 }

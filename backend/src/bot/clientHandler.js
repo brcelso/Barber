@@ -30,7 +30,7 @@ export async function handleClientFlow(from, text, textLower, session, userInDb,
         await env.DB.prepare('INSERT OR REPLACE INTO whatsapp_sessions (phone, state, user_email, selected_barber_email) VALUES (?, "ai_chat", ?, ?)').bind(from, userEmail, b.email).run();
         const msg = (b.msg_welcome || CLIENT_PROMPTS.ai_welcome(b)).replace(/{{establishment_name}}/g, establishmentName);
         await sendMessage(env, from, msg, botProfessionalEmail);
-        return json({ success: true });
+        return json({ success: true, branch: "welcome" });
     }
 
     // 2. Seleção de Profissional (Caso de Equipe)
@@ -63,7 +63,10 @@ export async function handleClientFlow(from, text, textLower, session, userInDb,
             business_type: professional?.business_type || 'default',
             bName: professional?.bot_name || 'Leo',
             bTone: professional?.bot_tone || 'amigável',
-            servicesList: services.results.map(s => `📍 [ID: ${s.id}] ${s.name}: R$ ${s.price.toFixed(2)}`).join('\n')
+            servicesList: services.results.map(s => {
+                const price = typeof s.price === 'number' ? s.price : parseFloat(s.price || 0);
+                return `📍 [ID: ${s.id}] ${s.name}: R$ ${price.toFixed(2)}`;
+            }).join('\n')
         };
 
         const aiData = await runAgentChat(env, {
@@ -75,7 +78,7 @@ export async function handleClientFlow(from, text, textLower, session, userInDb,
 
         const aiMsg = aiData.text || "Ops, tive um probleminha aqui. Pode perguntar de novo?";
         await sendMessage(env, from, aiMsg, botProfessionalEmail);
-        return json({ success: true });
+        return json({ success: true, aiResponse: aiMsg, debug: aiData, branch: "ai" });
 
     } catch (e) {
         console.error('[Client AI Error]', e);

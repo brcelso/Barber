@@ -1,0 +1,37 @@
+﻿­ƒñû Simulando Atendimento de Cliente para: parceiro_full_1771794968196@teste.com
+
+­ƒÆ¼ Cliente: "Quero agendar um Corte Social para o dia 2026-02-23 ├ás 14:00"
+­ƒô¿ Enviando primeira mensagem para iniciar sess├úo...
+ÔÅ│ Aguardando cria├º├úo da sess├úo...
+­ƒô¿ Enviando solicita├º├úo de agendamento...
+Raw response: {"success":"V2","aiResponse":"O Corte Social foi agendado para o dia 2026-02-23 ├ás 14:00. Voc├¬ receber├í um link para pagar o servi├ºo ap├│s confirmar o agendamento.","debug":{"text":"O Corte Social foi agendado para o dia 2026-02-23 ├ás 14:00. Voc├¬ receber├í um link para pagar o servi├ºo ap├│s confirmar o agendamento.","tool_calls":[{"name":"agendar_cliente","arguments":{"date":"2026-02-23","professional_email":"parceiro_full_1771794968196@teste.com","service_id":"corte-1771794991833","time":"14:00","user_email":"guest_551188888888@whatsapp.com"}}],"tool_results":[{"role":"tool","name":"agendar_cliente","content":"{\"status\":\"sucesso\",\"mensagem\":\"Agendamento criado com sucesso!\",\"id\":\"appt_1771797247003\",\"complemento\":\"\\n\\nLink para pagamento: https://universal-scheduler.pages.dev/pay/appt_1771797247003\"}"}]},"branch":"ai"}
+
+­ƒôÑ Resposta do Servidor (IA): {
+  "success": "V2",
+  "aiResponse": "O Corte Social foi agendado para o dia 2026-02-23 ├ás 14:00. Voc├¬ receber├í um link para pagar o servi├ºo ap├│s confirmar o agendamento.",
+  "debug": {
+    "text": "O Corte Social foi agendado para o dia 2026-02-23 ├ás 14:00. Voc├¬ receber├í um link para pagar o servi├ºo ap├│s confirmar o agendamento.",
+    "tool_calls": [
+      {
+        "name": "agendar_cliente",
+        "arguments": {
+          "date": "2026-02-23",
+          "professional_email": "parceiro_full_1771794968196@teste.com",
+          "service_id": "corte-1771794991833",
+          "time": "14:00",
+          "user_email": "guest_551188888888@whatsapp.com"
+        }
+      }
+    ],
+    "tool_results": [
+      {
+        "role": "tool",
+        "name": "agendar_cliente",
+        "content": "{\"status\":\"sucesso\",\"mensagem\":\"Agendamento criado com sucesso!\",\"id\":\"appt_1771797247003\",\"complemento\":\"\\n\\nLink para pagamento: https://universal-scheduler.pages.dev/pay/appt_1771797247003\"}"
+      }
+    ]
+  },
+  "branch": "ai"
+}
+
+Ô£à AGENDAMENTO PROCESSADO PELA IA!

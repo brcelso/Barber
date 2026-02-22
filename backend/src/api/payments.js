@@ -60,6 +60,10 @@ export async function handlePaymentRoutes(url, request, env) {
 
         if (!appt) return json({ error: 'Appointment not found' }, 404);
 
+        // Buscar Access Token do Profissional
+        const professional = await DB.prepare('SELECT mp_access_token FROM users WHERE email = ?').bind(appt.barber_email).first();
+        const accessToken = professional?.mp_access_token || env.MP_ACCESS_TOKEN;
+
         try {
             const mpPref = {
                 items: [{
@@ -80,7 +84,7 @@ export async function handlePaymentRoutes(url, request, env) {
             const mpRes = await fetch('https://api.mercadopago.com/checkout/preferences', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${env.MP_ACCESS_TOKEN}`,
+                    'Authorization': `Bearer ${accessToken}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(mpPref)

@@ -88,8 +88,8 @@ export async function handleMasterRoutes(url, request, env) {
             INSERT OR REPLACE INTO users (
                 email, name, phone, is_admin, is_barber, business_type, shop_name, 
                 plan, subscription_expires, bot_active, bot_name, bot_tone, 
-                msg_welcome, wa_status, last_login
-            ) VALUES (?, ?, ?, 1, 1, ?, ?, "Pro", ?, 1, "Leo", "profissional", ?, "connected", CURRENT_TIMESTAMP)
+                msg_welcome, wa_status, last_login, mp_access_token
+            ) VALUES (?, ?, ?, 1, 1, ?, ?, "Pro", ?, 1, "Leo", "profissional", ?, "connected", CURRENT_TIMESTAMP, ?)
         `).bind(
             targetEmail,
             name || "João Exemplo",
@@ -97,7 +97,8 @@ export async function handleMasterRoutes(url, request, env) {
             niche || "barbearia",
             shopName || "Barbearia de Demonstração",
             expires.toISOString(),
-            `Olá! Bem-vindo ao atendimento da nossa unidade. Como posso te ajudar?`
+            `Olá! Bem-vindo ao atendimento da nossa unidade. Como posso te ajudar?`,
+            `TEST-MOCK-TOKEN-${targetEmail}`
         ).run();
 
         // 2. Criar Serviços Mockados

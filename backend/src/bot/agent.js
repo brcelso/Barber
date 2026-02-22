@@ -127,10 +127,26 @@ export const BUSINESS_TOOLS = [
             },
             required: ['action', 'email']
         }
+    },
+    {
+        name: 'gerenciar_configuracoes',
+        description: 'Altera configurações básicas do estabelecimento como nome, nicho, tom de voz ou tokens de pagamento.',
+        parameters: {
+            type: 'object',
+            properties: {
+                email: { type: 'string', description: 'E-mail da unidade/dono' },
+                shop_name: { type: 'string', description: 'Nome do estabelecimento' },
+                business_type: { type: 'string', description: 'Nicho: barbearia, petshop, salao, clinica' },
+                bot_name: { type: 'string', description: 'Nome do robô' },
+                bot_tone: { type: 'string', description: 'Tom: profissional, amigável, engraçado' },
+                mp_access_token: { type: 'string', description: 'Access Token do Mercado Pago do Cliente' }
+            },
+            required: ['email']
+        }
     }
 ];
 
-export async function runAgentChat(env, { prompt, isAdmin, professionalContext }) {
+export async function runAgentChat(env, { prompt, userEmail, isAdmin, professionalContext }) {
 
     // 🛡️ ESCUDO ANTI-STATUS
     if (!prompt || String(prompt).trim() === '' || String(prompt) === 'undefined') {
@@ -163,7 +179,7 @@ export async function runAgentChat(env, { prompt, isAdmin, professionalContext }
     // ⚒️ FILTRAGEM DE FERRAMENTAS POR PAPEL
     const roleTools = {
         master: BUSINESS_TOOLS.map(t => t.name), // Tudo
-        owner: ['consultar_agenda', 'agendar_cliente', 'alterar_status_agendamento', 'consultar_faturamento', 'gerenciar_bloqueios', 'gerenciar_servicos', 'gerenciar_equipe', 'gerenciar_robos'],
+        owner: ['consultar_agenda', 'agendar_cliente', 'alterar_status_agendamento', 'consultar_faturamento', 'gerenciar_bloqueios', 'gerenciar_servicos', 'gerenciar_equipe', 'gerenciar_robos', 'gerenciar_configuracoes'],
         staff: ['consultar_agenda', 'alterar_status_agendamento', 'gerenciar_bloqueios'],
         client: ['consultar_agenda', 'agendar_cliente', 'alterar_status_agendamento']
     };
@@ -175,7 +191,7 @@ export async function runAgentChat(env, { prompt, isAdmin, professionalContext }
     if (role === 'master') systemPrompt = ADMIN_PROMPTS.system_master(professionalContext);
     else if (role === 'owner') systemPrompt = ADMIN_PROMPTS.system_owner(professionalContext);
     else if (role === 'staff') systemPrompt = ADMIN_PROMPTS.system_staff(professionalContext);
-    else systemPrompt = CLIENT_PROMPTS.system_ai(professionalContext);
+    else systemPrompt = CLIENT_PROMPTS.system_ai({ ...professionalContext, userEmail });
 
     // 🕰️ CONTEXTO TEMPORAL (Crucial para não agendar no passado)
     const agora = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
@@ -243,6 +259,7 @@ export async function runAgentChat(env, { prompt, isAdmin, professionalContext }
                     args: call.arguments,
                     DB,
                     AI,
+                    env, // Passando o env completo para acesso a variáveis globais
                     emailReal,
                     professionalContext
                 });
@@ -264,7 +281,11 @@ export async function runAgentChat(env, { prompt, isAdmin, professionalContext }
             messages: toolMessages
         });
 
-        return { text: finalResponse.response };
+        return {
+            text: finalResponse.response,
+            tool_calls: aiResponse.tool_calls,
+            tool_results: toolMessages.filter(m => m.role === 'tool')
+        };
     }
 
     return { text: aiResponse.response };

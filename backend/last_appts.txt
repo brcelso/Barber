@@ -1,0 +1,31 @@
+﻿
+ Ôøà´©Å wrangler 4.67.0
+ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+Resource location: remote 
+
+­ƒîÇ Executing on remote database barber-db (833f15c1-bda9-43fa-a890-0dbaf04514e8):
+­ƒîÇ To execute on your local development database, remove the --remote flag from your wrangler command.
+­ƒÜú Executed 1 command in 0.15ms
+[
+  {
+    "results": [],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "ENAM",
+      "served_by_colo": "EWR",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1548
+      },
+      "duration": 0.1548,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 53248,
+      "rows_read": 2,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
