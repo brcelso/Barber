@@ -8,6 +8,7 @@ export async function handleWhatsAppWebhook(request, env) {
     const text = (body.message || "").trim();
     const textLower = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const botBarberEmail = body.barber_email;
+    const isSelfChat = body.is_self_chat === true;
 
     if (!from) return json({ error: "Missing phone" }, 400);
 
@@ -27,8 +28,6 @@ export async function handleWhatsAppWebhook(request, env) {
     // 2. Privilege Check (Admin/Barber)
     let isOwner = false;
     let adminInfo = null;
-    const isSelfChat = body.is_self_chat === true;
-
     const cleanFrom = from.replace(/\D/g, "");
 
     // Stricter phone comparison for Brazil (DDD + Number)
@@ -37,7 +36,6 @@ export async function handleWhatsAppWebhook(request, env) {
         const s1 = p1.replace(/\D/g, "");
         const s2 = p2.replace(/\D/g, "");
         if (s1 === s2) return true;
-        // Compare last 10 digits (DDD + 8 digits) or 11 (DDD + 9 digits)
         if (s1.length >= 10 && s2.length >= 10) {
             return s1.slice(-10) === s2.slice(-10);
         }
@@ -45,17 +43,30 @@ export async function handleWhatsAppWebhook(request, env) {
     };
 
     if (botBarberEmail) {
-        const barberRow = await env.DB.prepare(
+        adminInfo = await env.DB.prepare(
             'SELECT email, name, phone, is_barber, is_admin, shop_name, bot_name, bot_tone FROM users WHERE email = ?'
         ).bind(botBarberEmail).first();
+    }
 
-        // Check if the sender is the barber/owner of this bot
-        const isActuallyTheOwner = barberRow && (barberRow.is_barber === 1 || barberRow.is_admin === 1) && isSamePhone(barberRow.phone, cleanFrom);
+    // If it's a self chat or the phone matches the botBarberEmail's phone, it's the owner
+    if (isSelfChat || (adminInfo && isSamePhone(adminInfo.phone, cleanFrom))) {
+        isOwner = true;
+        // If we don't have adminInfo yet (self-chat without barber_email), try to find it by phone
+        if (!adminInfo) {
+            adminInfo = await env.DB.prepare(
+                'SELECT email, name, phone, is_barber, is_admin, shop_name, bot_name, bot_tone FROM users WHERE phone LIKE ? AND (is_barber = 1 OR is_admin = 1)'
+            ).bind(`%${cleanFrom.slice(-10)}`).first();
 
-        if (isActuallyTheOwner || isSelfChat) {
-            isOwner = true;
-            adminInfo = barberRow;
+            // Fallback Admin Fixo (Celso)
+            if (!adminInfo && (cleanFrom.endsWith('983637172') || cleanFrom.endsWith('942125134'))) {
+                adminInfo = await env.DB.prepare('SELECT * FROM users WHERE email = "celsosilvajunior90@gmail.com"').first();
+            }
         }
+    }
+
+    // Se identificou como dono mas não achou adminInfo, tenta pegar o admin padrão pelo e-mail
+    if (isOwner && !adminInfo && botBarberEmail) {
+        adminInfo = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(botBarberEmail).first();
     }
 
     // 3. Routing
