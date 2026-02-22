@@ -1,0 +1,85 @@
+[2026-02-22T15:37:15.877Z] Sending to 5511972509876@s.whatsapp.net: Olá Celso Silva Junior, seu horário para *Corte de Cabelo* foi confirmado!
+[2026-02-22T15:37:16.430Z] Result: Success
+[2026-02-22T15:37:48.067Z] Bot connected as 5511972509876:36@s.whatsapp.net
+[2026-02-22T15:38:22.587Z] Sending to 551172509876@s.whatsapp.net: Teste Sem o 9
+[2026-02-22T15:38:23.022Z] Result: Success
+[2026-02-22T15:39:26.157Z] Bot connected as 5511972509876:36@s.whatsapp.net
+[2026-02-22T15:39:34.586Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:39:34.746Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:39:35.289Z] Result: Success
+[2026-02-22T15:40:13.698Z] Checking WhatsApp for 5511111111111@s.whatsapp.net
+[2026-02-22T15:40:13.884Z] Result: Error - Number does not exist on WhatsApp
+[2026-02-22T15:44:13.961Z] Checking WhatsApp for 5511971028318@s.whatsapp.net
+[2026-02-22T15:44:14.148Z] Verified JID: 5511971028318@s.whatsapp.net. Sending message...
+[2026-02-22T15:44:14.589Z] Result: Success
+[2026-02-22T15:46:17.877Z] Checking WhatsApp for 5511971028318@s.whatsapp.net
+[2026-02-22T15:46:18.059Z] Verified JID: 5511971028318@s.whatsapp.net. Sending message...
+[2026-02-22T15:46:18.496Z] Result: Success
+[2026-02-22T15:46:18.680Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:46:18.840Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:46:18.878Z] Result: Success
+[2026-02-22T15:48:14.010Z] Checking WhatsApp for 5511971028318@s.whatsapp.net
+[2026-02-22T15:48:14.202Z] Verified JID: 5511971028318@s.whatsapp.net. Sending message...
+[2026-02-22T15:48:14.234Z] Result: Success
+[2026-02-22T15:48:14.390Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:48:14.557Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:48:14.592Z] Result: Success
+[2026-02-22T15:50:07.493Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:50:07.674Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:50:07.696Z] Result: Success
+[2026-02-22T15:50:07.884Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:50:08.084Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:50:08.141Z] Result: Success
+[2026-02-22T15:50:09.102Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:50:09.264Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:50:09.302Z] Result: Success
+[2026-02-22T15:50:09.464Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:50:09.624Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:50:09.666Z] Result: Success
+[2026-02-22T15:50:17.208Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:50:17.394Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:50:17.428Z] Result: Success
+[2026-02-22T15:50:17.593Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:50:17.802Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:50:17.835Z] Result: Success
+[2026-02-22T15:50:20.365Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:50:20.523Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:50:20.554Z] Result: Success
+[2026-02-22T15:50:20.727Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:50:20.977Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:50:21.005Z] Result: Success
+[2026-02-22T15:52:45.794Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:52:45.992Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:52:46.409Z] Result: Success
+[2026-02-22T15:52:46.583Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:52:46.740Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:52:46.770Z] Result: Success
+[2026-02-22T15:53:00.145Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:53:00.311Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:53:00.329Z] Result: Success
+[2026-02-22T15:53:00.487Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:53:00.642Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:53:00.678Z] Result: Success
+[2026-02-22T15:54:33.030Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:54:33.190Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:54:33.223Z] Result: Success
+[2026-02-22T15:54:40.685Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:54:40.841Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:54:40.873Z] Result: Success
+[2026-02-22T15:54:59.655Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:54:59.816Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:54:59.845Z] Result: Success
+[2026-02-22T15:55:23.980Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:55:24.137Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:55:24.168Z] Result: Success
+[2026-02-22T15:56:45.237Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:56:45.395Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:56:45.425Z] Result: Success
+[2026-02-22T15:59:10.363Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T15:59:10.522Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T15:59:10.934Z] Result: Success
+[2026-02-22T16:11:13.576Z] Bot connected as 5511972509876:37@s.whatsapp.net
+[2026-02-22T16:13:53.344Z] Bot connected as 5511972509876:37@s.whatsapp.net
+[2026-02-22T16:14:13.212Z] Checking WhatsApp for 5511972509876@s.whatsapp.net
+[2026-02-22T16:14:13.396Z] Verified JID: 5511972509876@s.whatsapp.net. Sending message...
+[2026-02-22T16:14:13.932Z] Result: Success

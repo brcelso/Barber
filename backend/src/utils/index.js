@@ -79,7 +79,7 @@ export const notifyWhatsApp = async (env, DB, appointmentId, status, options = {
         let appt = null;
         if (appointmentId) {
             appt = await DB.prepare(`
-                SELECT a.*, s.name as service_name, u.phone, u.name as user_name, pr.name as professional_name, 
+                SELECT a.*, s.name as service_name, s.price, u.phone, u.name as user_name, pr.name as professional_name, 
                        pr.welcome_message, pr.business_type, pr.bot_name
                 FROM appointments a
                 JOIN services s ON a.service_id = s.id
@@ -147,6 +147,15 @@ export const notifyWhatsApp = async (env, DB, appointmentId, status, options = {
 
         if (message) {
             await sendMessage(env, appt.phone, message, providerEmail, bridgeUrl);
+
+            // Se confirmado, notifica o profissional também
+            if (status === 'confirmed') {
+                const adminMsg = `💰 *Pagamento Confirmado!* \n\nCliente: *${appt.user_name}*\nServiço: *${appt.service_name}*\nData: *${formattedDate}* às *${appt.appointment_time}*\nValor: *R$ ${appt.price}*`;
+                const professional = await DB.prepare('SELECT phone FROM users WHERE email = ?').bind(providerEmail).first();
+                if (professional?.phone) {
+                    await sendMessage(env, professional.phone, adminMsg, providerEmail, bridgeUrl);
+                }
+            }
         }
     } catch (e) {
         console.error('[WhatsApp Notify Error]', e);

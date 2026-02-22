@@ -28,7 +28,14 @@ app.use(bodyParser.json());
 const sessions = new Map();
 const sessionTimers = new Map();
 
-async function connectToWhatsApp(email) {
+async function connectToWhatsApp(emailRaw) {
+    let email = emailRaw;
+    // Remapear e-mail fantasma se ele vier de alguma fonte antiga
+    if (email === 'celso@master.com') {
+        console.log(`[Session] 🔀 Remapeando e-mail fantasma de ${email} para ${ADMIN_EMAIL}`);
+        email = ADMIN_EMAIL;
+    }
+
     if (sessions.has(email)) {
         console.log(`[Session] Sessão já inicializada para ${email}`);
         return;
@@ -58,29 +65,18 @@ async function connectToWhatsApp(email) {
         if (m.type !== 'notify') return;
 
         const msg = m.messages[0];
-        if (!msg.message) return;
+        if (!msg.message || msg.message.protocolMessage || msg.message.historySyncNotification) return;
 
         const remoteJid = msg.key.remoteJid || '';
-        const remoteJidAlt = msg.key.remoteJidAlt || '';
         const rawMyId = sock.user?.id || '';
         const myNumber = rawMyId.split(':')[0].split('@')[0];
 
-        // 1. Identifica se é Self-Chat (Eu comigo mesmo)
-        const isSelfChat = myNumber && (
-            remoteJid.includes(myNumber) ||
-            remoteJidAlt.includes(myNumber) ||
-            remoteJid.includes('@lid')
-        );
-
+        // 1. Identifica se é Self-Chat
+        const isSelfChat = remoteJid.includes(myNumber) || remoteJid.includes('@lid');
         const fromMe = msg.key.fromMe;
 
-        console.log(`[Debug] Msg de: ${remoteJid}, Me: ${myNumber}, isSelf: ${isSelfChat}, fromMe: ${fromMe}`);
-
-        // 2. Trava de segurança: Pula mensagens que eu envio para outras pessoas (não bot)
-        if (fromMe && !isSelfChat) {
-            console.log('[Upsert] Pulando: Enviada por mim para terceiros.');
-            return;
-        }
+        // 2. Trava de segurança
+        if (fromMe && !isSelfChat) return;
 
         const text = msg.message?.conversation ||
             msg.message?.extendedTextMessage?.text ||
@@ -88,27 +84,21 @@ async function connectToWhatsApp(email) {
             msg.message?.listResponseMessage?.singleSelectReply?.selectedRowId;
 
         if (text) {
-            // 3. Define o remetente e limpa o número
             const sender = isSelfChat ? `${myNumber}@s.whatsapp.net` : remoteJid;
             let cleanPhone = sender.replace(/\D/g, "");
 
-            // 4. AJUSTE PARA O D1: Remove o prefixo "55" se ele existir
             if (cleanPhone.startsWith("55") && cleanPhone.length > 10) {
                 cleanPhone = cleanPhone.substring(2);
             }
 
-            console.log(`[Forward] Enviando para Worker (${email}) - De: ${cleanPhone} - Msg: ${text}`);
+            console.log(`[Message] ${isSelfChat ? 'Self-Chat' : 'De: ' + cleanPhone}: ${text.substring(0, 30)}${text.length > 30 ? '...' : ''}`);
 
             axios.post(WORKER_URL, {
-                phone: cleanPhone, // Agora envia ex: "11972509876"
+                phone: cleanPhone,
                 message: text,
                 professional_email: email,
-                barber_email: email,
                 is_self_chat: isSelfChat
-            }).then(() => console.log('✅ POST OK'))
-                .catch(e => console.error('❌ ERRO NO WORKER:', e.message));
-        } else {
-            console.log('[Upsert] Mensagem sem texto ignorada.');
+            }).catch(() => { });
         }
     });
 
@@ -154,7 +144,8 @@ async function connectToWhatsApp(email) {
                 }
             }
         } else if (connection === 'open') {
-            console.log(`[Session] ✅ ${email} CONECTADO COM SUCESSO!`);
+            console.log(`[Session] ✅ ${email} CONECTADO COM SUCESSO! ID: ${sock.user?.id}`);
+            fs.appendFileSync('bridge_logs.txt', `[${new Date().toISOString()}] Bot connected as ${sock.user?.id}\n`);
             axios.post(STATUS_URL, { email, status: 'connected' }).catch(() => { });
         }
     });
@@ -235,12 +226,37 @@ app.post('/send-message', async (req, res) => {
     try {
         let cleanNumber = number.replace(/\D/g, '');
         if (!cleanNumber.startsWith('55')) cleanNumber = '55' + cleanNumber;
-        await sock.sendMessage(`${cleanNumber}@s.whatsapp.net`, { text: message });
+        const jid = `${cleanNumber}@s.whatsapp.net`;
+
+        fs.appendFileSync('bridge_logs.txt', `[${new Date().toISOString()}] Checking WhatsApp for ${jid}\n`);
+        const [result] = await sock.onWhatsApp(jid);
+
+        if (!result || !result.exists) {
+            fs.appendFileSync('bridge_logs.txt', `[${new Date().toISOString()}] Result: Error - Number does not exist on WhatsApp\n`);
+            return res.status(404).json({ error: 'Número não existe no WhatsApp' });
+        }
+
+        console.log(`[Send] Destinatário Verificado: ${result.jid}, Msg: ${message}`);
+        fs.appendFileSync('bridge_logs.txt', `[${new Date().toISOString()}] Verified JID: ${result.jid}. Sending message...\n`);
+
+        await sock.sendMessage(result.jid, { text: message });
+        fs.appendFileSync('bridge_logs.txt', `[${new Date().toISOString()}] Result: Success\n`);
         res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) {
+        fs.appendFileSync('bridge_logs.txt', `[${new Date().toISOString()}] Result: Error - ${err.message}\n`);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.listen(PORT, () => {
     console.log(`🚀 Universal Multi-Bridge rodando na porta ${PORT}`);
     loadExistingSessions();
+
+    // Auto-carregar a sessão do administrador se nada foi carregado
+    setTimeout(() => {
+        if (sessions.size === 0 && ADMIN_EMAIL) {
+            console.log(`[Boot] 🚀 Iniciando sessão padrão do administrador: ${ADMIN_EMAIL}`);
+            connectToWhatsApp(ADMIN_EMAIL);
+        }
+    }, 2000);
 });

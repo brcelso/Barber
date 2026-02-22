@@ -114,12 +114,16 @@ export const BUSINESS_TOOLS = [
     },
     {
         name: 'gerenciar_robos',
-        description: 'Inicia, para ou reinicia a conexão do robô de WhatsApp de um estabelecimento.',
+        description: 'Gerencia a conexão do hardware (WhatsApp) ou a Resposta Automática (IA).',
         parameters: {
             type: 'object',
             properties: {
-                action: { type: 'string', enum: ['start', 'stop', 'restart'], description: 'Ação na conexão' },
-                email: { type: 'string', description: 'E-mail do dono da conexão' }
+                action: {
+                    type: 'string',
+                    enum: ['start_bridge', 'stop_bridge', 'restart_bridge', 'activate_ia', 'deactivate_ia'],
+                    description: 'start/stop/restart_bridge (Conexão WhatsApp), activate/deactivate_ia (Resposta automática da IA para clientes)'
+                },
+                email: { type: 'string', description: 'E-mail da unidade' }
             },
             required: ['action', 'email']
         }
@@ -135,9 +139,18 @@ export async function runAgentChat(env, { prompt, isAdmin, professionalContext }
 
     const { DB, AI } = env;
     const model = '@cf/meta/llama-3.1-8b-instruct';
+    const MASTER_EMAIL = "celsosilvajunior90@gmail.com";
     const emailReal = (professionalContext?.professionalEmail && professionalContext.professionalEmail !== "undefined")
         ? professionalContext.professionalEmail
-        : "celsosilvajunior90@gmail.com";
+        : MASTER_EMAIL;
+
+    // Safety: If it's Master, ensure the prompt isn't accidentally stopping its own connection
+    if (emailReal === MASTER_EMAIL && (prompt.toLowerCase().includes("parar") || prompt.toLowerCase().includes("stop") || prompt.toLowerCase().includes("desligar"))) {
+        if (!prompt.toLowerCase().includes("respostas") && !prompt.toLowerCase().includes("ia") && !prompt.toLowerCase().includes("inteligencia")) {
+            // If the user didn't specify IA/Answers, we force it to NOT stop the bridge
+            professionalContext.force_ia_only = true;
+        }
+    }
 
     // 🔑 DETERMINAR NÍVEL DE ACESSO (RBAC)
     let role = 'client';
@@ -175,6 +188,7 @@ export async function runAgentChat(env, { prompt, isAdmin, professionalContext }
     }
 
     // 🚀 ESTRATÉGIA ANTECIPATÓRIA (Apenas para quem tem poder de agenda)
+    let dynamicContext = "";
     if (role === 'master' || role === 'owner' || role === 'staff') {
         try {
             const res = await DB.prepare(

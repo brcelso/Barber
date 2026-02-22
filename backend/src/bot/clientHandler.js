@@ -48,6 +48,13 @@ export async function handleClientFlow(from, text, textLower, session, userInDb,
     try {
         const professionalEmail = session.selected_barber_email || botProfessionalEmail;
         const professional = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(professionalEmail).first();
+
+        // 🛡️ Verificar se o bot está ativo
+        if (professional?.bot_active === 0) {
+            console.log(`[Bot] IA Desativada para ${professionalEmail}. Ignorando resposta automática.`);
+            return json({ success: true, bot_active: false });
+        }
+
         const services = await env.DB.prepare('SELECT id, name, price FROM services WHERE barber_email = ? AND id != "block"').bind(professionalEmail).all();
 
         const professionalContext = {

@@ -137,19 +137,41 @@ export const TOOL_ACTIONS = {
         } catch (e) { return { status: "erro", msg: e.message }; }
     },
 
-    async gerenciar_robos({ args, DB, emailReal }) {
-        const { action, email } = args;
+    async gerenciar_robos({ args, DB, emailReal, professionalContext }) {
+        let { action, email } = args;
+        const targetEmail = email || emailReal;
+
+        // Safety Override: Se o agente detectou potencial erro de parada de hardware
+        if (professionalContext?.force_ia_only && (action === 'stop_bridge' || action === 'restart_bridge')) {
+            console.log('[Safe Guard] Forçando deactivate_ia em vez de parada de hardware.');
+            action = 'deactivate_ia';
+        }
+
+        console.log(`[Tool: gerenciar_robos] Action: ${action} Target: ${targetEmail}`);
+
         try {
+            if (action === 'activate_ia' || action === 'deactivate_ia') {
+                const active = action === 'activate_ia' ? 1 : 0;
+                await DB.prepare("UPDATE users SET bot_active = ? WHERE email = ?").bind(active, targetEmail).run();
+                return { status: "sucesso", mensagem: `Inteligência Artificial (IA) foi ${action === 'activate_ia' ? 'ativada' : 'desativada'}.` };
+            }
+
             const admin = await DB.prepare("SELECT wa_bridge_url FROM users WHERE email = ?").bind(emailReal).first();
             const bridgeUrl = admin?.wa_bridge_url;
             if (!bridgeUrl) throw new Error("URL da Bridge não configurada para este estabelecimento.");
-            const endpoint = action === 'stop' ? '/api/stop' : '/api/init';
+
+            // Mapear stop_bridge -> stop, start_bridge -> init
+            const endpoint = (action === 'stop_bridge') ? '/api/stop' : '/api/init';
+
             const res = await fetch(`${bridgeUrl}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key: 'universal-secret-key', email: email })
+                body: JSON.stringify({ key: 'universal-secret-key', email: targetEmail })
             });
             return { status: "sucesso", bridge_response: await res.json() };
-        } catch (e) { return { status: "erro", msg: e.message }; }
+        } catch (e) {
+            console.error('[Tool Error: gerenciar_robos]', e.message);
+            return { status: "erro", msg: e.message };
+        }
     }
 };
