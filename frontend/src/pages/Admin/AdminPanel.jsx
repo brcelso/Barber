@@ -1,9 +1,11 @@
 import React from 'react';
-import { Calendar, Users, MessageSquare, Activity, Shield } from 'lucide-react';
+import { Calendar, Users, MessageSquare, Activity, Shield, Package, Clock } from 'lucide-react';
 import { AgendaTab } from './Tabs/Agenda';
 import { TeamTab } from './Tabs/Team';
 import { BotSettingsTab } from './Tabs/BotSettings';
 import { MasterPanelTab } from './Tabs/MasterPanel';
+import { ServicesTab } from './Tabs/Services';
+import { AvailabilityTab } from './Tabs/Availability';
 
 export const AdminPanel = ({
     user,
@@ -140,6 +142,46 @@ export const AdminPanel = ({
                         <Shield size={16} /> Painel Master
                     </button>
                 )}
+                <button
+                    onClick={() => setAdminTab('services')}
+                    style={{
+                        flex: 1,
+                        padding: '10px',
+                        borderRadius: '10px',
+                        border: 'none',
+                        background: adminTab === 'services' ? 'var(--primary)' : 'transparent',
+                        color: adminTab === 'services' ? 'black' : 'white',
+                        fontWeight: 800,
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        cursor: 'pointer'
+                    }}
+                >
+                    <Package size={16} /> Serviços
+                </button>
+                <button
+                    onClick={() => setAdminTab('availability')}
+                    style={{
+                        flex: 1,
+                        padding: '10px',
+                        borderRadius: '10px',
+                        border: 'none',
+                        background: adminTab === 'availability' ? 'var(--primary)' : 'transparent',
+                        color: adminTab === 'availability' ? 'black' : 'white',
+                        fontWeight: 800,
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        cursor: 'pointer'
+                    }}
+                >
+                    <Clock size={16} /> Horários
+                </button>
             </div>
 
             {/* Tab Content */}
@@ -195,6 +237,14 @@ export const AdminPanel = ({
                     setMasterFilter={setMasterFilter}
                     loading={loading}
                 />
+            )}
+
+            {adminTab === 'services' && (
+                <ServicesTab user={user} loading={loading} />
+            )}
+
+            {adminTab === 'availability' && (
+                <AvailabilityTab user={user} loading={loading} />
             )}
         </main>
     );

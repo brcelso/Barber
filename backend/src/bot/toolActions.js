@@ -8,14 +8,26 @@ export const TOOL_ACTIONS = {
         const { appointment_date, professional_email } = args;
         const targetEmail = professional_email || emailReal;
         try {
+            // 1. Buscar agendamentos existentes
             const res = await DB.prepare(
-                "SELECT a.*, u.name as client_name, s.name as service_name FROM appointments a JOIN users u ON a.user_email = u.email JOIN services s ON a.service_id = s.id WHERE a.appointment_date = ? AND a.barber_email = ? AND a.status != 'cancelled'"
+                "SELECT a.appointment_time as time, a.status, u.name as client_name, s.name as service_name FROM appointments a LEFT JOIN users u ON a.user_email = u.email LEFT JOIN services s ON a.service_id = s.id WHERE a.appointment_date = ? AND a.barber_email = ? AND a.status != 'cancelled'"
             ).bind(appointment_date, targetEmail).all();
-            return { status: "sucesso", agendamentos: res.results };
+
+            // 2. Buscar horário de funcionamento para o dia da semana
+            const dateObj = new Date(appointment_date + 'T12:00:00'); // Meio dia para evitar bugs de timezone
+            const dayOfWeek = dateObj.getDay();
+            const avail = await DB.prepare("SELECT start_time, end_time FROM availability WHERE barber_email = ? AND day_of_week = ?").bind(targetEmail, dayOfWeek).first();
+
+            return {
+                status: "sucesso",
+                data: appointment_date,
+                horario_funcionamento: avail ? `${avail.start_time} às ${avail.end_time}` : "Fechado neste dia",
+                agendamentos_ocupados: res.results
+            };
         } catch (e) { return { status: "erro", msg: e.message }; }
     },
 
-    async agendar_cliente({ args, DB, emailReal }) {
+    async agendar_cliente({ args, DB, env, emailReal }) {
         const { user_email, service_id, date, time, professional_email } = args;
         const targetEmail = professional_email || emailReal;
         const id = `appt_${Date.now()}`;
@@ -23,7 +35,20 @@ export const TOOL_ACTIONS = {
             await DB.prepare(
                 "INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')"
             ).bind(id, user_email, targetEmail, service_id, date, time).run();
-            return { status: "sucesso", mensagem: "Agendamento criado com sucesso!", id };
+
+            // Gerar link de pagamento se houver API Key do MP
+            let payMsg = "";
+            if (env.MP_ACCESS_TOKEN) {
+                const payUrl = `${env.FRONTEND_URL || 'https://universal-scheduler.pages.dev'}/pay/${id}`;
+                payMsg = `\n\nLink para pagamento: ${payUrl}`;
+            }
+
+            return {
+                status: "sucesso",
+                mensagem: "Agendamento criado com sucesso!",
+                id,
+                complemento: payMsg
+            };
         } catch (e) { return { status: "erro", msg: e.message }; }
     },
 

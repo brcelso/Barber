@@ -6,6 +6,8 @@ import { handleAppointmentRoutes } from './api/appointments.js';
 import { handleUserRoutes } from './api/user.js';
 import { handlePaymentRoutes } from './api/payments.js';
 import { handleTeamRoutes } from './api/team.js';
+import { handleServicesRoutes } from './api/services.js';
+import { handleAvailabilityRoutes } from './api/availability.js';
 import { runAgentChat } from './bot/agent.js';
 
 export default {
@@ -43,6 +45,17 @@ export default {
                             .catch(() => console.log(`Aviso: Coluna ${col} já existe ou não pôde ser criada.`));
                     }
                 }
+
+                // --- Availability Table Migration ---
+                try {
+                    const availInfo = await DB.prepare('PRAGMA table_info(availability)').all();
+                    const availCols = availInfo.results.map(r => r.name);
+                    if (!availCols.includes('barber_email')) {
+                        await DB.prepare('ALTER TABLE availability ADD COLUMN barber_email TEXT').run();
+                    }
+                } catch (e) {
+                    console.error('[Migration] availability error:', e.message);
+                }
             } catch (e) {
                 console.error('[Migration] Erro ao verificar esquema:', e.message);
             }
@@ -77,6 +90,8 @@ export default {
             const userRes = await handleUserRoutes(url, request, env); if (userRes) return userRes;
             const payRes = await handlePaymentRoutes(url, request, env); if (payRes) return payRes;
             const teamRes = await handleTeamRoutes(request, env, url); if (teamRes) return teamRes;
+            const servRes = await handleServicesRoutes(url, request, env); if (servRes) return servRes;
+            const availRes = await handleAvailabilityRoutes(url, request, env); if (availRes) return availRes;
 
             // --- WHATSAPP BRIDGE STATUS UPDATES ---
             if ((url.pathname === '/api/whatsapp/status' || url.pathname === '/api/admin/bridge/update') && request.method === 'POST') {

@@ -152,6 +152,42 @@ export const api = {
         return res.json();
     },
 
+    // Services Management
+    getAdminServices: async (email) => {
+        const res = await fetch(`${API_URL}/admin/services`, { headers: headers(email) });
+        return res.json();
+    },
+    saveService: async (email, data) => {
+        const res = await fetch(`${API_URL}/admin/services`, {
+            method: 'POST',
+            headers: headers(email),
+            body: JSON.stringify(data)
+        });
+        return res.json();
+    },
+    deleteService: async (email, id) => {
+        const res = await fetch(`${API_URL}/admin/services/delete`, {
+            method: 'POST',
+            headers: headers(email),
+            body: JSON.stringify({ id })
+        });
+        return res.json();
+    },
+
+    // Availability Management
+    getAvailability: async (email) => {
+        const res = await fetch(`${API_URL}/admin/availability`, { headers: headers(email) });
+        return res.json();
+    },
+    saveAvailability: async (email, data) => {
+        const res = await fetch(`${API_URL}/admin/availability`, {
+            method: 'POST',
+            headers: headers(email),
+            body: JSON.stringify(data)
+        });
+        return res.json();
+    },
+
     // Master
     getMasterStats: async (email) => {
         const res = await fetch(`${API_URL}/master/stats`, { headers: headers(email) });

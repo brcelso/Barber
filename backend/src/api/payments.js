@@ -110,16 +110,51 @@ export async function handlePaymentRoutes(url, request, env) {
         return json({ success: true });
     }
 
-    // Mock Subscription Payment (3 days trial)
-    if (url.pathname === '/api/admin/subscription/pay' && request.method === 'POST') {
-        const { email } = await request.json();
+    // Mercado Pago Webhook (IPN)
+    if (url.pathname === '/api/payments/webhook' && request.method === 'POST') {
+        const payload = await request.json();
+        console.log('[MP Webhook] Received:', JSON.stringify(payload));
 
-        const expires = new Date();
-        expires.setDate(expires.getDate() + 3);
+        // Note: Em produção, você deve validar o Signature do Mercado Pago
+        const paymentId = payload.data?.id || payload.id;
+        const topic = payload.type || payload.topic;
 
-        await DB.prepare('UPDATE users SET subscription_expires = ?, plan = "Trial", trial_used = 1 WHERE email = ?').bind(expires.toISOString(), email).run();
+        if (topic === 'payment' && paymentId) {
+            try {
+                const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+                    headers: { 'Authorization': `Bearer ${env.MP_ACCESS_TOKEN}` }
+                });
+                const paymentData = await mpRes.json();
 
-        return json({ success: true });
+                if (paymentData.status === 'approved') {
+                    const appointmentId = paymentData.external_reference;
+
+                    if (appointmentId && appointmentId.startsWith('sub_')) {
+                        // Tratar renovação de assinatura
+                        const email = appointmentId.replace('sub_', '');
+                        const expires = new Date();
+                        expires.setMonth(expires.getMonth() + 1);
+                        await DB.prepare('UPDATE users SET subscription_expires = ?, plan = "Ecosystem Pro" WHERE email = ?').bind(expires.toISOString(), email).run();
+                    } else {
+                        // Tratar agendamento normal
+                        const appt = await DB.prepare('SELECT id, status FROM appointments WHERE id = ?').bind(appointmentId).first();
+                        if (appt && appt.status !== 'confirmed') {
+                            await DB.prepare(`
+                                UPDATE appointments 
+                                SET status = 'confirmed', payment_status = 'paid', payment_id = ? 
+                                WHERE id = ?
+                            `).bind(paymentId.toString(), appointmentId).run();
+
+                            const { notifyWhatsApp } = await import('../utils/index.js');
+                            await notifyWhatsApp(env, DB, appointmentId, 'confirmed');
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('[MP Webhook Error]', error.message);
+            }
+        }
+        return json({ received: true });
     }
 
     return null;
