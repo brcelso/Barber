@@ -1,6 +1,6 @@
 /**
- * Agentic AI Logic for Barber Bot
- * Arquitetura: Normalizador Dinâmico de Tempo + Escudo Anti-Status
+ * Agentic AI Logic for Barber Bot - Versão "Contexto Rico"
+ * Arquitetura: Middleware de Normalização + Entrega de Contexto Total (SELECT *)
  */
 
 import { ADMIN_PROMPTS, CLIENT_PROMPTS } from './prompts.js';
@@ -8,12 +8,12 @@ import { ADMIN_PROMPTS, CLIENT_PROMPTS } from './prompts.js';
 export const BARBER_TOOLS = [
     {
         name: 'consultar_agenda',
-        description: 'Verifica horários ocupados no banco de dados para uma data específica.',
+        description: 'Consulta o estado atual da agenda no banco de dados para uma data específica.',
         parameters: {
             type: 'object',
             properties: {
                 appointment_date: { type: 'string', description: 'Data no formato YYYY-MM-DD' },
-                barber_email: { type: 'string', description: 'E-mail do barbeiro' }
+                barber_email: { type: 'string', description: 'E-mail do barbeiro responsável' }
             },
             required: ['appointment_date', 'barber_email']
         }
@@ -22,7 +22,7 @@ export const BARBER_TOOLS = [
 
 export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEmail }) {
     
-    // 🛡️ ESCUDO ANTI-WHATSAPP (Previne o Erro 5006 de Recibo de Leitura)
+    // 🛡️ ESCUDO ANTI-STATUS (Previne Erro 5006 por prompts vazios do WhatsApp)
     if (!prompt || String(prompt).trim() === '' || String(prompt) === 'undefined') {
         return { text: "" }; 
     }
@@ -31,9 +31,9 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
     const model = '@cf/meta/llama-3.1-8b-instruct';
     const systemPrompt = isAdmin ? ADMIN_PROMPTS.system_admin(barberContext) : CLIENT_PROMPTS.system_ai(barberContext);
 
-    console.log(`[Agente] Iniciando chat. Admin: ${isAdmin} | User: ${userEmail}`);
+    console.log(`[Agente] Início - Admin: ${isAdmin} | User: ${userEmail}`);
     
-    // 1. Fase THINK
+    // 1. FASE THINK (A IA analisa a intenção e decide usar ferramentas)
     const aiResponse = await AI.run(model, {
         messages: [
             { role: 'system', content: String(systemPrompt) },
@@ -42,9 +42,7 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
         tools: BARBER_TOOLS 
     });
 
-    console.log("[Agente] Resposta inicial da IA:", JSON.stringify(aiResponse));
-
-    // 2. Fase ACT (Ferramentas)
+    // 2. FASE ACT (Processamento das Ferramentas com Normalização de Dados)
     if (aiResponse.tool_calls && aiResponse.tool_calls.length > 0) {
         
         const toolMessages = [
@@ -57,49 +55,48 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
             let toolData = "";
 
             if (call.name === 'consultar_agenda') {
-                // Aqui pegamos a data maluca que a IA mandou (ex: 1970-02-22)
                 let { appointment_date } = call.arguments; 
                 
-                // ⏱️ O NORMALIZADOR MÁGICO (Intercepta ANTES do banco de dados)
+                // ⏱️ NORMALIZADOR DINÂMICO DE TEMPO
+                // Garante que a IA sempre busque no ano correto do servidor, corrigindo alucinações de 1970/2024
                 const anoAtual = new Date().getFullYear().toString(); 
-                
                 if (appointment_date && appointment_date.includes('-')) {
-                    const partesData = appointment_date.split('-'); // Corta em ['1970', '02', '22']
+                    const partesData = appointment_date.split('-');
                     if (partesData[0] !== anoAtual) {
-                        partesData[0] = anoAtual; // Troca o 1970 por 2026
-                        appointment_date = partesData.join('-'); // Junta de novo: '2026-02-22'
-                        
-                        // ESTE LOG VAI PROVAR QUE A MÁGICA ACONTECEU:
-                        console.log(`[Normalização] Ano corrigido pela engenharia para: ${appointment_date}`);
+                        partesData[0] = anoAtual;
+                        appointment_date = partesData.join('-');
+                        console.log(`[Normalização] Data corrigida para o ano vigente: ${appointment_date}`);
                     }
                 }
 
-                // Trava de segurança do e-mail
+                // TRAVA DE SEGURANÇA DO E-MAIL (Evita o "undefined")
                 const emailReal = (barberContext?.barberEmail && barberContext.barberEmail !== "undefined") 
                     ? barberContext.barberEmail 
                     : "celsosilvajunior90@gmail.com";
 
-                console.log(`[D1 Forward] Consultando agenda de ${emailReal} em ${appointment_date}`);
+                console.log(`[D1 Forward] Consultando contexto total de ${emailReal} em ${appointment_date}`);
 
                 try {
+                    // 🚀 MUDANÇA PARA EXCELÊNCIA: SELECT * // Entregamos todas as colunas (cliente, serviço, etc.) para a IA poder decidir.
                     const res = await DB.prepare(
-                        "SELECT appointment_time FROM appointments WHERE appointment_date LIKE ? AND barber_email = ? AND status != 'cancelled'"
+                        "SELECT * FROM appointments WHERE appointment_date LIKE ? AND barber_email = ? AND status != 'cancelled'"
                     ).bind(`${appointment_date}%`, emailReal).all();
                     
                     console.log(`[D1 RAW DB RESULT]`, JSON.stringify(res.results));
 
-                    // 🤖 Devolvemos os dados em JSON puro. É assim que o cérebro do Llama 3.1 gosta de ler!
+                    // 🤖 LÍNGUA DO ROBÔ: Enviamos um JSON rico em contexto.
                     toolData = JSON.stringify({
                         status: "sucesso",
-                        data_consultada: appointment_date,
-                        horarios_ocupados_no_banco: res.results.length > 0 ? res.results.map(r => r.appointment_time) : "Nenhum horário ocupado"
+                        contexto_da_agenda: {
+                            data: appointment_date,
+                            total_ocupado: res.results.length,
+                            agendamentos: res.results // A IA vê a linha inteira aqui
+                        }
                     });
-                    
-                    console.log(`[D1 Success] JSON enviado para a IA: ${toolData}`);
                     
                 } catch (dbError) {
                     console.error("[D1 Error]", dbError.message);
-                    toolData = "Erro ao acessar o banco de dados interno.";
+                    toolData = JSON.stringify({ status: "erro", mensagem: "Falha ao acessar banco de dados." });
                 }
             }
 
@@ -111,7 +108,7 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
             });
         }
 
-        // 3. Fase ACT Final
+        // 3. FASE REFINEMENT (A IA processa o JSON e cria uma resposta humana e contextualizada)
         const finalResponse = await AI.run(model, {
             messages: toolMessages
         });
@@ -119,5 +116,6 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
         return { text: finalResponse.response };
     }
 
+    // Caso a IA responda sem ferramentas
     return { text: aiResponse.response };
 }
