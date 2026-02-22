@@ -20,7 +20,7 @@ export const AdminPanel = ({
     setSelectedActionAppt,
     handleRefresh,
     // Team Props
-    barbers,
+    professionals,
     teamMembers,
     handleAddTeamMember,
     handleRecruitBarber,
@@ -163,7 +163,7 @@ export const AdminPanel = ({
             {adminTab === 'team' && (
                 <TeamTab
                     user={user}
-                    barbers={barbers}
+                    professionals={professionals}
                     teamMembers={teamMembers}
                     handleAddTeamMember={handleAddTeamMember}
                     handleRecruitBarber={handleRecruitBarber}

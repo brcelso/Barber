@@ -47,7 +47,7 @@ export const HistoryPage = ({
                                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                                                 {format(dateObj, "dd 'de' MMMM", { locale: ptBR })} às {appt.appointment_time}
                                             </p>
-                                            <p style={{ fontSize: '0.8rem', opacity: 0.6, marginTop: '4px' }}>Profissional: {appt.barber_name}</p>
+                                            <p style={{ fontSize: '0.8rem', opacity: 0.6, marginTop: '4px' }}>Profissional: {appt.professional_name || appt.barber_name}</p>
                                         </div>
                                         <div style={{ textAlign: 'right' }}>
                                             <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem' }}>R$ {appt.price}</div>

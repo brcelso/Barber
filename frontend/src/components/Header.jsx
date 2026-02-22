@@ -18,9 +18,9 @@ export const Header = ({
     return (
         <header className="header">
             <div>
-                <h1 className="logo-text">✂️ Barber</h1>
+                <h1 className="logo-text">📅 Universal</h1>
                 <p style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>
-                    {user.isAdmin && isAdminMode ? 'Relatórios & Gestão' : 'Premium Experience'}
+                    {user.isAdmin && isAdminMode ? 'Ecossistema de Agendamentos' : 'Premium Experience'}
                 </p>
             </div>
 
@@ -124,13 +124,13 @@ export const Header = ({
                     <img src={user.picture} alt={user.name} />
                 </div>
 
-                {!user.isAdmin && !user.isBarber && (
+                {!user.isAdmin && !user.isProfessional && (
                     <button
                         className="btn-primary"
                         style={{ fontSize: '0.7rem', padding: '5px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--primary)', color: 'var(--primary)' }}
                         onClick={handlePromoteToBarber}
                     >
-                        Quero ser Barbeiro
+                        Quero ser Parceiro
                     </button>
                 )}
 
@@ -138,7 +138,7 @@ export const Header = ({
                     className="btn-icon"
                     style={{ background: 'rgba(37, 211, 102, 0.1)', color: '#25D366', border: '1px solid rgba(37, 211, 102, 0.2)' }}
                     onClick={() => window.open('https://wa.me/5511972509876', '_blank')}
-                    title="Falar com Barbeiro"
+                    title="Falar com Especialista"
                 >
                     <MessageCircle size={20} />
                 </button>

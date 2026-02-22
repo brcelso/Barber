@@ -82,7 +82,7 @@ export const BotSettingsTab = ({
                                 <textarea rows="2" value={botSettings.msg_welcome} onChange={e => setBotSettings({ ...botSettings, msg_welcome: e.target.value })} className="glass-card" style={{ width: '100%', padding: '10px', fontSize: '0.85rem' }} />
                             </div>
                             <div>
-                                <label style={{ fontSize: '0.75rem' }}>2. Seleção de Barbeiro</label>
+                                <label style={{ fontSize: '0.75rem' }}>2. Seleção de Profissional</label>
                                 <textarea rows="2" value={botSettings.msg_choose_barber} onChange={e => setBotSettings({ ...botSettings, msg_choose_barber: e.target.value })} className="glass-card" style={{ width: '100%', padding: '10px', fontSize: '0.85rem' }} />
                             </div>
                             <div>

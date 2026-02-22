@@ -3,7 +3,7 @@ import { User, Users, Plus, Trash2, Shield, Activity } from 'lucide-react';
 
 export const TeamTab = ({
     user,
-    barbers,
+    professionals,
     teamMembers,
     handleAddTeamMember,
     handleRecruitBarber,
@@ -21,7 +21,7 @@ export const TeamTab = ({
                 <form onSubmit={handleAddTeamMember} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                     <input
                         name="memberName"
-                        placeholder="Nome do Barbeiro"
+                        placeholder="Nome do Profissional"
                         className="glass-card"
                         style={{ flex: 2, minWidth: '150px', padding: '10px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--border)' }}
                         required
@@ -40,15 +40,15 @@ export const TeamTab = ({
                 </form>
 
                 <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '10px' }}>Recrutar barbeiro existente:</p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '10px' }}>Recrutar profissional existente:</p>
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <select
                             id="recruitSelect"
                             className="glass-card"
                             style={{ flex: 1, padding: '10px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--border)' }}
                         >
-                            <option value="">Selecione um barbeiro...</option>
-                            {barbers.filter(b => !b.ownerId && b.email !== user.email).map(b => (
+                            <option value="">Selecione um profissional...</option>
+                            {professionals.filter(b => !b.ownerId && b.email !== user.email).map(b => (
                                 <option key={b.email} value={b.email}>{b.name} ({b.email})</option>
                             ))}
                         </select>
@@ -109,7 +109,7 @@ export const TeamTab = ({
                                     checked={member.isBarber}
                                     onChange={e => handleUpdateTeamMember(member.email, { is_admin: member.isAdmin, is_barber: e.target.checked })}
                                 />
-                                Barbeiro
+                                Profissional
                             </label>
                             {member.isBarber && <span className="status-badge confirmed" style={{ fontSize: '0.6rem', padding: '2px 5px' }}>Ativo</span>}
                         </div>
@@ -119,7 +119,7 @@ export const TeamTab = ({
                 {teamMembers.filter(b => b.email !== user.email).length === 0 && (
                     <div className="glass-card" style={{ textAlign: 'center', padding: '2rem', opacity: 0.3, gridColumn: '1 / -1' }}>
                         <Users size={30} style={{ marginBottom: '0.5rem' }} />
-                        <p>Sua equipe está vazia. Adicione barbeiros acima.</p>
+                        <p>Sua equipe está vazia. Adicione profissionais acima.</p>
                     </div>
                 )}
             </div>

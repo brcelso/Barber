@@ -4,9 +4,9 @@ import { ptBR } from 'date-fns/locale';
 import { Scissors, Clock, User, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const BookingPage = ({
-    barbers,
-    selectedBarber,
-    setSelectedBarber,
+    professionals,
+    selectedProfessional,
+    setSelectedProfessional,
     services,
     selectedService,
     setSelectedService,
@@ -52,32 +52,32 @@ export const BookingPage = ({
                 </div>
             )}
 
-            {/* Seleção de Barbeiro */}
+            {/* Seleção de Profissional */}
             <section style={{ marginBottom: '3rem' }}>
                 <h2 className="section-title"><User size={20} /> Escolha o Profissional</h2>
-                <div className="barber-grid">
-                    {barbers.length === 0 ? (
+                <div className="professional-grid">
+                    {professionals.length === 0 ? (
                         <div className="glass-card" style={{ width: '100%', textAlign: 'center', padding: '2rem', opacity: 0.6 }}>
                             <User size={32} style={{ marginBottom: '1rem' }} />
                             <p>Nenhum profissional disponível no momento.</p>
                         </div>
                     ) : (
-                        barbers.map(barber => (
+                        professionals.map(professional => (
                             <div
-                                key={barber.email}
-                                className={`barber-card ${selectedBarber?.email === barber.email ? 'active' : ''}`}
-                                onClick={() => setSelectedBarber(barber)}
+                                key={professional.email}
+                                className={`professional-card ${selectedProfessional?.email === professional.email ? 'active' : ''}`}
+                                onClick={() => setSelectedProfessional(professional)}
                             >
-                                <img src={barber.picture} alt={barber.name} />
-                                <p>{barber.name}</p>
-                                {barber.shop_name && <p style={{ fontSize: '0.6rem', opacity: 0.6 }}>{barber.shop_name}</p>}
+                                <img src={professional.picture} alt={professional.name} />
+                                <p>{professional.name}</p>
+                                {professional.shop_name && <p style={{ fontSize: '0.6rem', opacity: 0.6 }}>{professional.shop_name}</p>}
                             </div>
                         ))
                     )}
                 </div>
             </section>
 
-            {selectedBarber && (
+            {selectedProfessional && (
                 <>
                     {/* Seleção de Serviço */}
                     <section style={{ marginBottom: '3rem' }}>

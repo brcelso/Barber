@@ -53,8 +53,8 @@ export const LoginScreen = ({ onManualLogin, loading, VITE_GOOGLE_CLIENT_ID }) =
     return (
         <div className="login-screen fade-in">
             <div className="glass-card login-card" style={{ padding: '3rem', textAlign: 'center', width: '100%', maxWidth: '420px' }}>
-                <div className="logo-text" style={{ fontSize: '3rem', marginBottom: '1rem' }}>✂️ Barber</div>
-                <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>O melhor corte da sua vida, a um clique de distância.</p>
+                <div className="logo-text" style={{ fontSize: '3rem', marginBottom: '1rem' }}>📅 Universal</div>
+                <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>O melhor atendimento, a um clique de distância.</p>
 
                 {!showManualLogin ? (
                     <>

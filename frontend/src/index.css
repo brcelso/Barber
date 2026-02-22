@@ -678,14 +678,14 @@ button {
   letter-spacing: -0.3px;
 }
 
-/* Barber Grid */
-.barber-grid {
+/* Professional Grid */
+.professional-grid {
   display: flex;
   gap: 1.2rem;
   flex-wrap: wrap;
 }
 
-.barber-card {
+.professional-card {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -712,7 +712,7 @@ button {
   transform: translateY(-3px);
 }
 
-.barber-card img {
+.professional-card img {
   width: 64px;
   height: 64px;
   border-radius: 50%;
@@ -725,7 +725,7 @@ button {
   border-color: var(--primary);
 }
 
-.barber-card p {
+.professional-card p {
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-main);
@@ -828,16 +828,16 @@ button {
 }
 
 @media (max-width: 600px) {
-  .barber-grid {
+  .professional-grid {
     gap: 0.8rem;
   }
 
-  .barber-card {
+  .professional-card {
     min-width: 90px;
     padding: 1rem;
   }
 
-  .barber-card img {
+  .professional-card img {
     width: 52px;
     height: 52px;
   }
