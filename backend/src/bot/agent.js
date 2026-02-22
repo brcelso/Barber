@@ -88,9 +88,12 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
                     
                     console.log(`[D1 RAW DB RESULT]`, JSON.stringify(res.results));
 
+                    // 🤖 Deixamos a resposta 100% NEUTRA e DIRETA para a IA não se confundir
                     toolData = res.results.length > 0 
-                        ? `INFORMAÇÃO REAL DO BANCO: Horários já ocupados neste dia: ${res.results.map(r => r.appointment_time).join(', ')}. Baseado nisso, sugira os horários livres.`
-                        : `A agenda está totalmente livre no sistema para esta data.`;
+                        ? `DADOS RETORNADOS: A agenda para esta data possui horários OCUPADOS às: ${res.results.map(r => r.appointment_time).join(', ')}.`
+                        : `DADOS RETORNADOS: A agenda para esta data está 100% LIVRE.`;
+                    
+                    console.log(`[D1 Success] Dados enviados de volta para a IA: ${toolData}`);
                     
                 } catch (dbError) {
                     console.error("[D1 Error]", dbError.message);
