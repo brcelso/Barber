@@ -76,16 +76,27 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
 
         // --- 2. CRIAR AGENDAMENTO (Ajustado para o seu Schema D1) ---
         if (call.name === 'criar_agendamento') {
-            const id = crypto.randomUUID(); // Gera o ID TEXT necessário
-            const { user_email, barber_email, service_id, appointment_date, appointment_time } = call.arguments;
-            
-            await DB.prepare(`
-                INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status)
-                VALUES (?, ?, ?, ?, ?, ?, 'confirmed')
-            `).bind(id, user_email, barber_email || null, service_id, appointment_date, appointment_time).run();
-            
-            toolData = "Agendamento realizado com sucesso no sistema.";
-        }
+    const id = crypto.randomUUID(); 
+    const { user_email, barber_email, service_id, appointment_date, appointment_time } = call.arguments;
+    
+    // CORREÇÃO AQUI: Usamos o userEmail que veio do parâmetro da função 
+    // caso a IA não tenha preenchido o user_email nos argumentos.
+    const finalUserEmail = user_email || userEmail; 
+
+    await DB.prepare(`
+        INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status)
+        VALUES (?, ?, ?, ?, ?, ?, 'confirmed')
+    `).bind(
+        id, 
+        finalUserEmail, // Agora a variável 'userEmail' está sendo usada aqui!
+        barber_email || null, 
+        service_id, 
+        appointment_date, 
+        appointment_time
+    ).run();
+    
+    toolData = "Agendamento realizado com sucesso no sistema.";
+}
 
         // --- 3. FATURAMENTO (Ajustado com JOIN pois appointments não tem preço direto) ---
         if (call.name === 'get_faturamento_hoje' && isAdmin) {
