@@ -1,12 +1,9 @@
 /**
  * Agentic AI Logic for Barber Bot
- * Arquitetura: Dynamic Context + Anti-Status Shield + D1 Forwarding
+ * Arquitetura: Normalizador Dinâmico de Tempo + Escudo Anti-Status
  */
 
 import { ADMIN_PROMPTS, CLIENT_PROMPTS } from './prompts.js';
-
-// Captura o ano real do servidor no momento exato em que o bot roda
-const ANO_ATUAL = new Date().getFullYear();
 
 export const BARBER_TOOLS = [
     {
@@ -25,25 +22,18 @@ export const BARBER_TOOLS = [
 
 export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEmail }) {
     
-    // 🛡️ ESCUDO ANTI-WHATSAPP STATUS (Previne o Erro 5006)
-    // Se o WhatsApp enviar um recibo de leitura ("undefined" ou vazio), nós abortamos antes de gastar recursos da IA.
+    // 🛡️ ESCUDO ANTI-WHATSAPP (Previne o Erro 5006 de Recibo de Leitura)
     if (!prompt || String(prompt).trim() === '' || String(prompt) === 'undefined') {
-        console.log("🚨 [Agente] Prompt vazio ou evento de status do WhatsApp recebido. Abortando execução da IA.");
         return { text: "" }; 
     }
 
     const { DB, AI } = env;
-    
-    // Mantemos o Llama 3.1 8B pois é o mais estável e rápido para uso de ferramentas (Tools)
     const model = '@cf/meta/llama-3.1-8b-instruct';
-
-    // Puxa o Chain of Thought do prompts.js
     const systemPrompt = isAdmin ? ADMIN_PROMPTS.system_admin(barberContext) : CLIENT_PROMPTS.system_ai(barberContext);
 
     console.log(`[Agente] Iniciando chat. Admin: ${isAdmin} | User: ${userEmail}`);
-    console.log(`[Agente] Mensagem do cliente: "${prompt}"`);
-
-    // 1. Primeira chamada para a IA (Fase THINK)
+    
+    // 1. Fase THINK
     const aiResponse = await AI.run(model, {
         messages: [
             { role: 'system', content: String(systemPrompt) },
@@ -52,11 +42,10 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
         tools: BARBER_TOOLS 
     });
 
-    console.log("[Agente] Resposta inicial da IA (Tool Calls):", JSON.stringify(aiResponse));
+    console.log("[Agente] Resposta inicial da IA:", JSON.stringify(aiResponse));
 
-    // 2. Fase ACT (Execução das Ferramentas no Banco de Dados D1)
+    // 2. Fase ACT (Ferramentas)
     if (aiResponse.tool_calls && aiResponse.tool_calls.length > 0) {
-        console.log(`[Agente] 🛠️ Ferramenta detectada: ${aiResponse.tool_calls[0].name}`);
         
         const toolMessages = [
             { role: 'system', content: String(systemPrompt) },
@@ -68,23 +57,24 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
             let toolData = "";
 
             if (call.name === 'consultar_agenda') {
-                let { appointment_date } = call.arguments; // Usamos 'let' para poder corrigir
+                // Aqui pegamos a data maluca que a IA mandou (ex: 1970-02-22)
+                let { appointment_date } = call.arguments; 
                 
-                // ⏱️ NORMALIZADOR DINÂMICO DE TEMPO (Padrão Ouro de Arquitetura)
-                // Pega o ano atual do servidor na hora exata da requisição
+                // ⏱️ O NORMALIZADOR MÁGICO (Intercepta ANTES do banco de dados)
                 const anoAtual = new Date().getFullYear().toString(); 
                 
-                // Se a IA alucinar qualquer ano passado (1970, 2024), nós dividimos a string e arrumamos
                 if (appointment_date && appointment_date.includes('-')) {
-                    const partesData = appointment_date.split('-'); // Divide em ['1970', '02', '22']
+                    const partesData = appointment_date.split('-'); // Corta em ['1970', '02', '22']
                     if (partesData[0] !== anoAtual) {
-                        partesData[0] = anoAtual; // Injeta o ano correto dinamicamente
-                        appointment_date = partesData.join('-'); // Remonta para '2026-02-22'
-                        console.log(`[Normalização] Ano bizarro corrigido pela engenharia para: ${appointment_date}`);
+                        partesData[0] = anoAtual; // Troca o 1970 por 2026
+                        appointment_date = partesData.join('-'); // Junta de novo: '2026-02-22'
+                        
+                        // ESTE LOG VAI PROVAR QUE A MÁGICA ACONTECEU:
+                        console.log(`[Normalização] Ano corrigido pela engenharia para: ${appointment_date}`);
                     }
                 }
-                
-                // Trava de segurança do e-mail real
+
+                // Trava de segurança do e-mail
                 const emailReal = (barberContext?.barberEmail && barberContext.barberEmail !== "undefined") 
                     ? barberContext.barberEmail 
                     : "celsosilvajunior90@gmail.com";
@@ -99,10 +89,9 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
                     console.log(`[D1 RAW DB RESULT]`, JSON.stringify(res.results));
 
                     toolData = res.results.length > 0 
-                        ? `INFORMAÇÃO REAL DO BANCO: Horários já ocupados neste dia: ${res.results.map(r => r.appointment_time).join(', ')}.`
+                        ? `INFORMAÇÃO REAL DO BANCO: Horários já ocupados neste dia: ${res.results.map(r => r.appointment_time).join(', ')}. Baseado nisso, sugira os horários livres.`
                         : `A agenda está totalmente livre no sistema para esta data.`;
                     
-                    console.log(`[D1 Success] Dados enviados de volta para a IA: ${toolData}`);
                 } catch (dbError) {
                     console.error("[D1 Error]", dbError.message);
                     toolData = "Erro ao acessar o banco de dados interno.";
@@ -117,7 +106,7 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
             });
         }
 
-        // 3. Fase ACT Final (IA lê os dados do banco e gera a resposta amigável para o cliente)
+        // 3. Fase ACT Final
         const finalResponse = await AI.run(model, {
             messages: toolMessages
         });
@@ -125,6 +114,5 @@ export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEm
         return { text: finalResponse.response };
     }
 
-    console.log("[Agente] Nenhuma ferramenta foi necessária. IA respondeu diretamente.");
     return { text: aiResponse.response };
 }
