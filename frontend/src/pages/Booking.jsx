@@ -119,7 +119,16 @@ export const BookingPage = ({
 
                         {/* Grid de Horários - LOGICA DE BLOQUEIO INTEGRADA */}
                         <div className="time-grid" style={{ marginTop: '2rem' }}>
-                            {timeSlots.map(time => {
+                            {timeSlots.filter(time => {
+                                if (!isSameDay(selectedDate, new Date())) return true;
+
+                                const [hours, minutes] = time.split(':').map(Number);
+                                const now = new Date();
+                                const slotTime = new Date();
+                                slotTime.setHours(hours, minutes, 0, 0);
+
+                                return slotTime > now;
+                            }).map(time => {
                                 // Busca o slot. Suporta string ou objeto {time, status}
                                 const slotData = busySlots && busySlots.find(s => {
                                     const slotTime = typeof s === 'string' ? s : (s.time || s.appointment_time);

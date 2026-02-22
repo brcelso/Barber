@@ -164,11 +164,18 @@ export async function runAgentChat(env, { prompt, isAdmin, professionalContext }
     else if (role === 'staff') systemPrompt = ADMIN_PROMPTS.system_staff(professionalContext);
     else systemPrompt = CLIENT_PROMPTS.system_ai(professionalContext);
 
-    let dynamicContext = "";
+    // 🕰️ CONTEXTO TEMPORAL (Crucial para não agendar no passado)
+    const agora = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+    const hoje = agora.toISOString().split('T')[0];
+    const horaAtual = agora.toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' });
+
+    systemPrompt += `\n\n[CONTEXTO TEMPORAL]: Hoje é ${hoje}, agora são ${horaAtual}.`;
+    if (role === 'client') {
+        systemPrompt += `\n⚠️ IMPORTANTE: Se o cliente quiser agendar para hoje (${hoje}), você NUNCA deve oferecer ou aceitar horários anteriores a ${horaAtual}.`;
+    }
 
     // 🚀 ESTRATÉGIA ANTECIPATÓRIA (Apenas para quem tem poder de agenda)
     if (role === 'master' || role === 'owner' || role === 'staff') {
-        const hoje = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).toISOString().split('T')[0];
         try {
             const res = await DB.prepare(
                 "SELECT * FROM appointments WHERE appointment_date = ? AND barber_email = ? AND status != 'cancelled' ORDER BY appointment_time ASC"
