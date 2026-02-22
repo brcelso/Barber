@@ -21,7 +21,7 @@ export const BARBER_TOOLS = [
 
 export async function runAgentChat(env, { prompt, isAdmin, barberContext, userEmail }) {
     const { DB, AI } = env;
-    const model = '@cf/meta/llama-3.1-8b-instruct';
+    const model = '@cf/meta/llama-4-scout-17b-16e-instruct';
 
     // 1. Injeta o Chain of Thought do prompts.js
     const systemPrompt = isAdmin ? ADMIN_PROMPTS.system_admin(barberContext) : CLIENT_PROMPTS.system_ai(barberContext);
