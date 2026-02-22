@@ -1,6 +1,7 @@
 import { json } from '../utils/index.js';
 import { handleAdminFlow } from './adminHandler.js';
 import { handleClientFlow } from './clientHandler.js';
+import { handleRegistrationFlow } from './registrationHandler.js';
 
 export async function handleWhatsAppWebhook(request, env) {
     console.log('[Webhook] Recibido POST');
@@ -34,18 +35,24 @@ export async function handleWhatsAppWebhook(request, env) {
         senderInfo = await env.DB.prepare('SELECT * FROM users WHERE email = "celsosilvajunior90@gmail.com"').first();
     }
 
-    // 2. Identificar se existe sessão ou usuário cliente comum (para o handleClientFlow)
+    // 2. Identificar se existe sessão
     let session = await env.DB.prepare('SELECT * FROM whatsapp_sessions WHERE phone = ?').bind(from).first();
-    let userInDb = null;
-    if (!session) {
-        userInDb = await env.DB.prepare('SELECT * FROM users WHERE phone LIKE ?').bind(`%${last8}`).first();
+
+    // 3. Roteamento de Registro (Novos Profissionais)
+    const registrationTriggers = ['quero ser parceiro', 'quero usar o sistema', 'cadastro profissional', 'criar conta', 'registrar'];
+    const isRegistrationTrigger = registrationTriggers.some(t => textLower.includes(t));
+    const isRegistrationSession = session?.state?.startsWith('reg_');
+
+    if ((isRegistrationTrigger || isRegistrationSession) && !senderInfo) {
+        return await handleRegistrationFlow(from, text, textLower, session, env);
     }
 
-    // 3. Roteamento: Se o REMETENTE for da equipe (Admin/Profissional), vai pro AdminFlow
+    // 4. Fluxo de Usuários Existentes (Admin/Profissional)
     if (senderInfo && (senderInfo.is_admin === 1 || senderInfo.is_barber === 1)) {
         return await handleAdminFlow(from, text, textLower, senderInfo, botProfessionalEmail, env);
     } else {
         // Caso contrário, trata como cliente normal
+        let userInDb = await env.DB.prepare('SELECT * FROM users WHERE phone LIKE ?').bind(`%${last8}`).first();
         return await handleClientFlow(from, text, textLower, session, userInDb, botProfessionalEmail, env);
     }
 }

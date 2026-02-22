@@ -14,6 +14,18 @@ const getTerm = (type) => {
     return terms[type] || terms['default'];
 };
 
+export const REGISTRATION_PROMPTS = {
+    welcome: "👋 Olá! Vi que você tem interesse em profissionalizar seu negócio com nosso Agente Inteligente.\n\nPara começar, qual é o seu ramo de atuação?\n\n1️⃣ - Barbearia 💈\n2️⃣ - Pet Shop 🐾\n3️⃣ - Salão de Beleza 💅\n4️⃣ - Clínica 🏥\n5️⃣ - Outro 📅",
+
+    choose_plan: (niche) => `Ótima escolha! Atenderemos muito bem o seu ${niche}.\n\nAgora, escolha o plano que melhor se adapta ao seu momento:\n\n1️⃣ - *Individual* (R$ 49/mês): Ideal para quem trabalha sozinho.\n2️⃣ - *Standard* (R$ 99/mês): Para pequenas equipes (até 3 pessoas).\n3️⃣ - *Pro* (R$ 199/mês): Equipe ilimitada e recursos avançados.`,
+
+    setup_services: "Perfeito! Agora, me diga quais os principais serviços que você oferece (ex: Corte de Cabelo R$ 50, Barba R$ 30).\n\nVocê pode digitar um por um ou uma lista.",
+
+    qr_instructions: "Quase lá! Agora precisamos conectar seu WhatsApp ao robô.\n\n1. Vou gerar um link para você.\n2. Você abrirá o link em um computador ou outro celular.\n3. Escaneie o QR Code usando o 'Aparelhos Conectados' no seu WhatsApp.\n\nDigite *PRONTO* quando estiver com o QR Code na tela.",
+
+    success: "🎉 *Parabéns!* Seu robô está configurado e pronto para trabalhar.\n\nA partir de agora, ele responderá seus clientes e organizará sua agenda.\n\nDigite *MENU* a qualquer momento para ver suas opções de gestão."
+};
+
 export const ADMIN_PROMPTS = {
     // --- MASTER: O Dono do SaaS ---
     system_master: () => `Você é o AGENTE MASTER do ecossistema de agendamentos. 👑
