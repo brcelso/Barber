@@ -190,7 +190,7 @@ export async function runAgentChat(env, { prompt, userEmail, isAdmin, profession
     // ⚒️ FILTRAGEM DE FERRAMENTAS POR PAPEL
     const roleTools = {
         master: BUSINESS_TOOLS.map(t => t.name), // Tudo
-        owner: ['consultar_agenda', 'agendar_cliente', 'alterar_status_agendamento', 'consultar_faturamento', 'gerenciar_bloqueios', 'gerenciar_servicos', 'gerenciar_equipe', 'gerenciar_robos', 'gerenciar_configuracoes'],
+        owner: ['consultar_agenda', 'agendar_cliente', 'alterar_status_agendamento', 'consultar_faturamento', 'gerenciar_bloqueios', 'gerenciar_servicos', 'gerenciar_equipe', 'gerenciar_robos', 'gerenciar_configuracoes', 'ver_status_whatsapp'],
         staff: ['consultar_agenda', 'alterar_status_agendamento', 'gerenciar_bloqueios'],
         client: ['consultar_agenda', 'agendar_cliente', 'alterar_status_agendamento']
     };
