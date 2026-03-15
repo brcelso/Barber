@@ -1,6 +1,28 @@
 import React from 'react';
 import { MessageSquare, Save, Play, Power, Activity, Wifi, WifiOff } from 'lucide-react';
 
+const LocalBridgeStarter = ({ userEmail }) => {
+    return (
+        <div className="glass-card" style={{ 
+            marginTop: '1.5rem', 
+            padding: '1.5rem', 
+            background: 'rgba(212, 175, 55, 0.05)', 
+            border: '1px solid var(--primary)',
+            borderRadius: '15px'
+        }}>
+            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                <Activity size={20} className="text-primary" />
+                <div>
+                    <h4 style={{ margin: 0 }}>Ponte Local Desconectada</h4>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        Certifique-se de que o comando `node manage.js` está rodando no seu computador para este e-mail: <strong>{userEmail}</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export const BotSettingsTab = ({
     botSettings,
     setBotSettings,
