@@ -38,6 +38,8 @@ bridge/auth_info_baileys/
 bridge/auth_sessions/
 bridge/node_modules/
 bridge/ngrok_log.txt
+bridge/bridge_logs.txt
+bridge/*.txt
 .stop-flag
 bridge/.stop-flag
 lint-results.json
