@@ -3,9 +3,6 @@ name: Deploy Backend
 on:
   push:
     branches: ["main"]
-    paths:
-      - 'backend/**'
-      - 'backend/schema.sql'
   workflow_dispatch:
 
 jobs:
