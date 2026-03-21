@@ -1,4 +1,5 @@
 import { json } from '../utils/index.js';
+import { isValidAppointmentTime } from '../utils/time.js';
 
 export async function handleAppointmentRoutes(url, request, env) {
     const { DB } = env;
@@ -39,6 +40,11 @@ export async function handleAppointmentRoutes(url, request, env) {
         const service = await DB.prepare('SELECT * FROM services WHERE id = ?').bind(serviceId).first();
 
         if (!service) return json({ error: 'Service not found' }, 404);
+
+        // VALIDAÇÃO DE INTERVALO DE 30 MINUTOS
+        if (!isValidAppointmentTime(time)) {
+            return json({ error: 'Horários devem seguir o intervalo de 30 minutos (ex: 08:00 ou 08:30)' }, 400);
+        }
 
         const conflict = await DB.prepare(`
             SELECT id FROM appointments 
@@ -133,6 +139,11 @@ export async function handleAppointmentRoutes(url, request, env) {
 
         if (appt.user_email !== userEmail && appt.barber_email !== userEmail) {
             return json({ error: 'Unauthorized' }, 403);
+        }
+
+        // VALIDAÇÃO DE INTERVALO DE 30 MINUTOS
+        if (!isValidAppointmentTime(time)) {
+            return json({ error: 'Horários devem seguir o intervalo de 30 minutos (ex: 08:00 ou 08:30)' }, 400);
         }
 
         const conflict = await DB.prepare(`

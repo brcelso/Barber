@@ -399,6 +399,61 @@ function App() {
     }
   };
 
+  const updatePayment = async (status) => {
+    if (!selectedActionAppt) return;
+    setLoading(true);
+    try {
+      await api.updatePaymentStatus(user.email, selectedActionAppt.id, { paymentStatus: status });
+      alert('Pagamento atualizado!');
+      handleRefresh();
+      setSelectedActionAppt(null);
+    } catch {
+      alert('Erro ao atualizar pagamento.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWhatsAppNotify = async (appt) => {
+    const phone = appt.client_phone || appt.phone;
+    if (!phone) {
+      alert('Telefone do cliente não encontrado.');
+      return;
+    }
+    const message = encodeURIComponent(`Olá ${appt.client_name}, passando para confirmar seu horário de ${appt.service_name} às ${appt.appointment_time} no dia ${appt.appointment_date}.`);
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+  };
+
+  const handleProcessPayment = async (method) => {
+    if (!paymentSelectionAppt) return;
+    setLoading(true);
+    try {
+      if (method === 'real') {
+        const res = await api.createPayment(user.email, paymentSelectionAppt.id);
+        if (res.paymentUrl) {
+          window.open(res.paymentUrl, '_blank');
+          setPaymentSelectionAppt(null);
+        } else {
+          alert('Erro ao gerar link de pagamento.');
+        }
+      } else if (method === 'mock') {
+        await api.mockPayment(user.email, paymentSelectionAppt.id, 'Simulado');
+        alert('Pagamento simulado com sucesso!');
+        handleRefresh();
+        setPaymentSelectionAppt(null);
+      } else if (method === 'local') {
+        await api.updatePaymentStatus(user.email, paymentSelectionAppt.id, { paymentStatus: 'paid' });
+        alert('Pagamento marcado como pago (Local)!');
+        handleRefresh();
+        setPaymentSelectionAppt(null);
+      }
+    } catch {
+      alert('Erro ao processar pagamento.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogin = useCallback(async (data) => {
     setLoading(true);
     try {
@@ -533,14 +588,22 @@ function App() {
       )}
 
       {/* MODAIS */}
-      <PaymentModal appointment={paymentSelectionAppt} onClose={() => setPaymentSelectionAppt(null)} onProcess={() => { }} loading={loading} />
+      <PaymentModal appointment={paymentSelectionAppt} onClose={() => setPaymentSelectionAppt(null)} onProcess={handleProcessPayment} loading={loading} />
       <PlanSelectionModal show={showPlanSelection} onClose={() => setShowPlanSelection(false)} onSelect={(p) => api.subscriptionPayment(user.email, p)} loading={loading} />
       <PhoneSetupModal show={showPhoneSetup} loading={loading} onSave={(p) => api.updateProfile(user.email, p).then(() => setShowPhoneSetup(false))} />
 
       <ActionSheet
         selectedActionAppt={selectedActionAppt} setSelectedActionAppt={setSelectedActionAppt}
         sheetView={sheetView} setSheetView={setSheetView} user={user}
+        handleEditStart={(appt) => {
+          const professional = professionals.find(p => p.email === appt.barber_email);
+          if (professional) setSelectedProfessional(professional);
+          setSelectedService({ id: appt.service_id, name: appt.service_name, price: appt.price });
+          setView('book');
+        }}
+        handleWhatsAppNotify={handleWhatsAppNotify}
         updateStatus={(s) => api.updateStatus(user.email, selectedActionAppt.id, s).then(handleRefresh)}
+        updatePayment={updatePayment}
       />
     </div>
   );
