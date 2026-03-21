@@ -266,24 +266,29 @@ export async function runAgentChat(env, { prompt, userEmail, isAdmin, profession
         tools: allowedTools
     });
 
-    // 2. FASE ACT (FERRAMENTAS)
-    if (aiResponse.tool_calls && aiResponse.tool_calls.length > 0) {
+    // --- PROCESSAMENTO DE RESPOSTA E FERRAMENTAS ---
+    let responseText = "";
+    let tool_calls = aiResponse.tool_calls || [];
+    let tool_results = [];
 
+    if (tool_calls.length > 0) {
         const toolMessages = [
             ...messages,
-            { role: 'assistant', content: '', tool_calls: aiResponse.tool_calls }
+            { role: 'assistant', content: aiResponse.response || '', tool_calls: tool_calls }
         ];
 
-        for (const call of aiResponse.tool_calls) {
+        for (const call of tool_calls) {
             let toolData = "";
             try {
                 const result = await MCP_SERVER.callTool(call.name, call.arguments, {
                     DB, env, emailReal, professionalContext
                 });
                 toolData = JSON.stringify(result);
+                tool_results.push({ call_id: call.id, result });
             } catch (e) {
                 console.error("[MCP Tool Error]", e.message);
                 toolData = JSON.stringify({ status: "erro", msg: e.message });
+                tool_results.push({ call_id: call.id, error: e.message });
             }
 
             toolMessages.push({
@@ -298,13 +303,36 @@ export async function runAgentChat(env, { prompt, userEmail, isAdmin, profession
         const finalResponse = await AI.run(model, {
             messages: toolMessages
         });
+        responseText = finalResponse.response;
 
-        return {
-            text: finalResponse.response,
-            tool_calls: aiResponse.tool_calls,
-            tool_results: toolMessages.filter(m => m.role === 'tool')
-        };
+    } else {
+        responseText = aiResponse.response;
     }
 
-    return { text: aiResponse.response };
+    // --- LOG DE INTERAÇÃO (PARA EFICÁCIA) ---
+    try {
+        const lastTool = tool_calls.length > 0 ? tool_calls[tool_calls.length - 1].name : 'none';
+        const finalStatus = tool_calls.some(c => c.name === 'agendar_cliente') ? 1 : 0;
+
+        await env.DB.prepare(`
+            INSERT INTO interaction_logs (id, professional_email, user_phone, intent, tool_used, success, response_preview)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+            `log_${Date.now()}`,
+            professionalContext.professionalEmail || emailReal,
+            userEmail,
+            prompt.substring(0, 100),
+            lastTool,
+            finalStatus,
+            responseText ? responseText.substring(0, 200) : "no_response"
+        ).run();
+    } catch (e) {
+        console.error('[Logging Error] Falha ao salvar log de interação:', e.message);
+    }
+
+    return {
+        text: responseText,
+        tool_calls: tool_calls,
+        tool_results: tool_results
+    };
 }
