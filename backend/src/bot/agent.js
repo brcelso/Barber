@@ -196,12 +196,21 @@ export async function runAgentChat(env, { prompt, userEmail, isAdmin, profession
 
     const allowedTools = BUSINESS_TOOLS.filter(t => roleTools[role].includes(t.name));
 
+    // 🚀 RAG: BUSCA DE CONTEXTO DINÂMICO
+    let dynamicContext = "";
+    try {
+        const { getSmartContext } = await import('./rag.js');
+        dynamicContext = await getSmartContext(DB, prompt, emailReal);
+    } catch (e) {
+        console.error("[RAG Integration Error]", e);
+    }
+
     // 📝 SELEÇÃO DE PROMPT
     let systemPrompt = "";
     if (role === 'master') systemPrompt = ADMIN_PROMPTS.system_master(professionalContext);
     else if (role === 'owner') systemPrompt = ADMIN_PROMPTS.system_owner(professionalContext);
     else if (role === 'staff') systemPrompt = ADMIN_PROMPTS.system_staff(professionalContext);
-    else systemPrompt = CLIENT_PROMPTS.system_ai({ ...professionalContext, userEmail });
+    else systemPrompt = CLIENT_PROMPTS.system_ai({ ...professionalContext, userEmail, dynamicContext });
 
     // 🕰️ CONTEXTO TEMPORAL (Crucial para não agendar no passado)
     const agora = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
@@ -214,7 +223,7 @@ export async function runAgentChat(env, { prompt, userEmail, isAdmin, profession
     }
 
     // 🚀 ESTRATÉGIA ANTECIPATÓRIA (Apenas para quem tem poder de agenda)
-    let dynamicContext = "";
+    let briefingContext = "";
     if (role === 'master' || role === 'owner' || role === 'staff') {
         try {
             const res = await DB.prepare(
@@ -222,16 +231,16 @@ export async function runAgentChat(env, { prompt, userEmail, isAdmin, profession
             ).bind(hoje, emailReal).all();
 
             if (res.results && res.results.length > 0) {
-                dynamicContext = `\n\n[BRIEFING DO DIA - ${hoje}]: Existem ${res.results.length} agendamentos hoje: ${JSON.stringify(res.results)}.`;
+                briefingContext = `\n\n[BRIEFING DO DIA - ${hoje}]: Existem ${res.results.length} agendamentos hoje: ${JSON.stringify(res.results)}.`;
             } else {
-                dynamicContext = `\n\n[BRIEFING DO DIA]: Sua agenda de hoje (${hoje}) está livre.`;
+                briefingContext = `\n\n[BRIEFING DO DIA]: Sua agenda de hoje (${hoje}) está livre.`;
             }
         } catch (e) {
             console.error("[Pre-fetch Error]", e);
         }
     }
 
-    systemPrompt += dynamicContext;
+    systemPrompt += briefingContext;
 
     // 🚀 O EMPURRÃO DE CONTEXTO
     let userMessageContent = String(prompt);
@@ -239,9 +248,12 @@ export async function runAgentChat(env, { prompt, userEmail, isAdmin, profession
         userMessageContent += " (Aja agora conforme seu nível de acesso e resuma o briefing se disponível)";
     }
 
+    // Limitar histórico para as últimas 10 mensagens para evitar saturação de contexto
+    const cleanHistory = (history || []).slice(-10);
+
     const messages = [
         { role: 'system', content: String(systemPrompt) },
-        ...history,
+        ...cleanHistory,
         { role: 'user', content: userMessageContent }
     ];
 

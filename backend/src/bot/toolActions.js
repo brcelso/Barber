@@ -30,8 +30,34 @@ export const TOOL_ACTIONS = {
     async agendar_cliente({ args, DB, env, emailReal }) {
         const { user_email, service_id, date, time, professional_email } = args;
         const targetEmail = professional_email || emailReal;
-        const id = `appt_${Date.now()}`;
+
         try {
+            // 🛡️ OUTPUT SHIELD: VALIDAÇÕES DE SEGURANÇA
+            
+            // 1. Validar se o serviço existe para este profissional
+            const service = await DB.prepare(
+                "SELECT id FROM services WHERE id = ? AND barber_email = ?"
+            ).bind(service_id, targetEmail).first();
+
+            if (!service) {
+                return { status: "erro", msg: `O serviço '${service_id}' não foi encontrado ou não pertence a este profissional.` };
+            }
+
+            // 2. Validar se a data/hora não é no passado
+            const agora = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+            const apptDate = new Date(`${date}T${time}:00`);
+            
+            if (apptDate < agora) {
+                return { status: "erro", msg: "Não é possível realizar agendamentos em datas ou horários que já passaram." };
+            }
+
+            // 3. Verificar se o profissional existe/é ativo
+            const prof = await DB.prepare("SELECT email FROM users WHERE email = ? AND is_barber = 1").bind(targetEmail).first();
+            if (!prof) {
+                return { status: "erro", msg: "Profissional não encontrado ou inativo no sistema." };
+            }
+
+            const id = `appt_${Date.now()}`;
             await DB.prepare(
                 "INSERT INTO appointments (id, user_email, barber_email, service_id, appointment_date, appointment_time, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')"
             ).bind(id, user_email, targetEmail, service_id, date, time).run();
@@ -49,7 +75,10 @@ export const TOOL_ACTIONS = {
                 id,
                 complemento: payMsg
             };
-        } catch (e) { return { status: "erro", msg: e.message }; }
+        } catch (e) { 
+            console.error("[Output Shield Error]", e.message);
+            return { status: "erro", msg: "Erro interno ao processar agendamento. Tente novamente." }; 
+        }
     },
 
     async alterar_status_agendamento({ args, DB }) {
