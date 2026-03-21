@@ -84,30 +84,7 @@ export async function handleAppointmentRoutes(url, request, env) {
         }
 
         const busy = await DB.prepare(query).bind(...params).all();
-        let results = busy.results;
-
-        // SE FOR HOJE, ADICIONAR SLOTS QUE JÁ PASSARAM COMO BUSY
-        const agora = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-        const hoje = agora.toISOString().split('T')[0];
-
-        if (date === hoje) {
-            const h = agora.getHours();
-            const m = agora.getMinutes();
-            const totalMinutesNow = h * 60 + m;
-
-            // Gerar slots de 30 em 30 min que já passaram e adicionar se não estiverem no banco
-            for (let min = 0; min <= totalMinutesNow; min += 30) {
-                const hourPart = Math.floor(min / 60).toString().padStart(2, '0');
-                const minPart = (min % 60).toString().padStart(2, '0');
-                const timeStr = `${hourPart}:${minPart}`;
-                
-                if (!results.some(r => r.time === timeStr)) {
-                    results.push({ time: timeStr, status: 'busy' });
-                }
-            }
-        }
-
-        return json(results);
+        return json(busy.results);
     }
 
     // 4. CANCELAR AGENDAMENTO

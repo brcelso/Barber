@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { format, startOfToday } from 'date-fns';
+import { format, startOfToday, addDays } from 'date-fns';
 
 // Services
 import { api } from './services/api';
@@ -23,7 +23,12 @@ function App() {
   const [view, setView] = useState('book');
   const [services, setServices] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(startOfToday());
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const now = new Date();
+    // Se já passou das 21h (último horário possível no slot), começa por amanhã
+    if (now.getHours() >= 21) return addDays(startOfToday(), 1);
+    return startOfToday();
+  });
   const [selectedTime, setSelectedTime] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [adminAppointments, setAdminAppointments] = useState([]);

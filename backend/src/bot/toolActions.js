@@ -19,29 +19,11 @@ export const TOOL_ACTIONS = {
             const dayOfWeek = dateObj.getDay();
             const avail = await DB.prepare("SELECT start_time, end_time FROM availability WHERE barber_email = ? AND day_of_week = ?").bind(targetEmail, dayOfWeek).first();
 
-            const records = res.results || [];
-            
-            // FILTRAR SLOTS PASSADOS SE FOR HOJE
-            const agora = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-            const hoje = agora.toISOString().split('T')[0];
-            
-            if (appointment_date === hoje) {
-                const totalMinutesNow = agora.getHours() * 60 + agora.getMinutes();
-                for (let min = 0; min <= totalMinutesNow; min += 30) {
-                    const hStr = Math.floor(min/60).toString().padStart(2, '0');
-                    const mStr = (min % 60).toString().padStart(2, '0');
-                    const tStr = `${hStr}:${mStr}`;
-                    if (!records.some(r => r.time === tStr)) {
-                        records.push({ time: tStr, status: 'busy', client_name: 'PASSADO', service_name: 'Indisponível' });
-                    }
-                }
-            }
-
             return {
                 status: "sucesso",
                 data: appointment_date,
                 horario_funcionamento: avail ? `${avail.start_time} às ${avail.end_time}` : "Fechado neste dia",
-                agendamentos_ocupados: records
+                agendamentos_ocupados: res.results
             };
         } catch (e) { return { status: "erro", msg: e.message }; }
     },
