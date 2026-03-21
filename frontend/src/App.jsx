@@ -40,6 +40,7 @@ function App() {
 
   const [paymentSelectionAppt, setPaymentSelectionAppt] = useState(null);
   const [selectedActionAppt, setSelectedActionAppt] = useState(null);
+  const [reschedulingAppt, setReschedulingAppt] = useState(null);
   const [showPlanSelection, setShowPlanSelection] = useState(false);
   const [waStatus, setWaStatus] = useState({ status: 'disconnected', qr: null });
   const [masterStats, setMasterStats] = useState(null);
@@ -399,6 +400,21 @@ function App() {
     }
   };
 
+  const handleUpdateStatus = async (status) => {
+    if (!selectedActionAppt) return;
+    setLoading(true);
+    try {
+      await api.updateStatus(user.email, selectedActionAppt.id, status);
+      alert('Status atualizado!');
+      handleRefresh();
+      setSelectedActionAppt(null);
+    } catch {
+      alert('Erro ao atualizar status.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updatePayment = async (status) => {
     if (!selectedActionAppt) return;
     setLoading(true);
@@ -475,25 +491,37 @@ function App() {
 
     setLoading(true);
     try {
-      const bookingData = {
-        email: user.email,
-        professionalEmail: selectedProfessional.email,
-        serviceId: selectedService.id,
-        date: format(selectedDate, 'yyyy-MM-dd'),
-        time: selectedTime
-      };
-
-      const res = await api.book(user.email, bookingData);
-      if (res.error) {
-        alert(`Erro: ${res.error}`);
-        return;
+      if (reschedulingAppt) {
+        // MODO REAGENDAMENTO (Update)
+        await api.updateAppointment(user.email, {
+          appointmentId: reschedulingAppt.id,
+          date: format(selectedDate, 'yyyy-MM-dd'),
+          time: selectedTime
+        });
+        alert('Reagendado com sucesso!');
+        setReschedulingAppt(null);
+        handleRefresh();
+        setView(isAdminMode ? 'admin' : 'history');
+      } else {
+        // MODO NOVO AGENDAMENTO (Book)
+        const bookingData = {
+          email: user.email,
+          professionalEmail: selectedProfessional.email,
+          serviceId: selectedService.id,
+          date: format(selectedDate, 'yyyy-MM-dd'),
+          time: selectedTime
+        };
+        const res = await api.book(user.email, bookingData);
+        if (res.error) {
+          alert(`Erro: ${res.error}`);
+          return;
+        }
+        alert('Agendado com sucesso! 🎉');
+        handleRefresh();
+        setView('history');
       }
-
-      alert('Agendado com sucesso! 🎉');
-      await fetchAppointments();
-      setView('history');
-    } catch {
-      alert('Erro de conexão ao tentar agendar.');
+    } catch (err) {
+      alert('Erro ao processar agendamento: ' + (err.message || 'Erro desconhecido'));
     } finally {
       setLoading(false);
     }
@@ -589,20 +617,41 @@ function App() {
 
       {/* MODAIS */}
       <PaymentModal appointment={paymentSelectionAppt} onClose={() => setPaymentSelectionAppt(null)} onProcess={handleProcessPayment} loading={loading} />
-      <PlanSelectionModal show={showPlanSelection} onClose={() => setShowPlanSelection(false)} onSelect={(p) => api.subscriptionPayment(user.email, p)} loading={loading} />
+      <PlanSelectionModal show={showPlanSelection} onClose={() => setShowPlanSelection(false)} onSelect={async (p) => {
+        setLoading(true);
+        try {
+          const res = await api.subscriptionPayment(user.email, p);
+          if (res.paymentUrl) {
+            window.open(res.paymentUrl, '_blank');
+            setShowPlanSelection(false);
+          } else {
+            alert('Erro ao gerar link de pagamento do plano.');
+          }
+        } catch {
+          alert('Erro na conexão.');
+        } finally {
+          setLoading(false);
+        }
+      }} loading={loading} />
       <PhoneSetupModal show={showPhoneSetup} loading={loading} onSave={(p) => api.updateProfile(user.email, p).then(() => setShowPhoneSetup(false))} />
 
       <ActionSheet
         selectedActionAppt={selectedActionAppt} setSelectedActionAppt={setSelectedActionAppt}
         sheetView={sheetView} setSheetView={setSheetView} user={user}
         handleEditStart={(appt) => {
-          const professional = professionals.find(p => p.email === appt.barber_email);
-          if (professional) setSelectedProfessional(professional);
+          setReschedulingAppt(appt);
+          // Garantir que temos o profissional selecionado
+          const prof = professionals.find(p => p.email === appt.barber_email) || { email: appt.barber_email, name: appt.professional_name };
+          setSelectedProfessional(prof);
+          
+          // Pre-setar serviço e horário
           setSelectedService({ id: appt.service_id, name: appt.service_name, price: appt.price });
+          setSelectedDate(new Date(appt.appointment_date + 'T12:00:00'));
+          setSelectedTime(appt.appointment_time);
           setView('book');
         }}
         handleWhatsAppNotify={handleWhatsAppNotify}
-        updateStatus={(s) => api.updateStatus(user.email, selectedActionAppt.id, s).then(handleRefresh)}
+        updateStatus={handleUpdateStatus}
         updatePayment={updatePayment}
       />
     </div>

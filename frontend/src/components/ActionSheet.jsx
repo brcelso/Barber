@@ -54,7 +54,7 @@ export const ActionSheet = ({
                                 <button
                                     key={opt.id}
                                     className="action-item"
-                                    onClick={() => { updateStatus(opt.id); setSelectedActionAppt(null); }}
+                                    onClick={() => updateStatus(opt.id)}
                                 >
                                     {opt.icon} {opt.label}
                                 </button>
