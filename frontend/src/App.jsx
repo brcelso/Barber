@@ -415,6 +415,19 @@ function App() {
     }
   };
 
+  const handleEditStart = (appt) => {
+    setReschedulingAppt(appt);
+    // Garantir que temos o profissional selecionado
+    const prof = professionals.find(p => p.email === appt.barber_email) || { email: appt.barber_email, name: appt.professional_name };
+    setSelectedProfessional(prof);
+    
+    // Pre-setar serviço e horário
+    setSelectedService({ id: appt.service_id, name: appt.service_name, price: appt.price });
+    setSelectedDate(new Date(appt.appointment_date + 'T12:00:00'));
+    setSelectedTime(appt.appointment_time);
+    setView('book');
+  };
+
   const updatePayment = async (status) => {
     if (!selectedActionAppt) return;
     setLoading(true);
@@ -597,12 +610,7 @@ function App() {
           handleCancel={(id) => api.cancelAppointment(user.email, id).then(handleRefresh)}
           handleDelete={(id) => api.deleteAppointment(user.email, id).then(handleRefresh)}
           handlePayment={(appt) => setPaymentSelectionAppt(appt)}
-          handleEditStart={(appt) => {
-            const professional = professionals.find(p => p.email === appt.barber_email);
-            if (professional) setSelectedProfessional(professional);
-            setSelectedService({ id: appt.service_id, name: appt.service_name, price: appt.price });
-            setView('book');
-          }}
+          handleEditStart={handleEditStart}
         />
       )}
       {view === 'admin' && (user.isAdmin || user.isProfessional) && (
@@ -646,18 +654,7 @@ function App() {
       <ActionSheet
         selectedActionAppt={selectedActionAppt} setSelectedActionAppt={setSelectedActionAppt}
         sheetView={sheetView} setSheetView={setSheetView} user={user}
-        handleEditStart={(appt) => {
-          setReschedulingAppt(appt);
-          // Garantir que temos o profissional selecionado
-          const prof = professionals.find(p => p.email === appt.barber_email) || { email: appt.barber_email, name: appt.professional_name };
-          setSelectedProfessional(prof);
-          
-          // Pre-setar serviço e horário
-          setSelectedService({ id: appt.service_id, name: appt.service_name, price: appt.price });
-          setSelectedDate(new Date(appt.appointment_date + 'T12:00:00'));
-          setSelectedTime(appt.appointment_time);
-          setView('book');
-        }}
+        handleEditStart={handleEditStart}
         handleWhatsAppNotify={handleWhatsAppNotify}
         updateStatus={handleUpdateStatus}
         updatePayment={updatePayment}

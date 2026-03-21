@@ -27,7 +27,12 @@ export const HistoryPage = ({
                             const dateObj = parseISO(appt.appointment_date);
                             if (isNaN(dateObj.getTime())) return null;
 
-                            const isPast = dateObj < new Date() && !format(new Date(), 'yyyy-MM-dd').includes(appt.appointment_date);
+                            const now = new Date();
+                            const isPast = dateObj < now && !format(now, 'yyyy-MM-dd').includes(appt.appointment_date);
+                            // Se for hoje, mas o horário já passou (ex: 10:00 vs agora 11:00)
+                            const isPastTime = format(now, 'yyyy-MM-dd') === appt.appointment_date && appt.appointment_time < format(now, 'HH:mm');
+                            const canDelete = appt.status === 'cancelled' || isPast || isPastTime;
+                            const canCancel = appt.status !== 'cancelled' && !isPast && !isPastTime;
 
                             return (
                                 <div key={appt.id} className={`glass-card appointment-card ${appt.status}`}>
@@ -53,16 +58,16 @@ export const HistoryPage = ({
                                         <div style={{ textAlign: 'right' }}>
                                             <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem' }}>R$ {appt.price}</div>
                                             <div style={{ display: 'flex', gap: '8px' }}>
-                                                {appt.status === 'pending' && !isPast && (
+                                                {canCancel && (
                                                     <>
                                                         <button className="btn-icon" onClick={() => handleEditStart(appt)} title="Reagendar"><Calendar size={18} /></button>
                                                         <button className="btn-icon" style={{ color: '#e74c3c' }} onClick={() => handleCancel(appt.id)} title="Cancelar"><X size={18} /></button>
                                                     </>
                                                 )}
-                                                {appt.status === 'pending' && appt.payment_status !== 'paid' && (
+                                                {appt.status !== 'cancelled' && appt.payment_status !== 'paid' && !isPast && !isPastTime && (
                                                     <button className="btn-primary" style={{ padding: '5px 10px', fontSize: '0.7rem' }} onClick={() => handlePayment(appt)}>Pagar Agora</button>
                                                 )}
-                                                {(appt.status === 'cancelled' || isPast) && (
+                                                {canDelete && (
                                                     <button className="btn-icon" style={{ color: '#ff4d4d', opacity: 1 }} onClick={() => handleDelete(appt.id)} title="Excluir do Histórico"><Trash2 size={18} /></button>
                                                 )}
                                             </div>
