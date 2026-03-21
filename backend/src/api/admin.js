@@ -62,7 +62,7 @@ export async function handleAdminRoutes(url, request, env) {
             const emails = teamEmails.results.map(t => t.email);
             const placeholders = emails.map(() => '?').join(',');
             allAppointments = await DB.prepare(`
-                SELECT a.*, s.name as service_name, s.price, u.name as user_name, u.picture as user_picture, u.phone as user_phone, b.name as professional_name
+                SELECT a.*, s.name as service_name, s.price, u.name as client_name, u.picture as client_picture, u.phone as client_phone, b.name as professional_name
                 FROM appointments a
                 LEFT JOIN services s ON a.service_id = s.id
                 LEFT JOIN users u ON a.user_email = u.email
@@ -72,7 +72,7 @@ export async function handleAdminRoutes(url, request, env) {
             `).bind(...emails).all();
         } else {
             allAppointments = await DB.prepare(`
-                SELECT a.*, s.name as service_name, s.price, u.name as user_name, u.picture as user_picture, u.phone as user_phone, b.name as professional_name
+                SELECT a.*, s.name as service_name, s.price, u.name as client_name, u.picture as client_picture, u.phone as client_phone, b.name as professional_name
                 FROM appointments a
                 LEFT JOIN services s ON a.service_id = s.id
                 LEFT JOIN users u ON a.user_email = u.email

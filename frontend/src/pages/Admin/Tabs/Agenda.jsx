@@ -135,7 +135,7 @@ export const AgendaTab = ({
                                         {appt.appointment_time}
                                     </div>
                                     <div>
-                                        <h4 style={{ margin: 0 }}>{appt.client_name || appt.user_name}</h4>
+                                        <h4 style={{ margin: 0 }}>{appt.client_name}</h4>
                                         <p style={{ margin: 0, fontSize: '0.8rem', opacity: 0.7 }}>{appt.service_name}</p>
                                     </div>
                                 </div>
