@@ -200,7 +200,7 @@ export async function runAgentChat(env, { prompt, userEmail, isAdmin, profession
     let dynamicContext = "";
     try {
         const { getSmartContext } = await import('./rag.js');
-        dynamicContext = await getSmartContext(DB, prompt, emailReal);
+        dynamicContext = await getSmartContext(DB, prompt, emailReal, params.userEmail);
     } catch (e) {
         console.error("[RAG Integration Error]", e);
     }

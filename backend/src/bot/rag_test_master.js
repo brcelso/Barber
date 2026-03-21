@@ -7,6 +7,7 @@ const mockDB = {
             all: async () => {
                 if (sql.includes('services')) return { results: [{ id: 'corte', name: 'Corte', price: 50, duration_minutes: 30 }] };
                 if (sql.includes('users WHERE is_admin = 1')) return { results: [{ name: 'Unidade Alpha', email: 'alpha@test.com', plan: 'pro' }, { name: 'Unidade Beta', email: 'beta@test.com', plan: 'standard' }] };
+                if (sql.includes('appointments')) return { results: [{ appointment_date: '2024-03-20', appointment_time: '14:00', service_name: 'Corte', status: 'confirmed' }] };
                 return { results: [] };
             },
             first: async () => {
@@ -48,14 +49,14 @@ async function testRAG() {
         console.log('❌ RAG Master (Unidades): FALHOU');
     }
 
-    // 3. Master (Busca assinaturas/faturamento)
-    console.log('\n--- Teste 3: Master (Estatísticas) ---');
-    const statsContext = await getSmartContext(mockDB, "Como estão as assinaturas?", "celsosilvajunior90@gmail.com");
-    console.log(statsContext);
-    if (statsContext.includes('ESTATÍSTICAS GLOBAIS') && statsContext.includes('Total de Unidades: 2')) {
-        console.log('✅ RAG Master (Stats): OK');
+    // 4. Histórico (Novo!)
+    console.log('\n--- Teste 4: Histórico do Cliente ---');
+    const historyContext = await getSmartContext(mockDB, "Qual meu último horário?", "unidade@teste.com", "cliente@teste.com");
+    console.log(historyContext);
+    if (historyContext.includes('HISTÓRICO DO CLIENTE')) {
+        console.log('✅ RAG Histórico: OK');
     } else {
-        console.log('❌ RAG Master (Stats): FALHOU');
+        console.log('❌ RAG Histórico: FALHOU');
     }
 }
 

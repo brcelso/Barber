@@ -3,14 +3,15 @@
  * Filtra dinamicamente o contexto baseado na intenção do usuário.
  */
 
-export async function getSmartContext(DB, userMessage, professionalEmail) {
+export async function getSmartContext(DB, userMessage, professionalEmail, userEmail = null) {
     const textLower = userMessage.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     
     // Identificadores de intenção simples (Keywords - sem acentos após normalização)
     const keywords = {
         services: /(preco|quanto|servico|corte|faz|valor|horario|agenda|marcar|agendar|disponivel)/i,
         team: /(quem|atende|profissional|barbeiro|cabeleireiro|equipe|time|membro)/i,
-        business: /(nome|onde|endereco|local|loja|estabelecimento|empresa|unidade|unidades)/i
+        business: /(nome|onde|endereco|local|loja|estabelecimento|empresa|unidade|unidades)/i,
+        history: /(meu|meus|agendamento|consulta|horario|marcado|agenda)/i
     };
 
     let context = "\n[CONTEXTO DE NEGÓCIO SELECIONADO]:\n";
@@ -18,6 +19,16 @@ export async function getSmartContext(DB, userMessage, professionalEmail) {
 
     try {
         const isMaster = professionalEmail === 'celsosilvajunior90@gmail.com';
+
+        // 0. Informações da Unidade (Branding e Mensagens) - Sempre útil para consistência
+        const biz = await DB.prepare(
+            "SELECT shop_name, business_type, bot_name, msg_welcome, msg_confirm_booking FROM users WHERE email = ?"
+        ).bind(professionalEmail).first();
+        
+        if (biz) {
+            context += `\nESTABELECIMENTO: ${biz.shop_name || 'N/A'}\n- Nicho: ${biz.business_type}\n- Nome do Robô: ${biz.bot_name || 'Leo'}\n`;
+            hasContext = true;
+        }
 
         // 1. Busca de Serviços (se necessário)
         if (keywords.services.test(textLower)) {
@@ -57,7 +68,24 @@ export async function getSmartContext(DB, userMessage, professionalEmail) {
             }
         }
 
-        // 3. Informações de Disponibilidade Geral
+        // 3. Histórico do Cliente (Novo!)
+        if (userEmail && keywords.history.test(textLower)) {
+            const history = await DB.prepare(`
+                SELECT a.appointment_date, a.appointment_time, s.name as service_name, a.status 
+                FROM appointments a 
+                JOIN services s ON a.service_id = s.id 
+                WHERE a.user_email = ? 
+                ORDER BY a.appointment_date DESC, a.appointment_time DESC LIMIT 3
+            `).bind(userEmail).all();
+
+            if (history.results?.length > 0) {
+                context += "\nHISTÓRICO DO CLIENTE:\n";
+                context += history.results.map(h => `- ${h.appointment_date} ${h.appointment_time}: ${h.service_name} [Status: ${h.status}]`).join('\n');
+                hasContext = true;
+            }
+        }
+
+        // 4. Informações de Disponibilidade Geral
         if (keywords.services.test(textLower)) {
             const avail = await DB.prepare(
                 "SELECT day_of_week, start_time, end_time FROM availability WHERE barber_email = ?"
@@ -71,7 +99,7 @@ export async function getSmartContext(DB, userMessage, professionalEmail) {
             }
         }
 
-        // 4. Intenção Global (Master) para Faturamento ou Assinaturas
+        // 5. Intenção Global (Master) para Faturamento ou Assinaturas
         if (isMaster && (textLower.includes("assinatura") || textLower.includes("faturamento") || textLower.includes("status"))) {
             const stats = await DB.prepare(
                 "SELECT COUNT(*) as total_units FROM users WHERE is_admin = 1 AND owner_id IS NULL"
@@ -80,7 +108,7 @@ export async function getSmartContext(DB, userMessage, professionalEmail) {
             hasContext = true;
         }
 
-        return hasContext ? context : "\n[AVISO]: Nenhum contexto específico injetado. Se você é o MASTER, pergunte por 'unidades' ou 'assinaturas' para ver o panorama geral.";
+        return hasContext ? context : "\n[AVISO]: Nenhum contexto específico injetado. Para agendar, verifique horários disponíveis.";
     } catch (error) {
         console.error("[RAG Error]", error.message);
         return "\n[ERRO]: Falha ao recuperar contexto do banco de dados.";
