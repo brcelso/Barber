@@ -217,9 +217,10 @@ export async function runAgentChat(env, { prompt, userEmail, isAdmin, profession
     const hoje = agora.toISOString().split('T')[0];
     const horaAtual = agora.toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' });
 
-    systemPrompt += `\n\n[CONTEXTO TEMPORAL]: Hoje é ${hoje}, agora são ${horaAtual}.`;
+    systemPrompt += `\n\n[CONTEXTO TEMPORAL CRÍTICO]: Hoje é ${hoje}, agora são ${horaAtual}.`;
     if (role === 'client') {
-        systemPrompt += `\n⚠️ IMPORTANTE: Se o cliente quiser agendar para hoje (${hoje}), você NUNCA deve oferecer ou aceitar horários anteriores a ${horaAtual}.`;
+        systemPrompt += `\n⚠️ REGRAS DE HORÁRIO: Se o cliente quiser agendar para hoje (${hoje}), você ESTÁ PROIBIDO de oferecer ou aceitar horários anteriores a ${horaAtual}.`;
+        systemPrompt += `\nSempre verifique se a hora solicitada pelo cliente é MAIOR que ${horaAtual} antes de sugerir ou agendar para hoje.`;
     }
 
     // 🚀 ESTRATÉGIA ANTECIPATÓRIA (Apenas para quem tem poder de agenda)
