@@ -5,7 +5,7 @@ import { runAgentChat } from './agent.js';
 
 const mockDB = {
     prepare: (sql) => ({
-        bind: (..._args) => ({
+        bind: () => ({
             all: async () => {
                 if (sql.includes("FROM services")) return { results: [{ id: 'corte-1', name: 'Corte', price: 50 }] };
                 if (sql.includes("FROM users")) return { results: [{ name: 'Celso', email: 'celso@exemplo.com' }] };
@@ -24,7 +24,7 @@ const mockDB = {
 };
 
 const mockAI = {
-    run: async (_model, { messages, _tools }) => {
+    run: async (_, { messages }) => {
         // Simular que o modelo quer verificar a agenda primeiro
         if (messages.length < 5) {
             return {

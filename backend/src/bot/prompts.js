@@ -109,7 +109,7 @@ Seu tom é prestativo e focado na organização pessoal.
 
 export const CLIENT_PROMPTS = {
     ai_welcome: (params) => {
-        const { shop, icon, action } = getTerm(params.business_type);
+        const { icon } = getTerm(params.business_type);
         let menu = `✨ *Bem-vindo(a) à ${params.establishmentName}!* ${icon}\n\nSou o assistente virtual e posso te ajudar com:\n\n`;
         menu += `📅 *Ver horários disponíveis*\n`;
         menu += `📝 *Marcar um novo agendamento*\n`;

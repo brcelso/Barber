@@ -3,7 +3,7 @@ import { getSmartContext } from './rag.js';
 // Mock DB
 const mockDB = {
     prepare: (sql) => ({
-        bind: (...args) => ({
+        bind: () => ({
             all: async () => {
                 if (sql.includes('services')) return { results: [{ id: 'corte', name: 'Corte', price: 50, duration_minutes: 30 }] };
                 if (sql.includes('users WHERE is_admin = 1')) return { results: [{ name: 'Unidade Alpha', email: 'alpha@test.com', plan: 'pro' }, { name: 'Unidade Beta', email: 'beta@test.com', plan: 'standard' }] };
