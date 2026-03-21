@@ -152,10 +152,26 @@ async function connectToWhatsApp(emailRaw) {
                 const safeId = Buffer.from(email).toString('hex');
                 const authFolder = path.join('auth_sessions', `session_${safeId}`);
                 if (fs.existsSync(authFolder)) {
-                    try {
-                        fs.rmSync(authFolder, { recursive: true, force: true });
-                        console.log(`[Session] 🗑️ Arquivos de sessão removidos: ${email}`);
-                    } catch (err) { console.error(`[Session] ❌ Erro ao remover arquivos:`, err.message); }
+                    // Pequeno delay para o Windows liberar os handles dos arquivos
+                    setTimeout(() => {
+                        let attempts = 0;
+                        const maxAttempts = 3;
+                        const tryRemove = () => {
+                            try {
+                                fs.rmSync(authFolder, { recursive: true, force: true });
+                                console.log(`[Session] 🗑️ Arquivos de sessão removidos: ${email}`);
+                            } catch (err) {
+                                attempts++;
+                                if (attempts < maxAttempts && err.code === 'ENOTEMPTY') {
+                                    console.log(`[Session] ⏳ Pasta ocupada, tentando novamente (${attempts}/${maxAttempts})...`);
+                                    setTimeout(tryRemove, 1000);
+                                } else {
+                                    console.error(`[Session] ❌ Erro ao remover arquivos:`, err.message);
+                                }
+                            }
+                        };
+                        tryRemove();
+                    }, 1000);
                 }
             } else {
                 if (sessions.has(email)) {
