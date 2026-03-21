@@ -28,25 +28,32 @@ O sistema agora se adapta dinamicamente ao `business_type` definido no banco de 
 - **Atendimento 24/7:** A IA processa agendamentos em linguagem natural diretamente pelo WhatsApp.
 - **Redução de No-Show:** Notificações automáticas de confirmação e lembretes configuráveis.
 
-## 📂 Estrutura Modular
-- **/backend:** Cloudflare Workers + D1. Inclui **Auto-Migração de Banco**, garantindo que novas colunas sejam criadas automaticamente no deploy.
-- **/frontend:** React + Vite (GitHub Pages). Interface dinâmica que consome a API agnóstica.
-- **/bridge:** Conector Node.js para WhatsApp real (Baileys).
+## 🧠 Arquitetura Moderna (2026)
+O ecossistema foi modernizado seguindo os padrões:
+- **SDD (Spec Driven Development):** Desenvolvimento guiado por especificações rigorosas ([SDD.md](./SDD.md)).
+- **MCP (Model Context Protocol)::** Camada de abstração que padroniza como a IA interage com ferramentas e dados ([ARCHITECTURE.md](./docs/ARCHITECTURE.md)).
+- **Enhanced RAG:** Recuperação de contexto orientada a recursos com cache inteligente para alta performance.
 
-## 🛠️ Deploy & CI/CD
-O projeto está configurado com **GitHub Actions**:
-1. **Frontend:** Deploy automático para GitHub Pages ao dar push na `main`.
-2. **Backend:** Deploy serverless para Cloudflare Workers.
+## 📂 Estrutura Modular
+- **/backend:** Cloudflare Workers + D1. Inclui o **Servidor MCP** interno e lógica de RAG.
+- **/frontend:** React + Vite (GitHub Pages). Interface dinâmica que consome a API agnóstica.
+- **/bridge:** Conector Node.js para WhatsApp real (Baileys) rodando localmente.
+- **/docs:** Documentação técnica e guia de arquitetura.
 
 ## 📋 Como Inicializar
+O projeto agora é focado em **D1 Remoto** para consistência total.
+
 ```bash
-# Instalar dependências
+# 1. Instalar dependências (Raiz)
 npm install
 
-# Inicializar Banco D1 (Local)
-npm run db:init
+# 2. Configurar o "Cofre"
+# Renomeie .env.example para .env e preencha suas chaves.
 
-# Rodar Ecossistema Completo
+# 3. Deploy/Sync do Banco (Remoto)
+npm run db:deploy
+
+# 4. Rodar Frontend & Backend (Local Sim)
 npm run dev:full
 ```
 

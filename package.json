@@ -7,13 +7,11 @@
     "dev:frontend": "cd frontend && npx vite",
     "dev:backend": "cd backend && npx wrangler dev --local",
     "dev:full": "npm run dev:frontend & npm run dev:backend",
-    "db:init": "cd backend && npx wrangler d1 execute barber-db --local --file=schema.sql",
     "db:deploy": "cd backend && npx wrangler d1 execute barber-db --remote --file=schema.sql",
     "deploy:backend": "cd backend && npx wrangler deploy",
     "build:frontend": "cd frontend && npx vite build",
     "lint": "eslint frontend/src backend/src",
-    "preview:frontend": "cd frontend && npx vite preview",
-    "test": "vitest"
+    "preview:frontend": "cd frontend && npx vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.95.3",
@@ -35,7 +33,6 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "vite": "^7.3.1",
-    "wrangler": "^4.76.0",
-    "vitest": "^3.0.0"
+    "wrangler": "^4.76.0"
   }
 }

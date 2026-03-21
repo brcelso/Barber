@@ -1,5 +1,6 @@
 import { ADMIN_PROMPTS, CLIENT_PROMPTS } from './prompts.js';
 import { TOOL_ACTIONS } from './toolActions.js';
+import { MCP_SERVER } from '../mcp/handler.js';
 
 export const BUSINESS_TOOLS = [
     {
@@ -196,13 +197,12 @@ export async function runAgentChat(env, { prompt, userEmail, isAdmin, profession
 
     const allowedTools = BUSINESS_TOOLS.filter(t => roleTools[role].includes(t.name));
 
-    // 🚀 RAG: BUSCA DE CONTEXTO DINÂMICO
+    // 🚀 RAG: BUSCA DE CONTEXTO DINÂMICO (VIA MCP)
     let dynamicContext = "";
     try {
-        const { getSmartContext } = await import('./rag.js');
-        dynamicContext = await getSmartContext(DB, prompt, emailReal, userEmail);
+        dynamicContext = await MCP_SERVER.getContext(DB, prompt, emailReal, userEmail);
     } catch (e) {
-        console.error("[RAG Integration Error]", e);
+        console.error("[MCP RAG Error]", e);
     }
 
     // 📝 SELEÇÃO DE PROMPT
@@ -276,20 +276,14 @@ export async function runAgentChat(env, { prompt, userEmail, isAdmin, profession
 
         for (const call of aiResponse.tool_calls) {
             let toolData = "";
-            const actionFunc = TOOL_ACTIONS[call.name];
-
-            if (actionFunc) {
-                const result = await actionFunc({
-                    args: call.arguments,
-                    DB,
-                    AI,
-                    env, // Passando o env completo para acesso a variáveis globais
-                    emailReal,
-                    professionalContext
+            try {
+                const result = await MCP_SERVER.callTool(call.name, call.arguments, {
+                    DB, env, emailReal, professionalContext
                 });
                 toolData = JSON.stringify(result);
-            } else {
-                toolData = JSON.stringify({ status: "erro", msg: "Ferramenta não mapeada no executor." });
+            } catch (e) {
+                console.error("[MCP Tool Error]", e.message);
+                toolData = JSON.stringify({ status: "erro", msg: e.message });
             }
 
             toolMessages.push({
