@@ -493,11 +493,19 @@ function App() {
     try {
       if (reschedulingAppt) {
         // MODO REAGENDAMENTO (Update)
-        await api.updateAppointment(user.email, {
+        const res = await api.updateAppointment(user.email, {
           appointmentId: reschedulingAppt.id,
+          barberEmail: selectedProfessional.email,
+          serviceId: selectedService.id,
           date: format(selectedDate, 'yyyy-MM-dd'),
           time: selectedTime
         });
+        
+        if (res.error) {
+          alert(`Erro ao reagendar: ${res.error}`);
+          return;
+        }
+
         alert('Reagendado com sucesso!');
         setReschedulingAppt(null);
         handleRefresh();
