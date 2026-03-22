@@ -125,8 +125,9 @@ async function startWhatsApp() {
         console.log(`\nPonte fechada (Código: ${code})`);
         whatsappProcess = null;
         if (isActive) {
-            console.log('⚠️ Reiniciando serviços em 5s...');
-            setTimeout(() => { isActive = false; }, 5000);
+            console.log('⚠️ Serviço interrompido. Verifique o terminal para erros.');
+            console.log('⏳ Reiniciando gerenciador em 30s...');
+            setTimeout(() => { isActive = false; }, 30000);
         }
     });
 }

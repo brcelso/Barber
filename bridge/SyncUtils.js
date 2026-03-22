@@ -17,7 +17,8 @@ class SyncUtils {
             });
 
             if (res.data && res.data.payload) {
-                const sessionPath = path.join(__dirname, 'auth_sessions', email.replace(/[^a-zA-Z0-9]/g, '_'));
+                const safeId = Buffer.from(email).toString('hex');
+                const sessionPath = path.join(__dirname, 'auth_sessions', `session_${safeId}`);
                 if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath, { recursive: true });
 
                 const payload = JSON.parse(Buffer.from(res.data.payload, 'base64').toString());
@@ -42,7 +43,8 @@ class SyncUtils {
      */
     static async uploadSession(email) {
         try {
-            const sessionPath = path.join(__dirname, 'auth_sessions', email.replace(/[^a-zA-Z0-9]/g, '_'));
+            const safeId = Buffer.from(email).toString('hex');
+            const sessionPath = path.join(__dirname, 'auth_sessions', `session_${safeId}`);
             if (!fs.existsSync(sessionPath)) return;
 
             const files = fs.readdirSync(sessionPath);
