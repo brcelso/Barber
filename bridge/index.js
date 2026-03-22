@@ -100,16 +100,10 @@ async function connectToWhatsApp(emailRaw) {
     const { version } = await fetchLatestWaWebVersion().catch(() => ({ version: [2, 3000, 1015901307] }));
 
     const sock = makeWASocket({
-        version, // Usar versão dinâmica detectada
         logger: pino({ level: 'silent' }),
         auth: state,
         printQRInTerminal: false,
-        browser: ["Windows", "Chrome", "122.0.6261.129"],
-        markOnlineOnConnect: false,
-        syncFullHistory: false,
-        connectTimeoutMs: 60000,
-        defaultQueryTimeoutMs: 0,
-        keepAliveIntervalMs: 10000
+        markOnlineOnConnect: false
     });
 
     console.log(`[Debug] Socket criado com versão: ${version.join('.')}`);
