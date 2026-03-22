@@ -94,28 +94,47 @@ async function connectToWhatsApp(emailRaw) {
     // --- PAREAMENTO POR CÓDIGO (MOBILE FIRST) ---
     const envPairPhone = process.env.WA_PAIRING_PHONE;
     if (global.pendingPairing?.email === email || (envPairPhone && email === ADMIN_EMAIL)) {
-        const phoneNumber = global.pendingPairing?.phone || envPairPhone;
-        console.log(`[Session] 📱 Gerando Código de Pareamento para ${phoneNumber}...`);
-        setTimeout(async () => {
-            try {
-                const code = await sock.requestPairingCode(phoneNumber);
-                if (global.pendingPairing) global.pendingPairing.result = code;
-                
-                // Avisar o Cloudflare sobre o código de pareamento
-                await axios.post(STATUS_URL, {
-                    email: email,
-                    status: 'awaiting_code',
-                    qr: null,
-                    pair_code: code
-                }).catch(e => console.error('[Status Sync Error]', e.message));
-
-                console.log(`\n************************************`);
-                console.log(`📡 CÓDIGO DE PAREAMENTO: ${code}`);
-                console.log(`************************************\n`);
-            } catch (e) {
-                console.error(`[Session Error] Falha ao gerar código:`, e.message);
+        let phoneNumber = (global.pendingPairing?.phone || envPairPhone).replace(/\D/g, '');
+        
+        // Ajuste automático para números do Brasil (DDD < 30 costumam ignorar o 9 no ID do WhatsApp)
+        if (phoneNumber.startsWith('55') && phoneNumber.length === 13) {
+            const ddd = parseInt(phoneNumber.substring(2, 4));
+            if (ddd < 30) {
+                const oldNumber = phoneNumber;
+                phoneNumber = phoneNumber.substring(0, 4) + phoneNumber.substring(5);
+                console.log(`[Session] 🔄 Ajustando número para pareamento (Removendo 9): ${oldNumber} -> ${phoneNumber}`);
             }
-        }, 3000);
+        }
+
+        console.log(`[Session] 📱 Solicitando Código para ${phoneNumber}...`);
+        
+        setTimeout(async () => {
+            let attempts = 0;
+            const tryPair = async () => {
+                try {
+                    const code = await sock.requestPairingCode(phoneNumber);
+                    if (global.pendingPairing) global.pendingPairing.result = code;
+                    
+                    await axios.post(STATUS_URL, {
+                        email: email,
+                        status: 'awaiting_code',
+                        qr: null,
+                        pair_code: code
+                    }).catch(() => {});
+
+                    console.log(`\n************************************`);
+                    console.log(`📡 CÓDIGO DE PAREAMENTO: ${code}`);
+                    console.log(`************************************\n`);
+                } catch (e) {
+                    attempts++;
+                    console.error(`[Session Error] Falha ao gerar código (Tentativa ${attempts}):`, e.message);
+                    if (attempts < 3 && e.message.includes('Connection Closed')) {
+                        setTimeout(tryPair, 2000);
+                    }
+                }
+            };
+            tryPair();
+        }, 5000);
     }
 
     sessions.set(email, sock);
