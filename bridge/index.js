@@ -15,7 +15,7 @@ const QRCode = require('qrcode');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
-const SyncUtils = require('./SyncUtils'); // <--- Novo utilitário
+// SyncUtils removido para reversão local
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const STATUS_URL = 'https://barber-server.celsosilvajunior90.workers.dev/api/whatsapp/status';
@@ -71,45 +71,33 @@ async function connectToWhatsApp(emailRaw) {
 
     console.log(`[Session] 🔄 Iniciando conexão: ${email}`);
     
-    const safeId = Buffer.from(email).toString('hex');
+    const safeId = email.replace(/[^a-zA-Z0-9]/g, '_');
     const authFolder = path.join(__dirname, 'auth_sessions', `session_${safeId}`);
 
-    // 1. Tentar baixar do D1 se não existir localmente (apenas se não estivermos solicitando novo pareamento)
+    // Limpar pasta se for pareamento
     const isPairing = !!(process.env.WA_PAIRING_PHONE || global.pendingPairing?.email === email);
-    if (!isPairing) {
-        const found = await SyncUtils.downloadSession(email);
-        if (!found && fs.existsSync(authFolder)) {
-            console.log(`[Session] ⚠️ Nenhuma sessão na nuvem. Limpando lixo local para evitar Erro 405...`);
-            fs.rmSync(authFolder, { recursive: true, force: true });
-        }
-    } else {
-        console.log(`[Session] 🆕 Modo Pareamento detectado. Iniciando com pasta limpa.`);
-    }
-
-    // 2. Garantir que a pasta existe (agora em local fixo)
     if (isPairing && fs.existsSync(authFolder)) {
-        console.log(`[Session] 🧹 Limpando pasta de sessão para Pareamento: ${authFolder}`);
+        console.log(`[Session] 🧹 Limpando pasta de sessão local: ${authFolder}`);
         fs.rmSync(authFolder, { recursive: true, force: true });
     }
 
     if (!fs.existsSync(authFolder)) {
         fs.mkdirSync(authFolder, { recursive: true });
-        console.log(`[Session] 📂 Pasta de sessão criada: ${authFolder}`);
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(authFolder);
-    const { version } = await fetchLatestWaWebVersion().catch(() => ({ version: [2, 3000, 1015901307] }));
+    const { version } = await fetchLatestWaWebVersion().catch(() => ({ version: [2, 3010, 1] }));
 
     const sock = makeWASocket({
+        version,
         logger: pino({ level: 'silent' }),
         auth: state,
         printQRInTerminal: false,
-        markOnlineOnConnect: false,
-        browser: Browsers.macOS('Desktop'), // <--- Oficial e mais estável
-        syncFullHistory: false
+        browser: ["Windows", "Chrome", "122.0.6261.129"],
+        markOnlineOnConnect: false
     });
 
-    console.log(`[Debug] Socket criado com versão: ${version.join('.')}`);
+    console.log(`[Debug] Socket iniciado (Local-Only Mode). Versão: ${version.join('.')}`);
     const credsFile = path.join(authFolder, 'creds.json');
     if (fs.existsSync(credsFile)) {
         console.log(`[Debug] creds.json detectado (Tamanho: ${fs.statSync(credsFile).size} bytes)`);
@@ -225,10 +213,6 @@ async function connectToWhatsApp(emailRaw) {
     // --- CREDENCIAIS ---
     sock.ev.on('creds.update', async () => {
         await saveCreds();
-        // Sincroniza com D1 (Throttled via timer ou direto se for o primeiro)
-        if (sock.user) {
-             SyncUtils.uploadSession(email);
-        }
     });
 
     // --- ATUALIZAÇÃO DE CONEXÃO E QR CODE ---
