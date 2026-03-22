@@ -2,7 +2,8 @@ const {
     default: makeWASocket,
     useMultiFileAuthState,
     DisconnectReason,
-    fetchLatestWaWebVersion
+    fetchLatestWaWebVersion,
+    Browsers
 } = require('@whiskeysockets/baileys');
 const qrcodeTerminal = require('qrcode-terminal');
 const express = require('express');
@@ -79,8 +80,9 @@ async function connectToWhatsApp(emailRaw) {
         version,
         logger: pino({ level: 'silent' }),
         auth: state,
-        browser: ['Universal App', 'Chrome', '1.0.0'],
-        markOnlineOnConnect: true
+        browser: Browsers.macOS('Desktop'),
+        markOnlineOnConnect: true,
+        printQRInTerminal: false
     });
 
     sessions.set(email, sock);
@@ -311,7 +313,7 @@ app.post('/send-message', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`🚀 Universal Multi-Bridge rodando na porta ${PORT}`);
-    loadExistingSessions();
+    // loadExistingSessions(); // <--- COMENTADO PARA EVITAR LOOP DE QR CODES
 
     // Auto-carregar a sessão do administrador se nada foi carregado
     setTimeout(() => {
