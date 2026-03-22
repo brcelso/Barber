@@ -92,16 +92,18 @@ async function connectToWhatsApp(emailRaw) {
         version,
         logger: pino({ level: 'silent' }),
         auth: state,
-        browser: ['Universal Scheduler', 'Chrome', '1.0.0'],
+        printQRInTerminal: false,
+        browser: ["Ubuntu", "Chrome", "20.0.04"], // <--- Requisito para pareamento estável
         markOnlineOnConnect: true
     });
 
     // --- PAREAMENTO POR CÓDIGO (MOBILE FIRST) ---
     const envPairPhone = process.env.WA_PAIRING_PHONE;
     if (global.pendingPairing?.email === email || (envPairPhone && email === ADMIN_EMAIL)) {
-        let phoneNumber = (global.pendingPairing?.phone || envPairPhone).replace(/\D/g, '');
+        const phoneNumber = (global.pendingPairing?.phone || envPairPhone).replace(/\D/g, '');
         
         // Ajuste automático para números do Brasil (DDD < 30 costumam ignorar o 9 no ID do WhatsApp)
+        /*
         if (phoneNumber.startsWith('55') && phoneNumber.length === 13) {
             const ddd = parseInt(phoneNumber.substring(2, 4));
             if (ddd < 30) {
@@ -110,6 +112,7 @@ async function connectToWhatsApp(emailRaw) {
                 console.log(`[Session] 🔄 Ajustando número para pareamento (Removendo 9): ${oldNumber} -> ${phoneNumber}`);
             }
         }
+        */
 
         console.log(`[Session] 📱 Solicitando Código para ${phoneNumber}...`);
         
