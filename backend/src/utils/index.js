@@ -60,7 +60,10 @@ export const sendMessage = async (env, phone, message, providerEmail, bridgeUrlO
     try {
         await fetch(`${BRIDGE_URL}/send-message`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true' // <--- Essencial para Ngrok Free
+            },
             body: JSON.stringify({
                 key: BRIDGE_KEY,
                 number: finalPhone,
