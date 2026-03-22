@@ -69,8 +69,13 @@ async function connectToWhatsApp(emailRaw) {
 
     console.log(`[Session] 🔄 Iniciando conexão: ${email}`);
     
-    // 1. Tentar baixar do D1 se não existir localmente
-    await SyncUtils.downloadSession(email);
+    // 1. Tentar baixar do D1 se não existir localmente (apenas se não estivermos solicitando novo pareamento)
+    const isPairing = !!(process.env.WA_PAIRING_PHONE || global.pendingPairing?.email === email);
+    if (!isPairing) {
+        await SyncUtils.downloadSession(email);
+    } else {
+        console.log(`[Session] 🆕 Modo Pareamento detectado. Iniciando com pasta limpa.`);
+    }
 
     const safeId = Buffer.from(email).toString('hex');
     const authFolder = path.join(__dirname, 'auth_sessions', `session_${safeId}`);
